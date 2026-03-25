@@ -1,35 +1,54 @@
 # 🐱 CatTeam/CLAW 技术标准文档 (Conventions & Standards)
 
-**版本：** 1.0  
+**版本：** 2.0  
 **最后更新：** 2026-03-25
 
 ---
 
 ## 1. 版本号规范
 
-### 1.1 CLAW 平台版本 (唯一的"主版本号")
+### 1.1 CLAW 平台版本 (V 前缀)
 
-**当前版本：v5.0.1**
+**当前版本：V7.0**
 
 ```
-格式: vX.Y.Z
-  X = 大版本 (架构级变更, 如引入 SQLite / AI / C2)
-  Y = 中版本 (新功能模块, 如 Webhook / Toolbox)
-  Z = 补丁   (Bug 修复, 文档修正, UX 优化)
+格式: V{X}.{Y}.{Z}
+  V = 系统/平台版本前缀
+  X = 大版本 (架构级变更, 如引入 SQLite / AI / Agent)
+  Y = 中版本 (新功能模块)
+  Z = 补丁   (Bug 修复, 文档修正)
 ```
 
-**历史版本线：**
+**版本线：**
 | 版本 | 标志性变更 |
 |---|---|
-| v1.0 | 基础侦察链 (00→02.5) |
-| v2.0 | 工程化 (config.sh, 时间戳, Docker) |
-| v3.0 | 攻击链 (Responder/Hashcat/psexec) |
-| v3.1 | 情报层 (报告+Diff) |
-| v4.0 | 合规层 (ROE) + AD 域 + TUI |
-| v5.0 | SQLite 数据层 + AI 副官 |
-| v5.0.1 | TUI 修复 + 实战渗透工具 |
-| v6.0 *(计划)* | Sliver C2 + Ligolo-ng 隧道 |
-| v7.0 *(远期)* | Agentic AI 全自动智能体 |
+| V1.0 | 基础侦察链 (00→02.5) |
+| V2.0 | 工程化 (config.sh, Docker) |
+| V3.0 | 攻击链 (Responder/Hashcat/psexec) |
+| V3.1 | 情报层 (报告+Diff) |
+| V4.0 | 合规层 (ROE) + AD 域 + TUI |
+| V5.0 | SQLite 数据层 + AI 副官 |
+| V5.0.1 | TUI 修复 + 实战工具 + Nuclei 集成 |
+| V6.0 *(计划)* | Sliver C2 + Ligolo-ng |
+| **V7.0** | **Agentic AI 智能体 (M1+M2)** |
+
+### 1.2 Agent 版本 (A 前缀)
+
+Agent 智能体**独立于**平台版本，因为 Agent 演进频率更高。
+
+```
+格式: A{X}.{Y}
+  A = Agent 版本前缀
+  X = 里程碑 (M1=只读, M2=执行, M3=自主)
+  Y = 迭代号
+```
+
+| Agent 版本 | 能力 | 状态 |
+|---|---|---|
+| A1.0 (M1) | 只读: 查库/读文件/列资产 | ✅ |
+| **A2.0 (M2)** | **带锁执行: shell + HITL 三级分权** | **✅** |
+| A3.0 (M3) *(计划)* | 自主任务链 + LLM Routing | – |
+| A4.0 (M4) *(远期)* | 多 Agent 协作 + 知识图谱 | – |
 
 ### 1.2 Dockerfile 版本
 
@@ -46,15 +65,18 @@ Docker 镜像版本**独立于** CLAW 平台版本，因为镜像构建由用户
 | v3 *(Dockerfile 定义)* | + Nuclei |
 | v4 *(Dockerfile 定义)* | + binwalk |
 
-### 1.3 Advisor 文档编号
+### 1.4 Advisor 文档编号 (D 前缀)
 
-Advisor 文档中的 "V4/V5/V6/V7" **不是版本号**，而是**讨论批次编号**。
+Advisor 文档中的编号是**讨论批次编号**，不是版本号。
 
 ```
-格式: V{N}_{TYPE}.md
+格式: D{N}_{TYPE}.md
+  D    = 文档前缀
   N    = 讨论序号 (按时间递增)
-  TYPE = PROPOSAL / FEEDBACK / RULING / SESSION_REPORT 等
+  TYPE = PROPOSAL / FEEDBACK / RULING / QUESTIONS / ANSWERS
 ```
+
+> **三轨版本号摘要**: `V7.0` = 平台版本, `A2.0` = Agent 版本, `D7` = 导师文档第 7 轮
 
 ---
 
@@ -164,3 +186,41 @@ emoji:
 ---
 
 *本文档是 Project CLAW 的工程治理基线，所有新增模块和文档必须遵循以上规范。*
+
+---
+
+## 5. 强制文档同步清单
+
+每次发布新版本或新增模块时，以下文档**必须同步更新**：
+
+### 5.1 必须更新 (每次变更必须同步)
+
+| 文档 | 更新内容 | 触发条件 |
+|---|---|---|
+| `CHANGELOG.md` | 新增版本段落 | 任何新增/变更 |
+| `README.md` | 项目结构 + Make 指令表 + 版本线 | 新增模块/命令 |
+| `docs/ARCHITECTURE.md` | 模块矩阵 + 数据流 | 新增模块 |
+| `docs/ROADMAP.md` | 模块成熟度矩阵 + 里程碑 | 新增模块/里程碑变化 |
+| `docs/OPERATIONS.md` | 前置条件表 | 新增模块 |
+| `docs/CONVENTIONS.md` | 版本号更新 | 版本号变化 |
+
+### 5.2 按需更新
+
+| 文档 | 触发条件 |
+|---|---|
+| `docs/advisor/D{N}_*.md` | 导师交流后 |
+| `config.sh.example` | 新增配置项时 |
+| `Makefile` | 新增 make 指令时 |
+| `Dockerfile` | 新增工具依赖时 |
+
+### 5.3 文档同步 Git 提交规范
+
+```
+文档同步提交必须包含 📋 emoji 并注明所有已同步文档:
+
+示例: 📋 全量文档同步 (CHANGELOG/README/ARCHITECTURE/OPERATIONS/ROADMAP)
+```
+
+---
+
+*本文档是 Project CLAW 的工程治理基线。CONVENTIONS.md v2.0 — 2026-03-25*

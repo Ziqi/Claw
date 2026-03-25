@@ -416,14 +416,42 @@ def tool_execute_shell(command: str, reason: str = "") -> str:
         return json.dumps({"error": "人类长官拒绝执行此命令", "command": command})
 
     try:
-        proc = subprocess.run(
-            command, shell=True, capture_output=True, text=True,
-            timeout=120, cwd=SCRIPT_DIR
+        # 使用 Popen 实时流式输出 (解决 sudo/长时间运行卡住问题)
+        proc = subprocess.Popen(
+            command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            stdin=sys.stdin,  # 透传 stdin (让 sudo 密码提示正常工作)
+            cwd=SCRIPT_DIR, text=True, bufsize=1
         )
-        stdout = proc.stdout[:3000] if proc.stdout else ""
-        stderr = proc.stderr[:1000] if proc.stderr else ""
-        if len(proc.stdout or "") > 3000:
-            stdout += f"\n... [截断: 共 {len(proc.stdout)} 字符]"
+
+        print(f"  {DIM}  ─── 命令输出 ───{NC}")
+        stdout_lines = []
+        import select, threading
+
+        # 用线程读取 stderr 防止阻塞
+        stderr_buf = []
+        def read_stderr():
+            for line in proc.stderr:
+                stderr_buf.append(line)
+        t = threading.Thread(target=read_stderr, daemon=True)
+        t.start()
+
+        # 实时读取 stdout 并显示
+        for line in proc.stdout:
+            stripped = line.rstrip('\n')
+            if len(stdout_lines) < 50:  # 实时显示前 50 行
+                print(f"  {DIM}  │ {stripped}{NC}")
+            elif len(stdout_lines) == 50:
+                print(f"  {DIM}  │ ... (后续输出省略显示，仍在运行){NC}")
+            stdout_lines.append(line)
+
+        proc.wait(timeout=300)
+        print(f"  {DIM}  ─── 退出码: {proc.returncode} ───{NC}")
+        t.join(timeout=2)
+
+        stdout = "".join(stdout_lines)[:3000]
+        stderr = "".join(stderr_buf)[:1000]
+        if len("".join(stdout_lines)) > 3000:
+            stdout += f"\n... [截断: 共 {len(''.join(stdout_lines))} 字符]"
 
         return json.dumps({
             "exit_code": proc.returncode,
