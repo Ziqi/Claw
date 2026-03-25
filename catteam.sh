@@ -175,7 +175,7 @@ show_menu() {
     echo -e "    ${G}13${NC})  AI 战术分析"
     echo -e "    ${G}14${NC})  问 Lynx (对话模式)"
     echo -e "    ${G}15${NC})  智能告警 (Diff + AI)"
-    echo -e "    ${R}20${NC})  ${BOLD}🧠 CLAW Agent (智能体 v7.0)${NC}
+    echo -e "    ${R}20${NC})  ${BOLD}🧠 CLAW Agent (智能体 v7.0)${NC}"
     echo ""
     # 读取最新 ROE_BYPASS 状态
     local current_roe="false"
