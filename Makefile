@@ -42,6 +42,8 @@ help:
 	@echo "    make loot             09 后渗透提取 (需 --confirm)"
 	@echo "    make kerberoast       10 AD 域 Kerberoast"
 	@echo "    make nuclei           Nuclei 漏洞扫描"
+	@echo "    make toolbox          🔧 扩展工具箱 (Nikto/Hydra/Sqlmap/binwalk)"
+	@echo "    make firmware FW=x.bin 固件解剖刀 (纯 Python)"
 	@echo "    make test             自动化靶场测试"
 	@echo "    make clean            清空战区，重置所有数据"
 	@echo "    make status           查看战区状态"
@@ -153,6 +155,39 @@ test:
 
 console:
 	@bash ./catteam.sh
+
+# -------- 工具箱 (P4) --------
+toolbox:
+	@echo ""
+	@echo "  \033[1;33m╔══════════════════════════════════════╗\033[0m"
+	@echo "  \033[1;33m║     🔧 CatTeam 扩展工具箱           ║\033[0m"
+	@echo "  \033[1;33m╚══════════════════════════════════════╝\033[0m"
+	@echo ""
+	@echo "  \033[1;36m可用工具：\033[0m"
+	@echo "    1) Nikto    — Web 服务器漏洞扫描"
+	@echo "    2) Hydra    — 在线密码爆破"
+	@echo "    3) Sqlmap   — SQL 注入自动化"
+	@echo "    4) binwalk  — 固件逆向分析"
+	@echo "    5) 固件解剖刀 — 纯 Python 固件分析 (零依赖)"
+	@echo ""
+	@read -p "  选择工具 [1-5]: " TOOL; \
+	case $$TOOL in \
+		1) docker exec -it $(CONTAINER) nikto -h $${TARGET:-http://127.0.0.1} ;; \
+		2) echo "  用法: make hydra TARGET=10.0.0.1 SERVICE=ssh"; \
+		   docker exec -it $(CONTAINER) hydra -L /usr/share/wordlists/fasttrack.txt -P /usr/share/wordlists/fasttrack.txt $${TARGET:-127.0.0.1} $${SERVICE:-ssh} ;; \
+		3) echo "  用法: make sqlmap URL=http://target/page?id=1"; \
+		   docker exec -it $(CONTAINER) sqlmap -u "$${URL:-http://127.0.0.1}" --batch ;; \
+		4) echo "  用法: make toolbox (选 4), 然后输入固件路径"; \
+		   read -p "  固件文件路径: " FW; \
+		   docker exec -it $(CONTAINER) binwalk -e "/workspace/$$FW" ;; \
+		5) read -p "  固件文件路径: " FW; \
+		   python3 ./scripts/firmware-autopsy.py "$$FW" ;; \
+		*) echo "  \033[0;31m无效选择\033[0m" ;; \
+	esac
+
+firmware:
+	@echo "\033[1;33m[~] 固件解剖刀 (纯 Python)...\033[0m"
+	@python3 ./scripts/firmware-autopsy.py $(FW)
 
 # -------- 03 审计 --------
 audit:
