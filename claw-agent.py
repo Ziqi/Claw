@@ -202,7 +202,7 @@ TOOLS = [
                 },
                 "max_lines": {
                     "type": "integer",
-                    "description": "最多读取的行数 (默认 50)"
+                    "description": "最多读取的行数 (默认 30, 最大 100)"
                 }
             },
             "required": ["path"]
@@ -451,7 +451,7 @@ def tool_run_module(module: str, reason: str = "") -> str:
 # Tool dispatcher
 TOOL_DISPATCH = {
     "claw_query_db": lambda args: tool_query_db(args.get("sql", "")),
-    "claw_read_file": lambda args: tool_read_file(args.get("path", ""), args.get("max_lines", 50)),
+    "claw_read_file": lambda args: tool_read_file(args.get("path", ""), min(args.get("max_lines", 30), 100)),
     "claw_list_assets": lambda args: tool_list_assets(args.get("env")),
     "claw_execute_shell": lambda args: tool_execute_shell(args.get("command", ""), args.get("reason", "")),
     "claw_run_module": lambda args: tool_run_module(args.get("module", ""), args.get("reason", "")),
@@ -468,7 +468,7 @@ def api_call(payload: dict) -> dict:
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
 
     try:
-        with urllib.request.urlopen(req, timeout=120, context=CTX) as resp:
+        with urllib.request.urlopen(req, timeout=300, context=CTX) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
