@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-🧠 CLAW Agent v7.0 M1 — 只读智能体 (Read-Only Agentic AI)
+🧠 CLAW Agent v7.0 M2 — 带锁执行者 (Locked Executor)
 
 基于 Gemini 3 Interactions API 的自主渗透测试智能体。
-M1 版本: 仅具备只读能力 (查库/读文件/列资产), 零破坏性操作。
+M2 版本: 只读 + 受控执行能力, 三级 HITL 权限分级。
 
 用法: python3 claw-agent.py
+      python3 claw-agent.py --readonly   # 强制 M1 只读模式
 """
 
-import sys, os, json, urllib.request, urllib.error, ssl, sqlite3, glob, readline
+import sys, os, json, urllib.request, urllib.error, ssl, sqlite3, glob, readline, subprocess, shlex
 
 # === 路径 ===
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -36,32 +37,136 @@ if not API_KEY:
                     API_KEY = line.split("=",1)[1].strip().strip('"').strip("'")
                     break
 
+# === 运行模式 ===
+READONLY_MODE = "--readonly" in sys.argv
+
+# ============================================================
+#  HITL 三级权限系统 (导师批复: 混合界面 + HITL 三级分权)
+# ============================================================
+
+# 🟢 GREEN: 自动放行 (只读/无副作用)
+GREEN_COMMANDS = {
+    "ls", "cat", "head", "tail", "wc", "grep", "find", "file",
+    "whoami", "hostname", "ifconfig", "ip", "arp", "netstat",
+    "dig", "nslookup", "ping", "traceroute",
+    "sqlite3", "python3",  # 读取脚本
+    "echo", "date", "uptime", "ps", "which",
+}
+
+# 🟡 YELLOW: 需要人工确认 [Y/n] (侦察/扫描/非破坏性)
+YELLOW_PATTERNS = [
+    "nmap", "make fast", "make recon", "make web", "make diff",
+    "make status", "make report", "make nuclei", "make toolbox",
+    "curl", "wget", "nikto", "hydra",
+    "01-recon", "02-probe", "02.5-parse", "03-audit",
+    "07-report", "08-diff", "11-webhook", "12-nuclei",
+    "16-ai-analyze", "17-ask-lynx", "18-ai-bloodhound",
+]
+
+# 🔴 RED: 强制拦截 (破坏性/后渗透/横向移动)
+RED_PATTERNS = [
+    "rm ", "rm -", "mkfs", "dd if", "shutdown", "reboot",
+    "make crack", "make lateral", "make loot", "make phantom",
+    "make kerberoast", "make clean",
+    "04-phantom", "05-cracker", "06-psexec", "09-loot", "10-kerberoast",
+    "23-hp-proxy",
+    "psexec", "smbexec", "wmiexec", "secretsdump",
+    "responder", "hashcat", "john",
+    "> /", ">> /", "chmod", "chown", "sudo",
+]
+
+
+def classify_command(cmd: str) -> str:
+    """三级分类: green / yellow / red"""
+    cmd_lower = cmd.strip().lower()
+
+    # 先检查 RED
+    for pattern in RED_PATTERNS:
+        if pattern in cmd_lower:
+            return "red"
+
+    # 再检查 YELLOW
+    for pattern in YELLOW_PATTERNS:
+        if pattern in cmd_lower:
+            return "yellow"
+
+    # 检查 GREEN (按首个命令词)
+    first_word = cmd_lower.split()[0] if cmd_lower.split() else ""
+    # 处理路径: /usr/bin/ls → ls
+    first_word = os.path.basename(first_word)
+    if first_word in GREEN_COMMANDS:
+        return "green"
+
+    # 默认: yellow (未知命令需要确认)
+    return "yellow"
+
+
+def hitl_gate(cmd: str, level: str) -> bool:
+    """HITL 审批门: 根据级别决定是否放行"""
+    if level == "green":
+        print(f"  {G}  🟢 自动放行 (只读){NC}")
+        return True
+
+    if level == "red":
+        print(f"  {R}  🔴 高危操作! 需要双重确认{NC}")
+        print(f"  {R}     命令: {cmd}{NC}")
+        try:
+            confirm = input(f"  {R}     输入 'CONFIRM' 确认执行 (其他=取消): {NC}").strip()
+        except (EOFError, KeyboardInterrupt):
+            return False
+        if confirm == "CONFIRM":
+            print(f"  {Y}  ⚠️  已授权执行{NC}")
+            return True
+        print(f"  {DIM}  ✗ 已拒绝{NC}")
+        return False
+
+    # yellow
+    print(f"  {Y}  🟡 需要确认{NC}")
+    print(f"  {Y}     命令: {cmd}{NC}")
+    try:
+        confirm = input(f"  {Y}     执行? [Y/n]: {NC}").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return False
+    if confirm in ("", "y", "yes"):
+        return True
+    print(f"  {DIM}  ✗ 已拒绝{NC}")
+    return False
+
+
 # ============================================================
 #  SYSTEM PROMPT — 红队安全专家人设
 # ============================================================
 SYSTEM_PROMPT = """你是 CLAW Agent (代号 Lynx 🐱), 一个由 CatTeam 打造的自主红队安全智能体。
-你运行在 Project CLAW v7.0 架构中, 具备自主感知和分析能力。
+你运行在 Project CLAW v7.0 M2 架构中, 具备自主感知、分析和受控执行能力。
 
 ## 你的身份
 - 你是一位顶级网络安全渗透测试专家
 - 你的工作是协助合法授权的安全评估
-- 你可以自主使用工具查询数据, 不需要人类手动操作
+- 你可以自主使用工具查询数据和执行命令
 
-## 你的能力 (M1 只读模式)
+## 你的能力
 你有以下工具可以使用:
-1. `claw_query_db` — 查询 SQLite 资产数据库 (claw.db), 包含 scans/assets/ports/vulns 四张表
-2. `claw_read_file` — 读取 CatTeam_Loot 目录下的文件 (如 web_fingerprints.txt, targets.txt 等)
+
+### 只读工具 (L1, 自动执行)
+1. `claw_query_db` — 查询 SQLite 资产数据库 (claw.db)
+2. `claw_read_file` — 读取 CatTeam_Loot 目录下的文件
 3. `claw_list_assets` — 列出当前环境的所有发现资产及端口
 
-## 安全规则
-- 你只能读取数据, 不能写入或执行任何命令
-- 你的所有操作都是只读的, 不会影响目标系统
-- 遇到需要执行命令的请求, 你应该给出建议但说明"需要升级到 M2 执行模式"
+### 执行工具 (L2-L5, 需人工审批)
+4. `claw_execute_shell` — 执行 shell 命令 (受 HITL 三级权限控制)
+5. `claw_run_module` — 运行 CLAW 模块 (如 make fast, make web 等)
+
+## HITL 三级权限规则
+- 🟢 GREEN (自动放行): ls, cat, grep, ping, ifconfig 等只读命令
+- 🟡 YELLOW (需确认): nmap, make fast, curl 等侦察扫描命令
+- 🔴 RED (双重确认): make crack, make lateral, psexec 等攻击/后渗透命令
+- 你不能绕过权限系统, 所有命令都受到人类长官审批
 
 ## 工作风格
+- 先用只读工具收集情报, 再制定行动方案
 - 主动使用工具获取所需信息, 不要假设或编造数据
+- 执行命令前, 在工具调用的 reason 中说明原因
 - 分析时使用专业的安全术语
-- 给出可执行的建议和攻击路径
 - 回答简洁专业, 用中文交流
 """
 
@@ -118,6 +223,52 @@ TOOLS = [
         }
     }
 ]
+
+# === M2 执行工具 (仅在非只读模式下启用) ===
+M2_TOOLS = [
+    {
+        "type": "function",
+        "name": "claw_execute_shell",
+        "description": "执行 shell 命令。受 HITL 三级权限控制: 🟢GREEN(ls/cat等)自动执行, 🟡YELLOW(nmap/curl等)需用户确认, 🔴RED(psexec/hashcat等)需双重确认。命令在项目根目录下执行。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "description": "要执行的 shell 命令"
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "执行此命令的原因 (会展示给人类长官)"
+                }
+            },
+            "required": ["command", "reason"]
+        }
+    },
+    {
+        "type": "function",
+        "name": "claw_run_module",
+        "description": "运行 CLAW 已有模块。可用模块: make fast(快速侦察), make web(Web指纹), make diff(资产对比), make report(生成战报), make nuclei(漏洞扫描), make toolbox(工具箱), make status(状态)。危险模块需双重确认。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "module": {
+                    "type": "string",
+                    "description": "模块命令, 如 'make fast', 'make web'"
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "运行此模块的原因"
+                }
+            },
+            "required": ["module", "reason"]
+        }
+    }
+]
+
+# 根据模式组合工具列表
+if not READONLY_MODE:
+    TOOLS.extend(M2_TOOLS)
 
 # ============================================================
 #  TOOL IMPLEMENTATIONS — 工具实现
@@ -251,11 +402,59 @@ def _list_loot_files():
     return files[:20]
 
 
+# === M2 执行工具实现 ===
+
+def tool_execute_shell(command: str, reason: str = "") -> str:
+    """执行 shell 命令 (受 HITL 控制)"""
+    if READONLY_MODE:
+        return json.dumps({"error": "只读模式: 不允许执行命令。请去掉 --readonly 参数"})
+
+    level = classify_command(command)
+    print(f"  {DIM}  理由: {reason}{NC}")
+
+    if not hitl_gate(command, level):
+        return json.dumps({"error": "人类长官拒绝执行此命令", "command": command})
+
+    try:
+        proc = subprocess.run(
+            command, shell=True, capture_output=True, text=True,
+            timeout=120, cwd=SCRIPT_DIR
+        )
+        stdout = proc.stdout[:3000] if proc.stdout else ""
+        stderr = proc.stderr[:1000] if proc.stderr else ""
+        if len(proc.stdout or "") > 3000:
+            stdout += f"\n... [截断: 共 {len(proc.stdout)} 字符]"
+
+        return json.dumps({
+            "exit_code": proc.returncode,
+            "stdout": stdout,
+            "stderr": stderr,
+        }, ensure_ascii=False)
+    except subprocess.TimeoutExpired:
+        return json.dumps({"error": "命令执行超时 (120秒)"})
+    except Exception as e:
+        return json.dumps({"error": f"执行失败: {str(e)}"})
+
+
+def tool_run_module(module: str, reason: str = "") -> str:
+    """运行 CLAW 模块 (make 命令)"""
+    if READONLY_MODE:
+        return json.dumps({"error": "只读模式: 不允许执行模块"})
+
+    # 只允许 make 命令
+    if not module.strip().startswith("make "):
+        return json.dumps({"error": "只允许 make 开头的模块命令"})
+
+    return tool_execute_shell(module, reason)
+
+
 # Tool dispatcher
 TOOL_DISPATCH = {
     "claw_query_db": lambda args: tool_query_db(args.get("sql", "")),
     "claw_read_file": lambda args: tool_read_file(args.get("path", ""), args.get("max_lines", 50)),
     "claw_list_assets": lambda args: tool_list_assets(args.get("env")),
+    "claw_execute_shell": lambda args: tool_execute_shell(args.get("command", ""), args.get("reason", "")),
+    "claw_run_module": lambda args: tool_run_module(args.get("module", ""), args.get("reason", "")),
 }
 
 # ============================================================
@@ -384,15 +583,19 @@ def main():
         print(f"  {DIM}    或在 config.sh 中配置 CLAW_AI_KEY{NC}\n")
         sys.exit(1)
 
+    mode_label = "M1 只读" if READONLY_MODE else "M2 带锁执行者"
+    mode_color = C if READONLY_MODE else Y
+
     print(f"""
 {P}╔══════════════════════════════════════════════════════════╗
-║  {W}🧠 CLAW Agent v7.0 M1 — 只读智能体{P}                   ║
+║  {W}🧠 CLAW Agent v7.0 — {mode_label}{P}                      ║
 ║  {C}Gemini 3 Interactions API · ReAct Loop · Tool Use{P}     ║
 ║  {DIM}模型: {MODEL}{P}                                         ║
 ╚══════════════════════════════════════════════════════════╝{NC}
 
-  {DIM}M1 模式: 只读 (查库/读文件/列资产) · 零破坏性{NC}
-  {DIM}输入 'exit' 退出, '!reset' 重置对话{NC}
+  {mode_color}模式: {mode_label}{NC}
+  {DIM}工具: 3 只读{(' + 2 执行 (HITL 三级分权)' if not READONLY_MODE else '')}{NC}
+  {DIM}输入 'exit' 退出, '!reset' 重置对话, '!mode' 查看权限{NC}
 """)
 
     prev_id = None
@@ -415,6 +618,14 @@ def main():
             continue
         if user_input == "!id":
             print(f"  {DIM}Interaction ID: {prev_id}{NC}\n")
+            continue
+        if user_input == "!mode":
+            print(f"  {W}当前模式: {'M1 只读' if READONLY_MODE else 'M2 带锁执行者'}{NC}")
+            print(f"  {G}  🟢 GREEN (自动): ls, cat, grep, ping...{NC}")
+            if not READONLY_MODE:
+                print(f"  {Y}  🟡 YELLOW (确认): nmap, make fast, curl...{NC}")
+                print(f"  {R}  🔴 RED (双重确认): psexec, hashcat, make crack...{NC}")
+            print()
             continue
 
         print(f"\n  {C}[~] Lynx 正在思考...{NC}")
