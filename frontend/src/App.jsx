@@ -64,68 +64,88 @@ function HudBar({ stats }) {
 }
 
 // ========== LEFT SIDEBAR ==========
-function Sidebar({ assets, onSelect, selected }) {
-  // Threat summary cells
+function Sidebar({ assets, onSelect, selected, view }) {
   const critical = assets.filter(a => a.ports.some(p => [445, 3389, 21].includes(p.port)))
   const webHosts = assets.filter(a => a.ports.some(p => [80, 443, 8080, 8443].includes(p.port)))
 
-  return (
-    <div className="sidebar-panel">
-      <div className="p-head">[ 威胁大盘 ]</div>
-      <div className="threat-grid">
-        <div className="threat-cell" style={{background:'rgba(255,59,48,0.15)'}}>
-          <span className="tc-label">极危节点</span>
-          <span className="tc-value" style={{color:'#FF3B30'}}>{critical.length}</span>
-        </div>
-        <div className="threat-cell" style={{background:'rgba(0,255,255,0.08)'}}>
-          <span className="tc-label">Web服务</span>
-          <span className="tc-value" style={{color:'#00FFFF'}}>{webHosts.length}</span>
-        </div>
-        <div className="threat-cell" style={{background:'rgba(48,209,88,0.1)'}}>
-          <span className="tc-label">资产总数</span>
-          <span className="tc-value" style={{color:'#30D158'}}>{assets.length}</span>
-        </div>
-        <div className="threat-cell" style={{background:'rgba(255,153,0,0.1)'}}>
-          <span className="tc-label">平均端口</span>
-          <span className="tc-value" style={{color:'#FF9900'}}>
-            {assets.length ? Math.round(assets.reduce((s,a) => s+a.port_count, 0)/assets.length) : 0}
-          </span>
+  if (view === 'RC') {
+    return (
+      <div className="sidebar-panel">
+        <div className="p-head">[ 威胁大盘 ]</div>
+        <div className="threat-grid">
+          <div className="threat-cell" style={{background:'rgba(255,59,48,0.15)'}}>
+            <span className="tc-label">极危节点</span>
+            <span className="tc-value" style={{color:'#FF3B30'}}>{critical.length}</span>
+          </div>
+          <div className="threat-cell" style={{background:'rgba(0,255,255,0.08)'}}>
+            <span className="tc-label">Web服务</span>
+            <span className="tc-value" style={{color:'#00FFFF'}}>{webHosts.length}</span>
+          </div>
+          <div className="threat-cell" style={{background:'rgba(48,209,88,0.1)'}}>
+            <span className="tc-label">资产总数</span>
+            <span className="tc-value" style={{color:'#30D158'}}>{assets.length}</span>
+          </div>
+          <div className="threat-cell" style={{background:'rgba(255,153,0,0.1)'}}>
+            <span className="tc-label">平均端口</span>
+            <span className="tc-value" style={{color:'#FF9900'}}>
+              {assets.length ? Math.round(assets.reduce((s,a) => s+a.port_count, 0)/assets.length) : 0}
+            </span>
+          </div>
         </div>
       </div>
+    )
+  }
 
-      <div className="p-head">[ 活跃资产清单 ]</div>
-      {assets.map(a => (
-        <div
-          key={a.ip}
-          className={`asset-row ${selected === a.ip ? 'active-row' : ''}`}
-          onClick={() => onSelect(a.ip)}
-        >
-          <div>
-            <span className="asset-ip">{a.ip}</span>
-            <span className="asset-ports"> ({a.port_count}口)</span>
+  if (view === 'AT') {
+    return (
+      <div className="sidebar-panel">
+        <div className="p-head">[ 活跃资产清单 ]</div>
+        {assets.map(a => (
+          <div key={a.ip} className={`asset-row ${selected === a.ip ? 'active-row' : ''}`} onClick={() => onSelect(a.ip)}>
+            <div>
+              <span className="asset-ip">{a.ip}</span>
+              <span className="asset-ports"> ({a.port_count}口)</span>
+            </div>
+            <div style={{color: a.ports.some(p=>[445,3389].includes(p.port)) ? '#FF3B30' : '#666', fontSize:'10px'}}>
+              {a.ports.slice(0,3).map(p=>p.port).join(',')}
+            </div>
           </div>
-          <div style={{color: a.ports.some(p=>[445,3389].includes(p.port)) ? '#FF3B30' : '#666', fontSize:'10px'}}>
-            {a.ports.slice(0,3).map(p=>p.port).join(',')}
-          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (view === 'AG') {
+    return (
+      <div className="sidebar-panel">
+        <div className="p-head">[ COMMAND & CONTROL ]</div>
+        <div style={{padding: '16px', color:'#999', fontSize:'12px', lineHeight:'1.5'}}>
+          <div style={{color:'#00FFFF', marginBottom:'8px'}}>» Agentic Loop</div>
+          <div>状态: <span style={{color:'#30D158'}}>Active (Waiting)</span></div>
+          <div>工具池: 5/5 在线</div>
+          <div>沙箱: Secure</div>
         </div>
-      ))}
-    </div>
-  )
+      </div>
+    )
+  }
 }
 
 // ========== WORK AREA TABS ==========
 function WorkArea({ assets, selectedIp, view }) {
-  // Map Activity Bar views to WorkArea tabs
-  const viewMap = { 'RC': 0, 'AT': 1, 'AG': 2 }
-  const [tab, setTab] = useState(viewMap[view] || 0)
+  const [tab, setTab] = useState(0)
   
-  // Sync tab with sidebar view
-  useEffect(() => {
-    setTab(viewMap[view] || 0)
-  }, [view])
+  // reset tab when view changes
+  useEffect(() => { setTab(0) }, [view])
 
   const asset = assets.find(a => a.ip === selectedIp)
-  const tabs = ['侦察态势', '全局资产库', '端口暴露面']
+  
+  const getViewTabs = () => {
+    if (view === 'RC') return ['侦察态势', '漏洞日志']
+    if (view === 'AT') return ['全局资产库', '端口暴露面']
+    if (view === 'AG') return ['执行轨道', 'AI审计树']
+    return []
+  }
+  const tabs = getViewTabs()
 
   return (
     <div className="activity-main">
@@ -135,9 +155,14 @@ function WorkArea({ assets, selectedIp, view }) {
         ))}
       </div>
       <div className="tab-content-area">
-        {tab === 0 && <ReconOverview assets={assets} asset={asset} />}
-        {tab === 1 && <AssetTable assets={assets} />}
-        {tab === 2 && asset && <PortMatrix asset={asset} />}
+        {view === 'RC' && tab === 0 && <ReconOverview assets={assets} asset={asset} />}
+        {view === 'RC' && tab === 1 && <div style={{color:'#666', fontSize:'12px', padding:'16px'}}>[SYS] 暂无未修复的高危漏洞记录</div>}
+        
+        {view === 'AT' && tab === 0 && <AssetTable assets={assets} />}
+        {view === 'AT' && tab === 1 && (asset ? <PortMatrix asset={asset} /> : <div style={{color:'#666', padding:'16px'}}>请从左侧选择资产...</div>)}
+
+        {view === 'AG' && tab === 0 && <div style={{color:'#00FFFF', fontSize:'12px', padding:'16px'}}>[SYS] 智能体循环处于待命状态。请使用右侧 Copilot 下发战术指令。</div>}
+        {view === 'AG' && tab === 1 && <div style={{color:'#666', fontSize:'12px', padding:'16px'}}>[SYS] 审计追踪服务已启动。等待 Agent 执行动作...</div>}
       </div>
     </div>
   )
@@ -429,7 +454,7 @@ function App() {
             <div key={k} className={`activity-icon ${view===k?'active':''}`} onClick={() => setView(k)}>{k}</div>
           ))}
         </div>
-        <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} />
+        <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} view={view} />
         <div className="resizer"></div>
         <WorkArea assets={assets} selectedIp={selectedIp} view={view} />
         <AiPanel width={aiWidth} onResize={setAiWidth} />
