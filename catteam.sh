@@ -297,28 +297,86 @@ main() {
             12) prereq_gate "diff" && run_module "资产变化检测" "make diff" ;;
             13) prereq_gate "audit" && run_module "AI 战术分析" "python3 $SCRIPT_DIR/16-ai-analyze.py" ;;
             14) run_module "问 Lynx" "python3 $SCRIPT_DIR/17-ask-lynx.py" ;;
-            15) prereq_gate "diff" && run_module "智能告警" "python3 $SCRIPT_DIR/11-webhook.py" ;;
-            16) echo ""
-                echo -e "  ${C}[当前环境] $(get_env)${NC}"
+            15) echo ""
+                echo -e "  ${C}------------------------------------------------------${NC}"
+                echo -e "  ${BOLD}📡 告警日志查看器${NC}"
+                echo -e "  ${C}------------------------------------------------------${NC}"
                 echo ""
-                python3 -c "
+                ALERT_LOG="$SCRIPT_DIR/CatTeam_Loot/alerts/alerts.log"
+                if [ -f "$ALERT_LOG" ]; then
+                    ALERT_COUNT=$(wc -l < "$ALERT_LOG" | tr -d ' ')
+                    echo -e "  ${G}[+] 共 $ALERT_COUNT 条告警记录${NC}"
+                    echo ""
+                    tail -n 20 "$ALERT_LOG" | while IFS= read -r line; do
+                        echo -e "    ${DIM}$line${NC}"
+                    done
+                else
+                    echo -e "  ${DIM}(暂无告警记录。运行 python3 11-webhook.py 生成告警)${NC}"
+                fi
+                echo ""
+                ALERT_DIR="$SCRIPT_DIR/CatTeam_Loot/alerts"
+                if [ -d "$ALERT_DIR" ]; then
+                    ALERT_FILES=$(ls -1 "$ALERT_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
+                    if [ "$ALERT_FILES" -gt 0 ]; then
+                        echo -e "  ${Y}[~] 最近告警文件:${NC}"
+                        ls -1t "$ALERT_DIR"/*.md 2>/dev/null | head -5 | while read -r f; do
+                            echo -e "    ${DIM}$(basename "$f")${NC}"
+                        done
+                    fi
+                fi
+                echo ""
+                echo -ne "  ${DIM}按回车返回主菜单...${NC}"
+                read -r
+                ;;
+            16) echo ""
+                echo -e "  ${C}------------------------------------------------------${NC}"
+                echo -e "  ${BOLD}🌐 网络环境切换${NC}"
+                echo -e "  ${C}------------------------------------------------------${NC}"
+                echo ""
+                echo -e "  ${W}[当前环境] $(get_env)${NC}"
+                echo ""
+                # 获取历史环境列表并编号
+                ENV_LIST=$(python3 -c "
 import sys; sys.path.insert(0,'$SCRIPT_DIR')
 import db_engine
 conn = db_engine.get_db()
 envs = db_engine.list_envs(conn)
 conn.close()
-if envs:
-    for e, c in envs:
-        print(f'    {e}: {c} 次扫描')
-else:
-    print('    (无历史记录)')
-" 2>/dev/null
+for i, (e, c) in enumerate(envs, 1):
+    print(f'{i}|{e}|{c}')
+" 2>/dev/null)
+                if [ -n "$ENV_LIST" ]; then
+                    echo -e "  ${Y}已有环境:${NC}"
+                    echo "$ENV_LIST" | while IFS='|' read -r num name count; do
+                        if [ "$name" = "$(get_env)" ]; then
+                            echo -e "    ${G}[$num] $name ($count 次扫描) ← 当前${NC}"
+                        else
+                            echo -e "    ${DIM}[$num] $name ($count 次扫描)${NC}"
+                        fi
+                    done
+                else
+                    echo -e "  ${DIM}(无历史环境记录)${NC}"
+                fi
                 echo ""
-                echo -ne "  ${Y}输入新环境名 (回车=取消): ${NC}"
-                read -r new_env
-                if [ -n "$new_env" ]; then
-                    python3 -c "import sys; sys.path.insert(0,'$SCRIPT_DIR'); import db_engine; db_engine.set_current_env('$new_env')" 2>/dev/null
-                    echo -e "  ${G}[+] 已切换至: $new_env${NC}"
+                echo -e "  ${C}输入编号切换已有环境，或输入新名称创建新环境${NC}"
+                echo -ne "  ${Y}选择 (回车=取消): ${NC}"
+                read -r env_input
+                if [ -n "$env_input" ]; then
+                    # 判断是数字还是名称
+                    if echo "$env_input" | grep -qE '^[0-9]+$'; then
+                        # 数字: 从列表中选择
+                        SELECTED=$(echo "$ENV_LIST" | sed -n "${env_input}p" | cut -d'|' -f2)
+                        if [ -n "$SELECTED" ]; then
+                            python3 -c "import sys; sys.path.insert(0,'$SCRIPT_DIR'); import db_engine; db_engine.set_current_env('$SELECTED')" 2>/dev/null
+                            echo -e "  ${G}[+] 已切换至: $SELECTED${NC}"
+                        else
+                            echo -e "  ${R}[!] 无效编号${NC}"
+                        fi
+                    else
+                        # 字符串: 创建新环境
+                        python3 -c "import sys; sys.path.insert(0,'$SCRIPT_DIR'); import db_engine; db_engine.set_current_env('$env_input')" 2>/dev/null
+                        echo -e "  ${G}[+] 已创建并切换至新环境: $env_input${NC}"
+                    fi
                     sleep 1
                 fi ;;
             17) run_module "战区状态" "make status" ;;
