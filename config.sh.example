@@ -1,0 +1,90 @@
+#!/bin/bash
+# ============================================================
+#  CatTeam 统一配置文件 (Single Source of Truth)
+#  复制此文件为 config.sh 并填入你的实际配置
+#  cp config.sh.example config.sh
+# ============================================================
+
+# ========== 色彩方案 ==========
+RED='\033[0;31m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'
+CYAN='\033[0;36m'; PURPLE='\033[1;35m'; NC='\033[0m'
+
+# ========== 网络配置 ==========
+INTERFACE="en0"
+RECON_TIME=60
+DHCP_TIMEOUT=10
+
+# ========== ROE 交战规则 ==========
+# 授权子网 (填入你的靶场网段)
+export ALLOWED_SUBNET=""
+export ROE_TARGETS=""
+export ACTIVE_CIDR=""
+export ROE_BYPASS="false"
+
+# ========== 侦察模式 ==========
+RECON_MODE="${RECON_MODE:-passive}"
+ACTIVE_CIDR="${ACTIVE_CIDR:-}"
+
+# ========== 端口配置 ==========
+NMAP_PORTS_DEFAULT="80,443,445,1723,5000,5900,8080"
+NMAP_PORTS_IOT="80,443,554,5000,8080,8443,8899,37777,49152,49297,54321"
+NMAP_PORTS_FULL="21,22,23,25,53,80,110,111,135,139,143,443,445,993,995,1433,1723,3306,3389,5000,5432,5900,6379,8000,8080,8443,8888,9000,9090,27017"
+
+case "${PROFILE:-default}" in
+    iot)  NMAP_PORTS="$NMAP_PORTS_IOT" ;;
+    full) NMAP_PORTS="$NMAP_PORTS_FULL" ;;
+    *)    NMAP_PORTS="$NMAP_PORTS_DEFAULT" ;;
+esac
+
+# ========== Docker 配置 ==========
+CONTAINER_NAME="kali_arsenal"
+IMAGE_NAME="my-kali-arsenal:v3"
+
+# ========== AI 智能副官 (Project CLAW v5.0) ==========
+# 在 https://aistudio.google.com/apikey 申请你的 Gemini API Key
+CLAW_AI_KEY="YOUR_GEMINI_API_KEY_HERE"
+CLAW_AI_MODEL="gemini-3-flash-preview"
+CLAW_AI_URL="https://generativelanguage.googleapis.com/v1beta/models"
+
+# ========== 攻击模块配置 ==========
+RESPONDER_PY_PATH="${RESPONDER_PY_PATH:-$SCRIPT_DIR/Responder/Responder.py}"
+HASHCAT_BIN="${HASHCAT_BIN:-hashcat}"
+WORDLIST="${WORDLIST:-/usr/share/wordlists/rockyou.txt}"
+
+LATERAL_USER="${LATERAL_USER:-}"
+LATERAL_PASS="${LATERAL_PASS:-}"
+LATERAL_DOMAIN="${LATERAL_DOMAIN:-WORKGROUP}"
+
+# ========== 目录配置 ==========
+BASE_LOOT_DIR="./CatTeam_Loot"
+BLACKLIST_FILE="./blacklist.txt"
+
+RUN_ID="${RUN_ID:-$(date +%Y%m%d_%H%M%S)}"
+LOOT_DIR="${BASE_LOOT_DIR}/${RUN_ID}"
+
+if [ "${USE_LATEST:-false}" = "true" ]; then
+    LATEST_DIR=$(ls -dt "${BASE_LOOT_DIR}"/[0-9]* 2>/dev/null | head -n 1)
+    if [ -n "$LATEST_DIR" ]; then
+        LOOT_DIR="$LATEST_DIR"
+        RUN_ID=$(basename "$LATEST_DIR")
+    fi
+fi
+
+PCAP_FILE="$LOOT_DIR/shadow_recon.pcap"
+TARGETS_FILE="$LOOT_DIR/targets.txt"
+LOG_FILE="$LOOT_DIR/nmap_run.log"
+MASTER_LOG="$LOOT_DIR/catteam.log"
+
+# ========== 日志工具 ==========
+log() {
+    local msg="[$(date '+%H:%M:%S')] $1"
+    echo -e "$msg" | tee -a "$MASTER_LOG" 2>/dev/null
+}
+
+init_loot_dir() {
+    mkdir -p "$LOOT_DIR"
+    touch "$MASTER_LOG"
+    log "${CYAN}[SYS] 任务 ID: ${RUN_ID}${NC}"
+    log "${CYAN}[SYS] 数据目录: ${LOOT_DIR}${NC}"
+    ln -sfn "$RUN_ID" "${BASE_LOOT_DIR}/latest"
+}

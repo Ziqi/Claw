@@ -1,0 +1,22 @@
+# CatTeam / Project CLAW .gitignore
+
+# 战区数据 (扫描结果)
+CatTeam_Loot/
+
+# 配置文件 (含 API Key, 不可泄露)
+config.sh
+
+# 第三方工具 (本地克隆)
+Responder/
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# 编辑器
+*.swp
+*.swo
+*~

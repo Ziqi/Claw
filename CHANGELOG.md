@@ -1,0 +1,141 @@
+# 📝 CatTeam 更新日志
+
+---
+
+## [v5.0.0-alpha] — 2026-03-25
+
+### 🗄️ Phase 1: SQLite 数据层 (双写架构)
+
+- `db_engine.py` — SQLite 引擎 (scans/assets/ports/vulns 四张表)
+- `02.5-parse.py` — 双写模式: SQLite (claw.db) + JSON (live_assets.json)
+- `08-diff.py` v5.0 — SQL EXCEPT 差异引擎 + JSON 兼容 fallback
+
+### 🐱 Phase 2: AI 智能副官 (Gemini Flash)
+
+- `16-ai-analyze.py` — AI 战术分析 (SQLite → Prompt → Gemini → 建议)
+- `17-ask-lynx.py` — 多轮对话 (自动携带扫描上下文, 滑动窗口 10 轮)
+- `catteam.sh` v5.0 — 新增 [AI 副官] 菜单 (13/14)
+- OPSEC 脱敏层 + Python json.dumps 安全构建 JSON
+
+### 📡 Phase 3: 智能告警引擎
+
+- `11-webhook.py` — 自动 Diff → AI 分析 → 本地告警 + macOS 通知
+- `CatTeam_Loot/alerts/` — 告警文件存储 + alerts.log 汇总
+- Gmail 推送接口预留 (后期启用)
+- 支持 `--cron` 静默模式 (crontab 定时执行)
+- `config.sh` — 新增 AI 配置段 (CLAW_AI_KEY/MODEL/URL)
+- `.gitignore` — 保护 config.sh (含 API Key) 和 CatTeam_Loot/
+- `docs/advisor/` — 导师交流文档独立目录
+
+### 🛠️ Phase 4: TUI 优化与底层架构修复 (v5.0.1)
+
+- `catteam.sh` — 新增 `r) 上帝模式` 动态物理开关，支持绕过 ROE 授权直接渗透
+- `catteam.sh` — 修复 `suggest_next` 时序逻辑，精准识别后台 `Responder` 驻留状态避免重复引导
+- **全局 UX 优化** — 解耦所有底层脚本 (`01-recon` ~ `10-kerberoast`) 硬编码的模块序号，统一改用动态语义化命名，完美对齐 TUI 菜单
+- `16-ai-analyze.py` / `17-ask-lynx.py` — 修复会话隔离时序 Bug，强制从 `latest` 战区直读 Web 指纹，确保 AI 情报绝对同步
+- `04-phantom.sh` — 支持原生本地 `Responder`，更新 `config.sh` 改用相对路径
+- `db_engine.py` — 完成老旧扫描数据的 `AscottLot` 环境热迁移
+
+---
+
+## [v4.0.0] — 2026-03-25
+
+### 🏰 合规层 + 侦察升维 + 后渗透 + AD 域链
+
+**Sprint 1: 合规与基建**
+- `scope.txt` — ROE 白名单文件 (多 CIDR 支持)
+- `scripts/scope_check.py` — ipaddress 交集校验
+- `01-recon.sh` 集成 scope 校验
+- `tests/` — Docker Compose 自动化靶场 (DVWA + Samba)
+- Makefile: `make test`
+
+**Sprint 2: 侦察升维**
+- `01-recon.sh` 双侦察引擎 (passive/active 模式)
+- `config.sh`: `RECON_MODE` + `ACTIVE_CIDR`
+- Dockerfile v3: Nuclei 漏洞扫描器
+- `nuclei-templates/` 枪弹分离架构
+- Makefile: `make nuclei`
+
+**Sprint 3: 后渗透 + AD 域**
+- `09-loot.sh` — secretsdump + smbclient (强制 --confirm 安全阀)
+- `10-kerberoast.sh` — GetUserSPNs + BloodHound
+- Makefile: `make loot` + `make kerberoast`
+
+**交互式控制台**
+- `catteam.sh` — TUI 交互菜单 (ASCII+ANSI, 状态感知, 前置条件校验)
+- Makefile: `make console`
+
+**基础设施**
+- Dockerfile v3: my-kali-arsenal:v3 (Nuclei 已焊入)
+- config.sh: IMAGE_NAME 切换至 v3
+
+**交互式控制台 (Project CLAW)**
+- `catteam.sh` TUI: Lynx 猫头 ASCII logo
+- 主动探活自动读取 scope.txt 建议 CIDR
+- 模块执行后智能推荐下一步
+
+**Bug 修复**
+- Makefile: phantom/crack/lateral 加入 USE_LATEST=true，修复攻击模块执行后 targets 归零的问题
+
+---
+
+## [v3.1.0] — 2026-03-25
+
+### 📊 情报层 + 安全加固
+
+- `07-report.py` — 渗透测试战报自动生成 (Markdown)
+- `08-diff.py` — 资产变化检测 (新增/消失主机 + 端口变化)
+- OPSEC 修复: 06-psexec 不再接受命令行密码参数
+- 僵尸修复: 04-phantom --stop 使用 pkill -f 清理 tail 管线
+- Dockerfile v2: 基于 v1 + Impacket 焊入镜像
+- 修复: make clean 加 sudo (root 文件), 02.5/03 Python 适配时间戳目录
+
+---
+
+## [v3.0.0] — 2026-03-25
+
+### 🗡️ 攻击链扩展：投毒 → 破解 → 横向
+
+**新增攻击模块：**
+- `04-phantom.sh` — Mac 原生 Responder 投毒 (解决 Docker --network host 在 Mac 上不可用)
+  - 实时 Hash 清洗伴生管线 (sed 提取，不截断 NTLMv2)
+  - 防重复启动检测 + PID 管理 + `--stop` 回收
+- `05-cracker.sh` — 宿主机原生 Hashcat (直接利用 GPU/Metal)
+  - 自动搜索 rockyou.txt (3 个候选路径)
+  - 从 `captured_hash.txt` 直接对接 04 模块
+- `06-psexec.sh` — Docker Impacket 横向移动
+  - 凭据三级获取: CLI参数 > config.sh > 05自动加载 > 交互输入
+  - 用 Python 替代 jq 解析 JSON (Mac 无 jq)
+  - smbexec 静默认证 + 四级结果分类
+
+**config.sh 扩展：**
+- `RESPONDER_PY_PATH` — Responder 路径
+- `HASHCAT_BIN` / `WORDLIST` — Hashcat + 字典配置
+- `LATERAL_USER` / `LATERAL_PASS` / `LATERAL_DOMAIN` — 凭据配置
+
+**Makefile v3.0：**
+- 新增: `make phantom` / `make phantom-stop` / `make crack` / `make lateral`
+
+---
+
+## [v2.0.0] — 2026-03-25
+
+### 🏗️ 系统级现代化改造
+
+- `config.sh` 统一配置中心 (端口模板/日志/时间戳目录)
+- `blacklist.txt` IP 禁飞区
+- 时间戳任务目录 + `latest` 软链接
+- `log()` 双写 (终端 + catteam.log)
+- Makefile `preflight` 飞行前预检
+- `03-audit-web.py` 纯 Python httpx 替代品
+- `03-exploit-76.py` VNC/SMB 精准打击
+
+---
+
+## [v1.0.0] — 2026-03-24
+
+### 🎉 首次发布
+
+- 00-armory / 01-recon / 02-probe / 02.5-parse / 03-audit
+- `set -euo pipefail` + trap 清理 + 错误检查
+- Makefile v1.0 中控引擎
