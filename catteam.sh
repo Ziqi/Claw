@@ -175,6 +175,7 @@ show_menu() {
     echo -e "    ${G}13${NC})  AI 战术分析"
     echo -e "    ${G}14${NC})  问 Lynx (对话模式)"
     echo -e "    ${G}15${NC})  智能告警 (Diff + AI)"
+    echo -e "    ${R}20${NC})  ${BOLD}🧠 CLAW Agent (智能体 v7.0)${NC}
     echo ""
     # 读取最新 ROE_BYPASS 状态
     local current_roe="false"
@@ -297,6 +298,7 @@ main() {
             12) prereq_gate "diff" && run_module "资产变化检测" "make diff" ;;
             13) prereq_gate "audit" && run_module "AI 战术分析" "python3 $SCRIPT_DIR/16-ai-analyze.py" ;;
             14) run_module "问 Lynx" "python3 $SCRIPT_DIR/17-ask-lynx.py" ;;
+            20) run_module "🧠 CLAW Agent" "python3 $SCRIPT_DIR/claw-agent.py" ;;
             15) echo ""
                 echo -e "  ${C}------------------------------------------------------${NC}"
                 echo -e "  ${BOLD}📡 告警日志查看器${NC}"
