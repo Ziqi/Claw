@@ -143,6 +143,8 @@ CatTeam/
 │   ├── ROADMAP.md         # 演进路线图
 │   ├── OPERATIONS.md      # 操作手册
 │   └── advisor/           # 导师交流文档
+├── backend/               # FastAPI 统一 API 层 (V8.0+)
+├── frontend/              # Node.js/React Web大屏 (V8.0+)
 ├── CatTeam_Loot/          # 扫描产出 (git ignored)
 │   ├── {RUN_ID}/          # 每次运行的隔离目录
 │   ├── claw.db            # SQLite 资产库
@@ -167,9 +169,14 @@ CatTeam/
 - 色彩输出使用 ANSI 转义码（不依赖 colorama）
 - 敏感数据从环境变量读取，禁止硬编码
 
-### 4.3 配置管理
-- 所有可配置项集中在 `config.sh`
+### 4.3 Web 端架构规范 (V8.0 新增)
+- **前端 (React/Vite)**: 纯静态分离，禁止在组件内写带副作用的死循环，UI 使用 Bloomberg 视觉标准（极黑背景无圆角）。
+- **后端 (FastAPI)**: 标准化返回 JSON，长耗时任务必须异步（Celery/后台任务），绝不阻塞主线程。
+
+### 4.4 配置管理
+- Shell 自动化层的所有可配置项集中在 `config.sh`
 - 新增配置项必须同步更新 `config.sh.example`
+- Web 服务配置 (如 IP、端口) 可使用 `.env` 或复用 `config.sh` (由 Python 解析)
 - API Key 等密钥**禁止**提交 Git
 
 ### 4.4 Git 提交规范
