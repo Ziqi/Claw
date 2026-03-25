@@ -2,6 +2,33 @@
 
 ---
 
+## [V8.0-alpha / A2.0] — 2026-03-26 ⭐ 全栈作战平台
+
+### 🖥️ Web Dashboard (Phase 1: 黎明中枢)
+
+- **后端 (FastAPI)**: 5 个 REST API (`/stats`, `/assets`, `/scans`, `/audit`, `/agent/chat`)
+  - SQLite claw.db 直接查询, CORS 中间件, 分页搜索
+- **前端 (React + Vite)**: Bloomberg Terminal 彭博终端级交互设计
+  - HUD 状态栏: Hosts/Ports/Vulns/Scans/实时时钟
+  - Activity Bar (RC/AT/AG) + 左侧资产面板 (威胁热力图 + 列表)
+  - 中间工作区 3 Tab: RECON_OVERVIEW / ASSET_TABLE / PORT_MATRIX
+  - 右侧 AI Copilot 面板 (拖拽缩放/模型选择器/流式打字/快捷指令)
+- **设计规范**: 纯黑 #000 / 零圆角 / 琥珀金 + 青色 / Consolas 等宽
+
+### 🏛️ 架构升级
+
+- **Monorepo** 结构: `backend/` (FastAPI) + `frontend/` (React)
+- B/S 架构: 浏览器端替代 TUI, 保留 CLI 兼容
+- vis.js 网络拓扑图 (力导向, 风险着色)
+
+### 📐 战略
+
+- 导师 D8 批复: LLM-Native CTEM 定位确认
+- Open Core 商业模式 / Sliver C2 全仓押注 / MITRE ATT&CK 标签
+- 竞品对标: Mythic / Cobalt Strike / Caldera / BloodHound / Havoc / Faraday
+
+---
+
 ## [V7.0 / A2.0] — 2026-03-25 ⭐ Agentic AI 里程碑
 
 ### 🧠 CLAW Agent 智能体

@@ -2,21 +2,21 @@
 
 ```
      /\_/\  
-    ( o.o )  Project CLAW V7.0
+    ( o.o )  Project CLAW V8.0-alpha
      > ^ <   CatTeam Lateral Arsenal Weapon
     /|   |\  
-   (_|   |_) Codename: Lynx
+   (_|   |_) Codename: Lynx · Bloomberg Terminal
 ```
 
 # 🐱 Project CLAW
 
 **C**atTeam **L**ateral **A**rsenal **W**eapon
 
-模块化内网红队基础设施 · Mac + Docker Kali 混合架构 · AI Agentic 智能体 (Gemini 3)
+AI-Native 红队全栈作战平台 · Bloomberg Terminal UI · FastAPI + React · Gemini 3 Agentic AI
 
-[![Version](https://img.shields.io/badge/V7.0-blue)]()
+[![Version](https://img.shields.io/badge/V8.0--alpha-blue)]()
 [![Agent](https://img.shields.io/badge/Agent-A2.0-green)]()
-[![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)]()
+[![Dashboard](https://img.shields.io/badge/Dashboard-Bloomberg-black)]()
 [![AI](https://img.shields.io/badge/AI-Gemini%203%20Flash-orange)]()
 [![License](https://img.shields.io/badge/license-Private-red)]()
 
@@ -34,14 +34,14 @@ git clone https://github.com/Ziqi/Claw.git && cd Claw
 cp config.sh.example config.sh   # 编辑填入你的 Gemini API Key
 vim scope.txt                     # 填入授权网段 (CIDR)
 
-# 启动交互式控制台 (推荐)
-make console
+# 启动 Web Dashboard (推荐)
+cd backend && uvicorn main:app --reload --port 8000 &
+cd frontend && npm run dev
+# 打开 http://localhost:5173
 
-# 或一键侦察+扫描
-make fast
-
-# 启动 AI 智能体
-python3 claw-agent.py
+# 或 CLI 模式
+make console          # TUI 控制台
+python3 claw-agent.py # AI 智能体
 ```
 
 ## 🎯 系统架构

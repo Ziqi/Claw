@@ -1,4 +1,4 @@
-# CatTeam 架构设计文档 V7.0 / A2.0
+# CatTeam 架构设计文档 V8.0-alpha / A2.0
 
 ## 1. 设计哲学
 
@@ -8,6 +8,7 @@
 4. **数据驱动** — 模块间通过文件传递数据，上游输出 = 下游输入
 5. **双写持久化** — SQLite (AI 查询) + JSON (人工 jq 秒查) 并行输出
 6. **Agentic AI** — Gemini 3 自主智能体, ReAct Loop + HITL 三级分权
+7. **三端统一** — CLI (TUI 控制台) + API (FastAPI REST) + GUI (React Web Dashboard)
 
 ---
 
@@ -15,6 +16,14 @@
 
 ```
 ┌──────────────────────────────────────────┐
+│    🖥️ Web Dashboard (React + Vite)        │ ← V8.0 NEW
+│  Bloomberg Terminal UI · 彭博终端级交互    │
+│  HUD/Activity Bar/AI Copilot/拓扑图       │
+├──────────────────────────────────────────┤
+│    🌐 API 层 (FastAPI)                    │ ← V8.0 NEW
+│  /api/v1/stats · assets · scans · audit  │
+│  CORS · SQLite 查询 · Agent Chat 代理     │
+├──────────────────────────────────────────┤
 │         控制面 (Makefile v5.0 + TUI)      │
 │   preflight → run/fast/phantom/crack/... │
 ├──────────────────────────────────────────┤

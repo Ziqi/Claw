@@ -1,7 +1,7 @@
 # 🐱 CatTeam/CLAW 技术标准文档 (Conventions & Standards)
 
-**版本：** 2.0  
-**最后更新：** 2026-03-25
+**版本：** 2.1  
+**最后更新：** 2026-03-26
 
 ---
 
@@ -9,7 +9,7 @@
 
 ### 1.1 CLAW 平台版本 (V 前缀)
 
-**当前版本：V7.0**
+**当前版本：V8.0-alpha**
 
 ```
 格式: V{X}.{Y}.{Z}
@@ -31,6 +31,7 @@
 | V5.0.1 | TUI 修复 + 实战工具 + Nuclei 集成 |
 | V6.0 *(计划)* | Sliver C2 + Ligolo-ng |
 | **V7.0** | **Agentic AI 智能体 (M1+M2)** |
+| **V8.0-alpha** | **全栈作战平台 (FastAPI+React Bloomberg UI)** |
 
 ### 1.2 Agent 版本 (A 前缀)
 

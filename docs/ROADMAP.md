@@ -1,14 +1,14 @@
 # 🐱 CatTeam 开发路线图 (Roadmap)
 
-**最后更新：** 2026-03-25 V7.0 / A2.0  
+**最后更新：** 2026-03-26 V8.0-alpha / A2.0  
 
 ---
 
 ## 版本演进全景
 
 ```
-V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  ━━  V5.0 (03-25)  ━━  V7.0 (03-25)  ━━  V8.0 (计划)
-  基础链           工程化           攻击链           合规/AD/TUI       SQLite+AI       Agentic AI       Web+C2
+V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  ━━  V5.0 (03-25)  ━━  V7.0 (03-25)  ━━  V8.0-α (03-26) ← HERE
+  基础链           工程化           攻击链           合规/AD/TUI       SQLite+AI       Agentic AI       Web Dashboard
 ```
 
 ---
@@ -118,16 +118,37 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 
 ---
 
-## 🚀 V8.0 — 智能作战平台 (计划中)
+## ⭐ V8.0-alpha — 全栈作战平台 (03-26) ← 当前版本
 
-> 以下方向已获导师正式批准 (2026-03-25)
+> **Phase 1 黎明中枢已交付。从 CLI 工具集升级为 B/S 三层架构作战平台。**
 
-| 方向 | 决策 | 技术选型 |
-|---|---|---|
-| **C2 框架** | ✅ 批准 | Sliver (独立部署，不入 Docker) |
-| **内网穿透** | ✅ 批准 | Ligolo-ng / Chisel (替代 Proxychains) |
-| **BloodHound** | ✅ AI 推理 | JSON ZIP → Lynx (Gemini 1M 上下文图论推理) |
-| **固件逆向** | ⚠️ 手动 | Ghidra 个人研究，CLAW 仅做自动解包 |
+### ✅ Phase 1: 黎明中枢 (已完成)
+
+**后端 (FastAPI):**
+- `backend/main.py` — 5 个 REST API 端点
+- `/api/v1/stats` / `assets` / `scans` / `audit` / `agent/chat`
+- SQLite claw.db 直接查询, CORS, 分页搜索
+
+**前端 (React + Vite):**
+- Bloomberg Terminal 彭博终端级 UI
+- HUD 状态栏 (Hosts/Ports/Vulns/Scans/实时时钟)
+- Activity Bar (RC/AT/AG) + 威胁热力图 + 资产列表
+- 工作区 3 Tab: RECON_OVERVIEW / ASSET_TABLE / PORT_MATRIX
+- AI Copilot 面板: 拖拽缩放 / 模型选择器 (Flash/Pro/Deep) / 流式打字 / 快捷指令
+- 网络拓扑图 (vis.js 力导向, 风险着色, 点击查看)
+
+**设计规范:**
+- 纯黑 #000 / 零圆角 / 琥珀金 #FF9900 + 青色 #00FFFF / Consolas 等宽
+
+### 🚧 Phase 2: Agent 接入 (计划中)
+- WebSocket 实时 Agent 对话 (替代模拟流式)
+- Web 端 HITL 审批界面 (RED 级操作在浏览器确认)
+- Agent 审计日志实时推送
+
+### 🚧 Phase 3: C2 集成 (计划中)
+- Sliver C2 gRPC API 接入 + Session 管理
+- Ligolo-ng 隧道管理界面
+- MITRE ATT&CK 矩阵热力图
 
 ### 待用户操作的环境依赖项
 
@@ -217,3 +238,6 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 | 03-25 PM | v5.0 Phase 2: AI 副官 (Gemini Flash) 集成 |
 | 03-25 PM | v5.0.1 TUI 修复 + 实战渗透 (TP-Link/HP/AirTunes) |
 | 03-25 Night | 导师批复 v6.0 (Sliver/Ligolo-ng) + v7.0 (Agentic AI) |
+| 03-26 凌晨 | V8.0-alpha Phase 1 全栈作战平台上线 (FastAPI+React) |
+| 03-26 凌晨 | Bloomberg Terminal UI 落地 (HUD/Activity Bar/AI Copilot) |
+| 03-26 凌晨 | AI 面板: 拖拽缩放/模型选择器/流式打字效果 |
