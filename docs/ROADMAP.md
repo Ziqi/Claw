@@ -107,12 +107,16 @@ v1.0 (03-24)  ━━  v2.0 (03-25)  ━━  v3.0 (03-25)  ━━  v3.1 (03-25)  
 | **内网穿透** | ✅ 批准 | Ligolo-ng / Chisel (替代 Proxychains) |
 | **BloodHound** | ✅ AI 推理 | JSON ZIP → Lynx (Gemini 1M 上下文图论推理) |
 | **固件逆向** | ⚠️ 手动 | Ghidra 个人研究，CLAW 仅做自动解包 |
-|---|---|---|---|
-| T1 | `make test` 实际运行验证 | 需拉取 Docker 镜像 | 用户执行 |
-| T2 | Dockerfile v3 构建 | 需用户 `docker build` | 用户执行 |
-| T3 | Nuclei 模板下载 | 需 `nuclei -update-templates` | 用户执行 |
-| T4 | 01-recon active 模式实测 | 需网络环境 | 用户执行 |
-| T5 | 09-loot / 10-kerberoast 实测 | 需 AD 域控靶机 | 待靶场搭建 |
+
+### 待用户操作的环境依赖项
+
+| 编号 | 任务 | 前置条件 |
+|---|---|---|
+| T1 | `make test` 靶场验证 | 需 `docker pull` |
+| T2 | Dockerfile V4 构建 | 需 `docker build` |
+| T3 | Nuclei 模板更新 | 需 `nuclei -update-templates` |
+| T4 | 01-recon active 实测 | 需靶场网络 |
+| T5 | 09-loot / 10-kerberoast 实测 | 需 AD 域控靶机 |
 
 ---
 
@@ -184,4 +188,5 @@ v1.0 (03-24)  ━━  v2.0 (03-25)  ━━  v3.0 (03-25)  ━━  v3.1 (03-25)  
 | 03-25 AM | TUI 控制台 + Docker v3 (Nuclei) 升级 |
 | 03-25 PM | v5.0 Phase 1: SQLite 双写架构 |
 | 03-25 PM | v5.0 Phase 2: AI 副官 (Gemini Flash) 集成 |
-| 下一步 | Phase 3 Webhook 告警 → Phase 4 Toolbox |
+| 03-25 PM | v5.0.1 TUI 修复 + 实战渗透 (TP-Link/HP/AirTunes) |
+| 03-25 Night | 导师批复 v6.0 (Sliver/Ligolo-ng) + v7.0 (Agentic AI) |
