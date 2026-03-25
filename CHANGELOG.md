@@ -2,6 +2,30 @@
 
 ---
 
+## [V7.0 / A2.0] — 2026-03-25 ⭐ Agentic AI 里程碑
+
+### 🧠 CLAW Agent 智能体
+
+- `claw-agent.py` — Gemini 3 Interactions API + ReAct Loop 自主智能体
+- **A1.0 (M1)**: 3 只读工具 (claw_query_db / claw_read_file / claw_list_assets)
+- **A2.0 (M2)**: 2 执行工具 (claw_execute_shell / claw_run_module) + HITL 三级分权
+- HITL 安全: 🟢 GREEN 自动放行 / 🟡 YELLOW [Y/n] 确认 / 🔴 RED 双重确认
+- 流式输出: Popen 实时显示 + sudo 密码透传
+- `catteam.sh` 新增菜单 `20) 🧠 CLAW Agent`
+
+### 📋 工程治理
+
+- `CONVENTIONS.md` v2.0 — 三轨版本号 (V=系统 / A=Agent / D=导师文档)
+- 强制文档同步清单 (Section 5): 6 份必须同步 + 4 份按需更新
+- Docker V4 镜像构建 + Nuclei v3.7.1 模板安装
+
+### 📐 战略文档
+
+- `V8_STRATEGIC_ANALYSIS.md` — 差距分析 + 竞品对标 + 四维升级路线图
+- 7 个导师讨论议题 (定位/C2/多Agent/知识工程/伦理)
+
+---
+
 ## [v5.0.1-B] — 2026-03-25 (晚间冲刺)
 
 ### 🔧 B类待办批量交付

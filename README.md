@@ -2,7 +2,7 @@
 
 ```
      /\_/\  
-    ( o.o )  Project CLAW v5.0
+    ( o.o )  Project CLAW V7.0
      > ^ <   CatTeam Lateral Arsenal Weapon
     /|   |\  
    (_|   |_) Codename: Lynx
@@ -12,11 +12,12 @@
 
 **C**atTeam **L**ateral **A**rsenal **W**eapon
 
-模块化内网红队基础设施 · Mac + Docker Kali 混合架构 · AI 战术副官 (Gemini Flash)
+模块化内网红队基础设施 · Mac + Docker Kali 混合架构 · AI Agentic 智能体 (Gemini 3)
 
-[![Version](https://img.shields.io/badge/version-5.0.1-blue)]()
+[![Version](https://img.shields.io/badge/V7.0-blue)]()
+[![Agent](https://img.shields.io/badge/Agent-A2.0-green)]()
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)]()
-[![AI](https://img.shields.io/badge/AI-Gemini%20Flash-orange)]()
+[![AI](https://img.shields.io/badge/AI-Gemini%203%20Flash-orange)]()
 [![License](https://img.shields.io/badge/license-Private-red)]()
 
 </div>
@@ -43,21 +44,21 @@ make fast
 ## 🎯 系统架构
 
 ```
-┌─ 侦察链 ──────────────────────────────────────────────┐
+┌─ 侦察链 ─────────────────────────────────────────────┐
 │  00 后勤总机 → 01 幽灵斥候 → 02 端口扫描 → 02.5 数据入库    │
 │  DHCP换脸       被动嗅探       Nmap扫描      XML→SQLite+JSON │
-└──────────────────────────┬─────────────────────────────┘
+└──────────────────────────┬─────────────────────────┘
                            │ claw.db + live_assets.json
                 ┌──────────┼──────────┐
                 ↓          ↓          ↓
-           03 Web指纹   05 Nuclei   13 AI战术分析
-           纯Python     漏洞扫描     Gemini Flash
-                                     14 问Lynx对话
-┌─ 攻击链 ───────────────────────────────────────────────┐
+           03 Web指纹   05 Nuclei   🧠 CLAW Agent
+           纯Python     漏洞扫描     Gemini 3 ReAct
+                                     HITL 三级分权
+┌─ 攻击链 ─────────────────────────────────────────────┐
 │  06 投毒陷阱  → 07 算力破解  → 08 横向移动                  │
 │  Responder      Hashcat GPU    Impacket SMB              │
 │  09 后渗透提取 → 10 AD域Kerberoast                         │
-└────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────┘
 ```
 
 ## 🖥️ TUI 交互式控制台
@@ -74,11 +75,11 @@ make fast
     4) Web 指纹清扫
     5) Nuclei 漏洞扫描             [情报层]
                                     11) 生成战报 (Markdown)
-  [AI 副官] Gemini Flash            12) 资产变化检测
+  [🧠 AI 智能体] Gemini 3             12) 资产变化检测
    13) AI 战术分析
    14) 问 Lynx (对话)             [系统]
    15) 智能告警                     16) 切换环境  r) 上帝模式
-                                    s) 陷阱监控  h) 帮助文档
+   20) 🧠 CLAW Agent                s) 陷阱监控  h) 帮助文档
 ```
 
 ## 📋 Make 指令一览
@@ -135,6 +136,7 @@ CatTeam/
 ├── 17-ask-lynx.py           # 问 Lynx: 多轮对话 (滑动窗口 10 轮)
 ├── 18-ai-bloodhound.py      # AI-Hound: BloodHound JSON → Gemini 图论推理
 ├── 23-hp-proxy-unlocker.py   # HP 代理跳板机复仇者
+├── claw-agent.py            # 🧠 CLAW Agent V7.0: Gemini 3 ReAct + HITL
 │
 ├── scripts/
 │   ├── scope_check.py       # ROE 校验器

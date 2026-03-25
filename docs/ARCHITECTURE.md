@@ -1,4 +1,4 @@
-# CatTeam 架构设计文档 v5.0.1
+# CatTeam 架构设计文档 V7.0 / A2.0
 
 ## 1. 设计哲学
 
@@ -7,7 +7,7 @@
 3. **单一配置源** — `config.sh` 集中管理所有参数
 4. **数据驱动** — 模块间通过文件传递数据，上游输出 = 下游输入
 5. **双写持久化** — SQLite (AI 查询) + JSON (人工 jq 秒查) 并行输出
-6. **AI 赋能** — Gemini Flash 战术副官嵌入 TUI，上下文自动注入
+6. **Agentic AI** — Gemini 3 自主智能体, ReAct Loop + HITL 三级分权
 
 ---
 
@@ -18,7 +18,12 @@
 │         控制面 (Makefile v5.0 + TUI)      │
 │   preflight → run/fast/phantom/crack/... │
 ├──────────────────────────────────────────┤
-│         AI 层 (Gemini Flash)              │
+│      🧠 Agent 层 (Gemini 3 Interactions)  │
+│  claw-agent: ReAct Loop + HITL 三级分权   │
+│  5 工具: query_db/read_file/list_assets   │
+│         /execute_shell/run_module        │
+├──────────────────────────────────────────┤
+│         AI 辅助层 (Gemini Flash)            │
 │  16-ai-analyze / 17-ask-lynx / 脱敏层    │
 ├──────────────────────────────────────────┤
 │         合规层 (scope.txt ROE)             │
@@ -104,6 +109,17 @@
 | `18-ai-bloodhound` | Mac (Python) | BloodHound JSON/ZIP | 终端输出 | Gemini 图论推理 AD 域提权路径 |
 | `23-hp-proxy-unlocker` | Mac (Python) | IP + 凭据字典 | 终端输出 | 4 阶段代理解锁: 端口→状态→爆破→隧道 |
 | `make toolbox` | Docker/Mac | 交互选择 | 各工具输出 | Nikto/Hydra/Sqlmap/binwalk/固件解剖刀 |
+
+### 🧠 Agent 智能体 (V7.0 新增)
+
+| 模块 | 环境 | 输入 | 输出 | 关键特性 |
+|---|---|---|---|---|
+| `claw-agent` | Mac (Python) | 自然语言 | 智能分析 + 命令执行 | Gemini 3 Interactions API, ReAct Loop |
+| 工具: `claw_query_db` | 内嵌 | SQL | JSON | 只允许 SELECT, 自动放行 |
+| 工具: `claw_read_file` | 内嵌 | 文件路径 | 文件内容 | 路径穿越防护, 自动放行 |
+| 工具: `claw_list_assets` | 内嵌 | 环境名 | 资产清单 | 自动放行 |
+| 工具: `claw_execute_shell` | 内嵌 | shell 命令 | 执行结果 | HITL 三级分权 |
+| 工具: `claw_run_module` | 内嵌 | make 命令 | 执行结果 | HITL 三级分权 |
 
 ---
 

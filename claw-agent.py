@@ -25,7 +25,20 @@ MODEL = os.environ.get("CLAW_AGENT_MODEL", "gemini-3-flash-preview")
 API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 DB_PATH = os.path.join(SCRIPT_DIR, "CatTeam_Loot", "claw.db")
 LOOT_DIR = os.path.join(SCRIPT_DIR, "CatTeam_Loot")
+AUDIT_LOG = os.path.join(SCRIPT_DIR, "CatTeam_Loot", "agent_audit.log")
 CTX = ssl.create_default_context()
+
+from datetime import datetime
+
+def audit_log(action: str, detail: str = ""):
+    """记录 Agent 操作审计日志"""
+    try:
+        os.makedirs(os.path.dirname(AUDIT_LOG), exist_ok=True)
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(AUDIT_LOG, "a") as f:
+            f.write(f"[{ts}] {action} | {detail[:200]}\n")
+    except:
+        pass
 
 # 如果没有环境变量, 尝试从 config.sh 解析
 if not API_KEY:
@@ -570,6 +583,14 @@ def react_loop(user_input: str, prev_id: str = None) -> tuple:
                 tool_result = handler(args)
             else:
                 tool_result = json.dumps({"error": f"未知工具: {name}"})
+
+            # 审计日志
+            try:
+                parsed = json.loads(tool_result)
+                status = "ERROR" if "error" in parsed else "OK"
+            except:
+                status = "OK"
+            audit_log(f"TOOL:{name}", f"args={json.dumps(args, ensure_ascii=False)[:100]} status={status}")
 
             # 输出简要结果
             try:

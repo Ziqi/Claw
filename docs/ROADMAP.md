@@ -1,14 +1,14 @@
 # 🐱 CatTeam 开发路线图 (Roadmap)
 
-**最后更新：** 2026-03-25 v5.0  
+**最后更新：** 2026-03-25 V7.0 / A2.0  
 
 ---
 
 ## 版本演进全景
 
 ```
-v1.0 (03-24)  ━━  v2.0 (03-25)  ━━  v3.0 (03-25)  ━━  v3.1 (03-25)  ━━  v4.0 (03-25)  ━━  v5.0 (03-25)  ━━  v6.0 (计划中)
-  基础链             工程化            攻击链            情报层           合规/侦察/AD      SQLite+AI副官    隧道/C2
+V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  ━━  V5.0 (03-25)  ━━  V7.0 (03-25)  ━━  V8.0 (计划)
+  基础链           工程化           攻击链           合规/AD/TUI       SQLite+AI       Agentic AI       Web+C2
 ```
 
 ---
@@ -66,7 +66,7 @@ v1.0 (03-24)  ━━  v2.0 (03-25)  ━━  v3.0 (03-25)  ━━  v3.1 (03-25)  
 - Dockerfile v3: Nuclei 已焍入
 - config.sh: IMAGE_NAME 切换至 v3
 
-### v5.0 — SQLite 数据层 + AI 副官 (03-25) ← 当前版本
+### v5.0 — SQLite 数据层 + AI 副官 (03-25)
 
 **Phase 1: SQLite 双写架构**
 - `db_engine.py` — 四张表 (scans/assets/ports/vulns) + scan_id 隔离
@@ -97,7 +97,28 @@ v1.0 (03-24)  ━━  v2.0 (03-25)  ━━  v3.0 (03-25)  ━━  v3.1 (03-25)  
 
 ---
 
-## 🚀 v6.0 — 导师批复路线 (待启动)
+## ⭐ V7.0 — Agentic AI 智能体 (03-25) ← 当前版本
+
+> **这是 Project CLAW 从 Copilot 升级为 Agentic AI 的里程碑。**
+
+**A1.0 (M1): 只读智能体**
+- `claw-agent.py` — Gemini 3 Interactions API, ReAct Loop
+- 3 只读工具: claw_query_db / claw_read_file / claw_list_assets
+- 服务端状态管理 (previous_interaction_id)
+
+**A2.0 (M2): 带锁执行者**
+- 2 执行工具: claw_execute_shell / claw_run_module
+- HITL 三级分权: 🟢 GREEN 自动 / 🟡 YELLOW [Y/n] / 🔴 RED CONFIRM
+- 流式输出: Popen 实时打印 + sudo 透传
+- `catteam.sh` 菜单 20) CLAW Agent
+
+**工程治理:**
+- CONVENTIONS.md v2.0: 三轨版本号 (V/A/D) + 强制文档同步
+- Docker V4 镜像 (Nuclei v3.7.1 + binwalk)
+
+---
+
+## 🚀 V8.0 — 智能作战平台 (计划中)
 
 > 以下方向已获导师正式批准 (2026-03-25)
 
@@ -113,8 +134,8 @@ v1.0 (03-24)  ━━  v2.0 (03-25)  ━━  v3.0 (03-25)  ━━  v3.1 (03-25)  
 | 编号 | 任务 | 前置条件 |
 |---|---|---|
 | T1 | `make test` 靶场验证 | 需 `docker pull` |
-| T2 | Dockerfile V4 构建 | 需 `docker build` |
-| T3 | Nuclei 模板更新 | 需 `nuclei -update-templates` |
+| ~~T2~~ | ~~Dockerfile V4 构建~~ | ✅ 已完成 |
+| ~~T3~~ | ~~Nuclei 模板更新~~ | ✅ 已完成 |
 | T4 | 01-recon active 实测 | 需靶场网络 |
 | T5 | 09-loot / 10-kerberoast 实测 | 需 AD 域控靶机 |
 
