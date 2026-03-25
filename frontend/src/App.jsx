@@ -220,15 +220,45 @@ function PortMatrix({ asset }) {
 }
 
 // ========== AI COPILOT PANEL ==========
-function AiPanel() {
+const MODELS = [
+  { key: 'flash', label: 'Flash', color: '#00FFFF', desc: '快速' },
+  { key: 'pro', label: 'Pro', color: '#FF9900', desc: '均衡' },
+  { key: 'deep', label: 'Deep Think', color: '#FF3B30', desc: '深度' },
+]
+
+function AiPanel({ width, onResize }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
+  const [model, setModel] = useState(MODELS[0])
+  const [menuOpen, setMenuOpen] = useState(false)
   const chatRef = useRef(null)
+  const isDragging = useRef(false)
 
   const scrollBottom = () => setTimeout(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
   }, 10)
+
+  // Drag resize
+  const startDrag = (e) => {
+    isDragging.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    const onMove = (ev) => {
+      if (!isDragging.current) return
+      const newW = Math.max(280, Math.min(window.innerWidth - ev.clientX, 700))
+      onResize(newW)
+    }
+    const onUp = () => {
+      isDragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
 
   const sendMessage = () => {
     if (!input.trim() || streaming) return
@@ -238,90 +268,111 @@ function AiPanel() {
     setStreaming(true)
     scrollBottom()
 
-    // Simulate streaming response (replace with real API later)
     setTimeout(() => {
       const reply = `已扫描当前资产库。检测到 ${Math.floor(Math.random()*5+1)} 个高风险端口暴露。\n\n建议优先检查 SMB(445) 匿名访问和 RDP(3389) 弱口令。\n\n是否执行 Nuclei 深度漏洞扫描？`
-      setMessages(prev => [...prev, { role: 'ai', text: reply, streaming: true }])
+      setMessages(prev => [...prev, { role: 'ai', text: reply, model: model.label }])
       setStreaming(false)
       scrollBottom()
     }, 800)
   }
 
-  const chips = [
-    '扫描当前资产的高危端口',
-    '分析攻击路径',
-    '生成渗透报告',
-    '检查 SMB 匿名访问',
-  ]
+  const chips = ['扫描高危端口', '分析攻击路径', '生成渗透报告', '检查 SMB 匿名访问']
 
   return (
-    <div className="col-right">
-      <div className="ai-header">
-        <div className="ai-title"><span>✧</span> LYNX Copilot</div>
-        <div className="ai-tools">
-          <div className="ai-tool-btn" onClick={() => setMessages([])}>[NEW]</div>
-        </div>
-      </div>
-
-      <div className="ai-chat-area" ref={chatRef}>
-        {messages.length === 0 && (
-          <div style={{marginTop:'auto'}}>
-            <div style={{fontSize:'20px', color:'#00FFFF', fontWeight:'bold', fontFamily:'Consolas, monospace', marginBottom:'8px'}}>
-              SYSTEM.READY
-            </div>
-            <div style={{fontSize:'13px', color:'#666'}}>等待战术指令...</div>
-            <div className="chip-group-title">── 快捷指令 ──</div>
-            <div className="chips-wrap">
-              {chips.map(c => (
-                <div key={c} className="agent-chip" onClick={() => { setInput(c); }}>{c}</div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {messages.map((m, i) => (
-          m.role === 'user' ? (
-            <div key={i} className="msg-user">{m.text}</div>
-          ) : (
-            <div key={i} className="msg-ai">
-              <div className="ai-identity">✧ Flash 引擎</div>
-              <StreamingText text={m.text} />
-            </div>
-          )
-        ))}
-
-        {streaming && (
-          <div className="msg-ai">
-            <div className="ai-identity">✧ Flash 引擎</div>
-            <div className="skeleton-line"></div>
-            <div className="skeleton-line"></div>
-          </div>
-        )}
-      </div>
-
-      <div className="input-wrapper">
-        <div className="input-card">
-          <input
-            className="ai-input"
-            placeholder="输入问题，或选择快捷指令..."
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') sendMessage() }}
-          />
-          <div className="input-tools">
-            <div className="model-selector">
-              <span style={{color:'#00FFFF'}}>●</span>
-              <span style={{color:'#D0D0D0'}}>Flash</span>
-            </div>
-            <button className="send-btn" onClick={sendMessage} disabled={!input.trim()}>
-              <svg className="send-icon" viewBox="0 0 24 24">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
-            </button>
+    <>
+      <div className="resizer" onMouseDown={startDrag}></div>
+      <div className="col-right" style={{ width: width + 'px' }}>
+        <div className="ai-header">
+          <div className="ai-title"><span>✧</span> LYNX Copilot</div>
+          <div className="ai-tools">
+            <div className="ai-tool-btn" onClick={() => setMessages([])}>[NEW]</div>
           </div>
         </div>
+
+        <div className="ai-chat-area" ref={chatRef} style={{ paddingBottom: '120px' }}>
+          {messages.length === 0 && (
+            <div style={{marginTop:'auto'}}>
+              <div style={{fontSize:'18px', color:'#00FFFF', fontWeight:'bold', fontFamily:'Consolas, monospace', marginBottom:'8px'}}>
+                SYSTEM.READY
+              </div>
+              <div style={{fontSize:'12px', color:'#666', marginBottom:'4px'}}>
+                FC 语义触发：无需精确关键词，自然语言描述即可
+              </div>
+              <div className="chip-group-title">── 快捷指令 ──</div>
+              <div className="chips-wrap">
+                {chips.map(c => (
+                  <div key={c} className="agent-chip" onClick={() => setInput(c)}>{c}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {messages.map((m, i) => (
+            m.role === 'user' ? (
+              <div key={i} className="msg-user">{m.text}</div>
+            ) : (
+              <div key={i} className="msg-ai">
+                <div className="ai-identity">✧ {m.model || model.label} 引擎</div>
+                <StreamingText text={m.text} />
+              </div>
+            )
+          ))}
+
+          {streaming && (
+            <div className="msg-ai">
+              <div className="ai-identity">✧ {model.label} 引擎</div>
+              <div className="skeleton-line"></div>
+              <div className="skeleton-line"></div>
+            </div>
+          )}
+        </div>
+
+        {/* Floating bottom input */}
+        <div className="ai-input-float">
+          <div className="input-card">
+            <textarea
+              className="ai-input"
+              placeholder="输入问题，或 @ 引用上下文..."
+              rows={1}
+              value={input}
+              onChange={e => {
+                setInput(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+              }}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+            />
+            <div className="input-tools">
+              <div style={{position:'relative'}}>
+                <div className="model-selector" onClick={() => setMenuOpen(!menuOpen)}>
+                  <span style={{color: model.color}}>●</span>
+                  <span style={{color:'#D0D0D0'}}>{model.label}</span>
+                </div>
+                {menuOpen && (
+                  <div className="model-dropdown">
+                    {MODELS.map(m => (
+                      <div
+                        key={m.key}
+                        className={`dd-item ${model.key === m.key ? 'active' : ''}`}
+                        onClick={() => { setModel(m); setMenuOpen(false) }}
+                      >
+                        <span style={{color: m.color}}>● {m.label}</span>
+                        <span style={{fontSize:'9px', color:'#666'}}>{m.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button className="send-btn" onClick={sendMessage} disabled={!input.trim()}>
+                <svg className="send-icon" viewBox="0 0 24 24">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -343,6 +394,7 @@ function App() {
   const [assets, setAssets] = useState([])
   const [selectedIp, setSelectedIp] = useState(null)
   const [view, setView] = useState('RC')
+  const [aiWidth, setAiWidth] = useState(380)
 
   useEffect(() => {
     fetch(`${API}/stats`).then(r => r.json()).then(setStats).catch(console.error)
@@ -364,8 +416,7 @@ function App() {
         <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} />
         <div className="resizer"></div>
         <WorkArea assets={assets} selectedIp={selectedIp} />
-        <div className="resizer"></div>
-        <AiPanel />
+        <AiPanel width={aiWidth} onResize={setAiWidth} />
       </div>
     </div>
   )

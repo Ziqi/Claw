@@ -475,5 +475,69 @@ body {
   position: relative;
 }
 
+/* Floating AI Input */
+.ai-input-float {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px;
+  background: linear-gradient(transparent, var(--bg-base) 30%);
+  border-top: 1px solid var(--term-cyan);
+}
+
+.ai-input-float .input-card { background: #050505; border: 1px solid var(--border-hl); }
+.ai-input-float .input-card:focus-within { border-color: var(--term-cyan); }
+
+.ai-input-float .ai-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  padding: 10px 12px;
+  font-family: inherit;
+  line-height: 1.4;
+  resize: none;
+  max-height: 120px;
+}
+.ai-input-float .ai-input::placeholder { color: var(--term-muted); }
+
+/* Model Dropdown (upward) */
+.model-dropdown {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  background: #000;
+  border: 1px solid var(--border-hl);
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+  width: 160px;
+  box-shadow: 4px -4px 0 rgba(0,255,255,0.08);
+}
+.dd-item {
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--term-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+  font-family: 'Consolas', monospace;
+}
+.dd-item:last-child { border-bottom: none; }
+.dd-item:hover, .dd-item.active {
+  background: #111;
+  color: var(--term-text);
+  border-left: 2px solid var(--term-cyan);
+  padding-left: 10px;
+}
+
+.col-right { position: relative; }
+
 @keyframes blink { 50% { opacity: 0; } }
 @keyframes popIn { 0% { opacity:0; transform:translateY(5px); } 100% { opacity:1; transform:translateY(0); } }
+
