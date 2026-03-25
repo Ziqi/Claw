@@ -179,7 +179,7 @@ body {
   display: flex;
   flex-direction: column;
   background: var(--bg-base);
-  min-width: 400px;
+  min-width: 0;
   overflow: hidden;
 }
 

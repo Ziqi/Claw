@@ -26,7 +26,7 @@ function useTypewriter(text, speed = 15) {
 function HudBar({ stats }) {
   const [time, setTime] = useState('')
   useEffect(() => {
-    const tick = () => setTime(new Date().toLocaleTimeString('en-US', { hour12: false }))
+    const tick = () => setTime(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
     tick()
     const t = setInterval(tick, 1000)
     return () => clearInterval(t)
@@ -36,27 +36,27 @@ function HudBar({ stats }) {
     <div className="hud-bar">
       <div className="hud-brand">CLAW V8.0</div>
       <div className="stat-item">
-        <span className="stat-label">HOSTS</span>
+        <span className="stat-label">存活主机</span>
         <span className="stat-value c-cyan">{stats?.hosts ?? '—'}</span>
       </div>
       <div className="stat-item">
-        <span className="stat-label">PORTS</span>
+        <span className="stat-label">高危端口</span>
         <span className="stat-value c-up">{stats?.ports ?? '—'}</span>
       </div>
       <div className="stat-item">
-        <span className="stat-label">VULNS</span>
+        <span className="stat-label">漏洞告警</span>
         <span className="stat-value" style={{color: (stats?.vulns || 0) > 0 ? '#FF3B30' : '#666'}}>{stats?.vulns ?? '0'}</span>
       </div>
       <div className="stat-item">
-        <span className="stat-label">SCANS</span>
+        <span className="stat-label">扫描任务</span>
         <span className="stat-value c-gold">{stats?.scans ?? '—'}</span>
       </div>
       <div className="stat-item">
-        <span className="stat-label">AGENT</span>
-        <span className="stat-value c-up">ONLINE</span>
+        <span className="stat-label">副官状态</span>
+        <span className="stat-value c-up">在线监控中</span>
       </div>
       <div className="stat-item">
-        <span className="stat-label">SYS_TIME</span>
+        <span className="stat-label">系统时间</span>
         <span className="stat-value c-gold">{time}</span>
       </div>
     </div>
@@ -71,29 +71,29 @@ function Sidebar({ assets, onSelect, selected }) {
 
   return (
     <div className="sidebar-panel">
-      <div className="p-head">[ THREAT OVERVIEW ]</div>
+      <div className="p-head">[ 威胁大盘 ]</div>
       <div className="threat-grid">
         <div className="threat-cell" style={{background:'rgba(255,59,48,0.15)'}}>
-          <span className="tc-label">CRITICAL</span>
+          <span className="tc-label">极危节点</span>
           <span className="tc-value" style={{color:'#FF3B30'}}>{critical.length}</span>
         </div>
         <div className="threat-cell" style={{background:'rgba(0,255,255,0.08)'}}>
-          <span className="tc-label">WEB SVC</span>
+          <span className="tc-label">Web服务</span>
           <span className="tc-value" style={{color:'#00FFFF'}}>{webHosts.length}</span>
         </div>
         <div className="threat-cell" style={{background:'rgba(48,209,88,0.1)'}}>
-          <span className="tc-label">TOTAL</span>
+          <span className="tc-label">资产总数</span>
           <span className="tc-value" style={{color:'#30D158'}}>{assets.length}</span>
         </div>
         <div className="threat-cell" style={{background:'rgba(255,153,0,0.1)'}}>
-          <span className="tc-label">AVG PORTS</span>
+          <span className="tc-label">平均端口</span>
           <span className="tc-value" style={{color:'#FF9900'}}>
             {assets.length ? Math.round(assets.reduce((s,a) => s+a.port_count, 0)/assets.length) : 0}
           </span>
         </div>
       </div>
 
-      <div className="p-head">[ ASSET LIST ]</div>
+      <div className="p-head">[ 活跃资产清单 ]</div>
       {assets.map(a => (
         <div
           key={a.ip}
@@ -102,7 +102,7 @@ function Sidebar({ assets, onSelect, selected }) {
         >
           <div>
             <span className="asset-ip">{a.ip}</span>
-            <span className="asset-ports"> ({a.port_count})</span>
+            <span className="asset-ports"> ({a.port_count}口)</span>
           </div>
           <div style={{color: a.ports.some(p=>[445,3389].includes(p.port)) ? '#FF3B30' : '#666', fontSize:'10px'}}>
             {a.ports.slice(0,3).map(p=>p.port).join(',')}
@@ -114,10 +114,18 @@ function Sidebar({ assets, onSelect, selected }) {
 }
 
 // ========== WORK AREA TABS ==========
-function WorkArea({ assets, selectedIp }) {
-  const [tab, setTab] = useState(0)
+function WorkArea({ assets, selectedIp, view }) {
+  // Map Activity Bar views to WorkArea tabs
+  const viewMap = { 'RC': 0, 'AT': 1, 'AG': 2 }
+  const [tab, setTab] = useState(viewMap[view] || 0)
+  
+  // Sync tab with sidebar view
+  useEffect(() => {
+    setTab(viewMap[view] || 0)
+  }, [view])
+
   const asset = assets.find(a => a.ip === selectedIp)
-  const tabs = ['RECON_OVERVIEW', 'ASSET_TABLE', 'PORT_MATRIX']
+  const tabs = ['侦察态势', '全局资产库', '端口暴露面']
 
   return (
     <div className="activity-main">
@@ -138,37 +146,37 @@ function WorkArea({ assets, selectedIp }) {
 function ReconOverview({ assets, asset }) {
   return (
     <>
-      <div className="p-head">[ INDICATOR MATRIX ]</div>
+      <div className="p-head">[ 量化指标矩阵 ]</div>
       <div className="indicator-grid">
         <div className="ind-card" style={{borderTop:'2px solid #00FFFF'}}>
-          <div className="ind-card-title" style={{color:'#00FFFF'}}>SCAN STATUS</div>
-          <div className="m-row"><span className="lbl">HOSTS:</span><span className="val">{assets.length}</span></div>
-          <div className="m-row"><span className="lbl">PORTS:</span><span className="val">{assets.reduce((s,a)=>s+a.port_count,0)}</span></div>
-          <div className="m-row"><span className="lbl">ENGINE:</span><span className="val c-up">NMAP</span></div>
+          <div className="ind-card-title" style={{color:'#00FFFF'}}>扫描面统计</div>
+          <div className="m-row"><span className="lbl">IP总数:</span><span className="val">{assets.length}</span></div>
+          <div className="m-row"><span className="lbl">端口总数:</span><span className="val">{assets.reduce((s,a)=>s+a.port_count,0)}</span></div>
+          <div className="m-row"><span className="lbl">扫描引擎:</span><span className="val c-up">NMAP / HTTPX</span></div>
         </div>
         <div className="ind-card">
-          <div className="ind-card-title">RISK EXPOSURE</div>
-          <div className="m-row"><span className="lbl">SMB(445):</span><span className="val" style={{color:'#FF3B30'}}>{assets.filter(a=>a.ports.some(p=>p.port===445)).length}</span></div>
-          <div className="m-row"><span className="lbl">RDP(3389):</span><span className="val" style={{color:'#FF3B30'}}>{assets.filter(a=>a.ports.some(p=>p.port===3389)).length}</span></div>
-          <div className="m-row"><span className="lbl">FTP(21):</span><span className="val" style={{color:'#FF9900'}}>{assets.filter(a=>a.ports.some(p=>p.port===21)).length}</span></div>
+          <div className="ind-card-title">脆弱性风险暴露</div>
+          <div className="m-row"><span className="lbl">SMB(445):</span><span className="val" style={{color:'#FF3B30'}}>{assets.filter(a=>a.ports.some(p=>p.port===445)).length} 靶标</span></div>
+          <div className="m-row"><span className="lbl">RDP(3389):</span><span className="val" style={{color:'#FF3B30'}}>{assets.filter(a=>a.ports.some(p=>p.port===3389)).length} 靶标</span></div>
+          <div className="m-row"><span className="lbl">FTP(21):</span><span className="val" style={{color:'#FF9900'}}>{assets.filter(a=>a.ports.some(p=>p.port===21)).length} 靶标</span></div>
         </div>
         <div className="ind-card">
-          <div className="ind-card-title">WEB SERVICES</div>
-          <div className="m-row"><span className="lbl">HTTP:</span><span className="val">{assets.filter(a=>a.ports.some(p=>p.port===80)).length}</span></div>
-          <div className="m-row"><span className="lbl">HTTPS:</span><span className="val">{assets.filter(a=>a.ports.some(p=>p.port===443)).length}</span></div>
-          <div className="m-row"><span className="lbl">PROXY:</span><span className="val">{assets.filter(a=>a.ports.some(p=>[8080,8443].includes(p.port))).length}</span></div>
+          <div className="ind-card-title">公防网域面</div>
+          <div className="m-row"><span className="lbl">HTTP:</span><span className="val">{assets.filter(a=>a.ports.some(p=>p.port===80)).length} 站点</span></div>
+          <div className="m-row"><span className="lbl">HTTPS:</span><span className="val">{assets.filter(a=>a.ports.some(p=>p.port===443)).length} 站点</span></div>
+          <div className="m-row"><span className="lbl">PROXY:</span><span className="val">{assets.filter(a=>a.ports.some(p=>[8080,8443].includes(p.port))).length} 代理</span></div>
         </div>
         <div className="ind-card" style={{borderTop:'2px solid #FF9900'}}>
-          <div className="ind-card-title" style={{color:'#FF9900'}}>AGENT</div>
-          <div className="m-row"><span className="lbl">MODE:</span><span className="val">M2</span></div>
-          <div className="m-row"><span className="lbl">HITL:</span><span className="val c-up">ACTIVE</span></div>
-          <div className="m-row"><span className="lbl">MODEL:</span><span className="val">FLASH</span></div>
+          <div className="ind-card-title" style={{color:'#FF9900'}}>作战智能体</div>
+          <div className="m-row"><span className="lbl">安全限级:</span><span className="val">M2 级指令权</span></div>
+          <div className="m-row"><span className="lbl">HITL拦截:</span><span className="val c-up">强鉴权启动</span></div>
+          <div className="m-row"><span className="lbl">算力核心:</span><span className="val">Gemini 3 阵列</span></div>
         </div>
       </div>
 
       {asset && (
         <>
-          <div className="p-head" style={{marginTop:'16px'}}>[ SELECTED: {asset.ip} ]</div>
+          <div className="p-head" style={{marginTop:'16px'}}>[ 锁定目标细节: {asset.ip} ]</div>
           <PortMatrix asset={asset} />
         </>
       )}
@@ -180,7 +188,7 @@ function AssetTable({ assets }) {
   return (
     <table className="data-table">
       <thead>
-        <tr><th>IP_ADDR</th><th>OS</th><th>PORTS</th><th>SERVICES</th><th>RISK</th></tr>
+        <tr><th>IP 地址</th><th>指纹/OS</th><th>端口数</th><th>服务清单</th><th>杀伤链评级</th></tr>
       </thead>
       <tbody>
         {assets.map(a => (
@@ -190,7 +198,7 @@ function AssetTable({ assets }) {
             <td>{a.port_count}</td>
             <td style={{fontSize:'10px',color:'#999'}}>{a.ports.map(p=>p.port+'/'+p.service).join(', ')}</td>
             <td style={{color: a.ports.some(p=>[445,3389].includes(p.port)) ? '#FF3B30' : '#30D158'}}>
-              {a.ports.some(p=>[445,3389].includes(p.port)) ? 'HIGH' : 'LOW'}
+              {a.ports.some(p=>[445,3389].includes(p.port)) ? '极危 (RED)' : '普通 (LOW)'}
             </td>
           </tr>
         ))}
@@ -203,15 +211,15 @@ function PortMatrix({ asset }) {
   return (
     <table className="data-table">
       <thead>
-        <tr><th>PORT</th><th>SERVICE</th><th>PRODUCT</th><th>VERSION</th></tr>
+        <tr><th>端口号</th><th>服务协议</th><th>产品指纹</th><th>版本探测</th></tr>
       </thead>
       <tbody>
         {asset.ports.map(p => (
           <tr key={p.port}>
             <td style={{color:'#00FFFF'}}>{p.port}</td>
             <td style={{color:[445,3389,21].includes(p.port)?'#FF3B30':'#30D158'}}>{p.service}</td>
-            <td style={{color:'#999'}}>{p.product || '—'}</td>
-            <td style={{color:'#666'}}>{p.version || '—'}</td>
+            <td style={{color:'#999'}}>{p.product || '未知产品'}</td>
+            <td style={{color:'#666'}}>{p.version || '未知版本'}</td>
           </tr>
         ))}
       </tbody>
@@ -423,7 +431,7 @@ function App() {
         </div>
         <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} />
         <div className="resizer"></div>
-        <WorkArea assets={assets} selectedIp={selectedIp} />
+        <WorkArea assets={assets} selectedIp={selectedIp} view={view} />
         <AiPanel width={aiWidth} onResize={setAiWidth} />
       </div>
     </div>
