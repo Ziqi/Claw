@@ -289,7 +289,7 @@ function AiPanel({ width, onResize }) {
           </div>
         </div>
 
-        <div className="ai-chat-area" ref={chatRef} style={{ paddingBottom: '120px' }}>
+        <div className="ai-chat-area" ref={chatRef}>
           {messages.length === 0 && (
             <div style={{marginTop:'auto'}}>
               <div style={{fontSize:'18px', color:'#00FFFF', fontWeight:'bold', fontFamily:'Consolas, monospace', marginBottom:'8px'}}>
