@@ -29,37 +29,36 @@ export default function Assets() {
   const handleSearch = (e) => {
     const val = e.target.value
     setSearch(val)
-    // Debounce
     clearTimeout(window._searchTimer)
     window._searchTimer = setTimeout(() => fetchAssets(val), 300)
   }
 
   return (
     <>
-      <div className="page-header">
-        <h2>🖥️ Assets</h2>
-        <p>{total} 个资产 · Scan: {scanId || '—'}</p>
+      <div className="term-header">
+        <div className="path">root@claw:~# nmap --list-targets | wc -l<span className="cursor"></span></div>
+        <div className="desc">// {total} targets enumerated — scan_id: {scanId || '—'}</div>
       </div>
 
       <div className="search-bar">
         <input
           type="text"
-          placeholder="🔍 搜索 IP 或 OS..."
+          placeholder="grep -i 'pattern' assets.db ..."
           value={search}
           onChange={handleSearch}
         />
       </div>
 
       {loading ? (
-        <div className="loading">加载中...</div>
+        <div className="loading"> QUERYING claw.db... <span className="cursor"></span></div>
       ) : (
         <table className="data-table">
           <thead>
             <tr>
-              <th>IP</th>
-              <th>OS</th>
-              <th>端口数</th>
-              <th>Services</th>
+              <th>ip_addr</th>
+              <th>os_detect</th>
+              <th>ports</th>
+              <th>services[]</th>
             </tr>
           </thead>
           <tbody>
@@ -70,39 +69,33 @@ export default function Assets() {
                   onClick={() => setExpanded(expanded === a.ip ? null : a.ip)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <td style={{fontFamily:'JetBrains Mono, monospace', color:'var(--accent-cyan)'}}>
-                    {expanded === a.ip ? '▼' : '▶'} {a.ip}
+                  <td style={{color:'var(--cyan)'}}>
+                    {expanded === a.ip ? '[-]' : '[+]'} {a.ip}
                   </td>
-                  <td>{a.os || '—'}</td>
+                  <td style={{color:'var(--text-dim)'}}>{a.os || '—'}</td>
                   <td>
                     <span className="badge badge-port">{a.port_count}</span>
                   </td>
                   <td>
-                    {a.ports.slice(0, 5).map(p => (
+                    {a.ports.slice(0, 6).map(p => (
                       <span key={p.port} className="badge badge-port">{p.port}/{p.service}</span>
                     ))}
-                    {a.ports.length > 5 && <span style={{color:'var(--text-dim)', fontSize:'0.75rem'}}> +{a.ports.length - 5}</span>}
+                    {a.ports.length > 6 && <span style={{color:'var(--text-dim)'}}> +{a.ports.length - 6}</span>}
                   </td>
                 </tr>
                 {expanded === a.ip && (
                   <tr key={a.ip + '-detail'}>
-                    <td colSpan={4} style={{background:'var(--bg-secondary)', padding:'12px 24px'}}>
-                      <table style={{width:'100%', fontSize:'0.8rem'}}>
-                        <thead>
-                          <tr>
-                            <th style={{padding:'4px 8px', color:'var(--text-dim)'}}>Port</th>
-                            <th style={{padding:'4px 8px', color:'var(--text-dim)'}}>Service</th>
-                            <th style={{padding:'4px 8px', color:'var(--text-dim)'}}>Product</th>
-                            <th style={{padding:'4px 8px', color:'var(--text-dim)'}}>Version</th>
-                          </tr>
-                        </thead>
+                    <td colSpan={4} style={{background:'var(--bg-dark)', padding:'8px 16px', borderLeft:'2px solid var(--green-dark)'}}>
+                      <div style={{color:'var(--green-dark)', fontSize:'0.65rem', marginBottom:'6px'}}>
+                        {'>'} nmap -sV {a.ip} — {a.ports.length} open ports
+                      </div>
+                      <table style={{width:'100%'}}>
                         <tbody>
                           {a.ports.map(p => (
                             <tr key={p.port}>
-                              <td style={{padding:'4px 8px', color:'var(--accent-green)', fontFamily:'JetBrains Mono, monospace'}}>{p.port}</td>
-                              <td style={{padding:'4px 8px'}}>{p.service}</td>
-                              <td style={{padding:'4px 8px', color:'var(--text-secondary)'}}>{p.product || '—'}</td>
-                              <td style={{padding:'4px 8px', color:'var(--text-secondary)'}}>{p.version || '—'}</td>
+                              <td style={{padding:'2px 8px', color:'var(--green)', width:'60px', fontSize:'0.75rem'}}>{p.port}</td>
+                              <td style={{padding:'2px 8px', color:'var(--cyan)', fontSize:'0.75rem'}}>{p.service}</td>
+                              <td style={{padding:'2px 8px', color:'var(--text-dim)', fontSize:'0.7rem'}}>{p.product || ''} {p.version || ''}</td>
                             </tr>
                           ))}
                         </tbody>
