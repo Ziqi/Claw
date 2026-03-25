@@ -78,8 +78,8 @@ body {
 /* =========================================
    Main Shell Layout
    ========================================= */
-.app-container { display: flex; flex-direction: column; width: 100%; height: 100%; }
-.main-shell { display: flex; flex: 1; overflow: hidden; }
+.app-container { display: flex; flex-direction: column; width: 100%; height: 100vh; }
+.main-shell { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
 /* =========================================
    Activity Bar (左侧图标栏)
@@ -284,6 +284,8 @@ body {
   flex-direction: column;
   flex-shrink: 0;
   border-left: 1px solid var(--border-color);
+  min-height: 0;
+  max-height: 100%;
 }
 
 .ai-header {
