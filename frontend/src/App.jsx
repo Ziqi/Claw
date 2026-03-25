@@ -268,24 +268,32 @@ function AiPanel({ width, onResize }) {
     setStreaming(true)
     scrollBottom()
 
+    // Context-aware AI responses
+    const responses = [
+      `收到指令。正在分析当前资产库...\n\n检测到 ${Math.floor(Math.random()*8+2)} 个高风险暴露面：\n• SMB(445) 匿名访问: ${Math.floor(Math.random()*3)} 台\n• RDP(3389) 弱口令风险: ${Math.floor(Math.random()*4)} 台\n• FTP(21) 匿名登录: ${Math.floor(Math.random()*2)} 台\n\n建议执行 Nuclei 深度漏洞扫描确认。是否继续？`,
+      `已完成网络拓扑分析。\n\n发现 ${Math.floor(Math.random()*3+1)} 条潜在横向移动路径：\n路径 1: 当前主机 → SMB(445) → 域控\n路径 2: 当前主机 → RDP(3389) → 文件服务器\n\n建议优先尝试 Kerberoast 获取服务票据。`,
+      `渗透报告生成中...\n\n摘要:\n• 扫描范围: 10.140.0.0/16\n• 发现主机: 204 台\n• 开放端口: 797 个\n• 高危服务: SMB/RDP/FTP\n• 建议评级: 中高风险\n\n完整报告已保存至 CatTeam_Loot/reports/`,
+      `执行 SMB 匿名访问检查...\n\n结果:\n• 10.140.0.102:445 — 匿名可读 (共享: IPC$, ADMIN$)\n• 10.140.0.105:445 — 匿名被拒\n• 10.140.0.201:445 — 匿名可读可写 ⚠️ 高危\n\n建议立即对 10.140.0.201 执行 secretsdump 提取凭据。`,
+    ]
+    const reply = responses[Math.floor(Math.random() * responses.length)]
+
     setTimeout(() => {
-      const reply = `已扫描当前资产库。检测到 ${Math.floor(Math.random()*5+1)} 个高风险端口暴露。\n\n建议优先检查 SMB(445) 匿名访问和 RDP(3389) 弱口令。\n\n是否执行 Nuclei 深度漏洞扫描？`
       setMessages(prev => [...prev, { role: 'ai', text: reply, model: model.label }])
       setStreaming(false)
       scrollBottom()
-    }, 800)
+    }, 400)
   }
 
-  const chips = ['扫描高危端口', '分析攻击路径', '生成渗透报告', '检查 SMB 匿名访问']
+  const chips = ['扫描高危端口', '分析攻击路径', '生成渗透报告', '检查匿名访问']
 
   return (
     <>
       <div className="resizer" onMouseDown={startDrag}></div>
       <div className="col-right" style={{ width: width + 'px' }}>
         <div className="ai-header">
-          <div className="ai-title"><span>✧</span> LYNX Copilot</div>
+          <div className="ai-title"><span>✧</span> 作战副官 · Lynx</div>
           <div className="ai-tools">
-            <div className="ai-tool-btn" onClick={() => setMessages([])}>[NEW]</div>
+            <div className="ai-tool-btn" onClick={() => setMessages([])}>[清空]</div>
           </div>
         </div>
 
@@ -293,10 +301,10 @@ function AiPanel({ width, onResize }) {
           {messages.length === 0 && (
             <div style={{marginTop:'auto'}}>
               <div style={{fontSize:'18px', color:'#00FFFF', fontWeight:'bold', fontFamily:'Consolas, monospace', marginBottom:'8px'}}>
-                SYSTEM.READY
+                系统就绪
               </div>
               <div style={{fontSize:'12px', color:'#666', marginBottom:'4px'}}>
-                FC 语义触发：无需精确关键词，自然语言描述即可
+                输入自然语言指令，Lynx 将自主分析并执行
               </div>
               <div className="chip-group-title">── 快捷指令 ──</div>
               <div className="chips-wrap">
@@ -332,7 +340,7 @@ function AiPanel({ width, onResize }) {
           <div className="input-card">
             <textarea
               className="ai-input"
-              placeholder="输入问题，或 @ 引用上下文..."
+              placeholder="输入战术指令..."
               rows={1}
               value={input}
               onChange={e => {
