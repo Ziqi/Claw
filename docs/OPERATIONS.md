@@ -1,4 +1,4 @@
-# 🐱 CatTeam 作战手册 v5.0
+# 🐱 CatTeam 作战手册 v5.0.1
 
 本手册按**实战场景**组织，告诉你什么时候该跑什么命令。
 
@@ -267,6 +267,10 @@ docker exec -it kali_arsenal /bin/bash         # 进入战车
 | `10-kerberoast` | 域用户凭据 + 域控 IP | Docker + Impacket + BloodHound |
 | `16-ai-analyze` | claw.db (02.5 生成) | Python3, curl, Gemini API Key |
 | `17-ask-lynx` | 无 (可选 claw.db) | Python3, curl, Gemini API Key |
+| `18-ai-bloodhound` | BloodHound JSON/ZIP (`10-kerberoast` 生成) | Python3, Gemini API Key |
+| `23-hp-proxy-unlocker` | 目标 IP | Python3 |
+| `make toolbox` | Docker 容器运行中 | Docker + Kali 镜像 V4 |
+| `make firmware` | 固件 .bin 文件 | Python3 |
 
 ---
 

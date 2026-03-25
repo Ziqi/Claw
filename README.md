@@ -98,6 +98,8 @@ make fast
 | `make loot CONFIRM=--confirm` | 后渗透提取 (secretsdump) |
 | `make kerberoast` | AD 域 Kerberoast 攻击 |
 | `make nuclei` | Nuclei 漏洞扫描 |
+| `make toolbox` | 🔧 扩展工具箱 (Nikto/Hydra/Sqlmap/binwalk) |
+| `make firmware FW=x.bin` | 固件解剖刀 (纯 Python) |
 | `make clean` | 清空战区 + 销毁容器 |
 | `make status` | 战区状态报告 |
 | `make test` | 自动化靶场测试 |
@@ -131,9 +133,16 @@ CatTeam/
 ├── db_engine.py             # SQLite 数据引擎 (多环境隔离)
 ├── 16-ai-analyze.py         # AI 战术分析 (Gemini Flash)
 ├── 17-ask-lynx.py           # 问 Lynx: 多轮对话 (滑动窗口 10 轮)
-├── scripts/scope_check.py   # ROE 校验器 (支持环境变量旁路)
+├── 18-ai-bloodhound.py      # AI-Hound: BloodHound JSON → Gemini 图论推理
+├── 23-hp-proxy-unlocker.py   # HP 代理跳板机复仇者
 │
-├── Dockerfile               # Kali 战车镜像 (Nmap + Impacket + Nuclei)
+├── scripts/
+│   ├── scope_check.py       # ROE 校验器
+│   ├── db_engine.py         # SQLite 数据引擎
+│   ├── firmware-autopsy.py  # 固件解剖刀 (零依赖 binwalk 替代)
+│   └── examples/            # 实战参考 PoC
+│
+├── Dockerfile               # Kali 战车镜像 V4 (Nmap + Impacket + Nuclei + binwalk)
 ├── Responder/               # Responder 投毒工具 (本地克隆)
 ├── nuclei-templates/        # Nuclei 漏洞模板
 ├── tests/                   # Docker Compose 自动化靶场
@@ -146,9 +155,10 @@ CatTeam/
 │
 └── docs/
     ├── ARCHITECTURE.md      # 架构设计 & 数据流
-    ├── OPERATIONS.md        # 作战手册 (11 个实战场景)
-    ├── ROADMAP.md           # 开发路线图 (v1.0 → v5.0.1)
-    └── advisor/             # 导师交流文档
+    ├── OPERATIONS.md        # 作战手册
+    ├── ROADMAP.md           # 开发路线图 (v1.0 → v7.0)
+    ├── CONVENTIONS.md       # 技术标准 (版本号/命名/编码规范)
+    └── advisor/             # 导师交流文档 (V4-V7)
 ```
 
 ## 🤖 AI 副官 (Lynx)
@@ -191,7 +201,8 @@ CLAW_OPSEC=live python3 16-ai-analyze.py
 
 ```
 v1.0 (基础链) → v2.0 (工程化) → v3.0 (攻击链) → v3.1 (情报层)
-     → v4.0 (合规/侦察/AD) → v5.0 (SQLite+AI) → v5.0.1 (TUI优化)
+     → v4.0 (合规/AD) → v5.0 (SQLite+AI) → v5.0.1 (TUI+工具箱+实战)
+     → v6.0 (Sliver C2/Ligolo-ng) → v7.0 (Agentic AI 智能体)
 ```
 
 ## 📚 文档索引
@@ -199,8 +210,9 @@ v1.0 (基础链) → v2.0 (工程化) → v3.0 (攻击链) → v3.1 (情报层)
 | 文档 | 内容 |
 |---|---|
 | [架构设计](docs/ARCHITECTURE.md) | 系统架构、数据流、混合执行模型 |
-| [作战手册](docs/OPERATIONS.md) | 11 个实战操作场景详解 |
-| [开发路线](docs/ROADMAP.md) | v1.0 → v5.0.1 完整演进记录 |
+| [作战手册](docs/OPERATIONS.md) | 实战操作场景详解 |
+| [开发路线](docs/ROADMAP.md) | v1.0 → v7.0 完整演进记录 |
+| [技术标准](docs/CONVENTIONS.md) | 版本号/命名/编码规范 |
 | [更新日志](CHANGELOG.md) | 每个版本的详细变更记录 |
 
 ---

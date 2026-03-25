@@ -2,6 +2,32 @@
 
 ---
 
+## [v5.0.1-B] — 2026-03-25 (晚间冲刺)
+
+### 🔧 B类待办批量交付
+
+**新模块:**
+- `18-ai-bloodhound.py` — AI-Hound: BloodHound JSON → Gemini 图论推理引擎
+- `23-hp-proxy-unlocker.py` — HP 代理跳板机复仇者 (4 阶段自动化攻击)
+- `make toolbox` — 扩展工具箱 (Nikto/Hydra/Sqlmap/binwalk/固件解剖刀 交互菜单)
+- `make firmware` — 固件解剖刀快捷入口
+
+**模块重组:**
+- `21-firmware-autopsy.py` → `scripts/firmware-autopsy.py` (正式通用工具)
+- `20-tplink-probe.py` → `scripts/examples/` (实战参考 PoC)
+- `22-printer-probe.py` → `scripts/examples/` (实战参考 PoC)
+
+**基础设施:**
+- `Dockerfile` V3 → V4 (新增 binwalk 固件逆向工具)
+- `docs/CONVENTIONS.md` — 技术标准文档 (版本号/命名/编码规范)
+
+**导师文档:**
+- `V7_AGENTIC_PROPOSAL.md` — Agentic AI 全自动智能体架构推演
+- `V7_ADVISOR_RULING.md` — 导师 V7 批复存档
+- `V7_QUESTIONS.md` — V7 战略请示 (界面/模型/安全边界)
+
+---
+
 ## [v5.0.0-alpha] — 2026-03-25
 
 ### 🗄️ Phase 1: SQLite 数据层 (双写架构)
