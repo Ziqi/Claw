@@ -166,9 +166,15 @@ v1.0 (03-24)  ━━  v2.0 (03-25)  ━━  v3.0 (03-25)  ━━  v3.1 (03-25)  
 | `08-diff` | v5.0 | ✅ | ✅ (SQL EXCEPT) |
 | `09-loot` | v4.0 | ✅ | ⚠️ 需 AD 靶机 |
 | `10-kerberoast` | v4.0 | ✅ | ⚠️ 需 AD 靶机 |
-| `db_engine` | v5.0 | ✅ | ✅ (自测通过) |
-| `16-ai-analyze` | v5.0 | ✅ | ✅ (Gemini Flash 实测) |
+| `11-webhook` | v5.0 | ✅ | ✅ (本地告警) |
+| `12-nuclei-integration` | v5.0.1 | ✅ | ⚠️ 需 Docker V4 |
+| `db_engine` | v5.0 | ✅ | ✅ |
+| `16-ai-analyze` | v5.0 | ✅ | ✅ (Gemini Flash) |
 | `17-ask-lynx` | v5.0 | ✅ | ✅ |
+| `18-ai-bloodhound` | v5.0.1 | ✅ | ⚠️ 需 AD JSON |
+| `23-hp-proxy-unlocker` | v5.0.1 | ✅ | ⚠️ 需靶场 |
+| `scripts/firmware-autopsy` | v5.0.1 | ✅ | ✅ |
+| `make toolbox` | v5.0.1 | ✅ | ⚠️ 需 Docker V4 |
 | `scope_check` | v4.0 | ✅ | ✅ |
 | `make test` | v4.0 | ✅ | ⚠️ 需拉镜像 |
 
