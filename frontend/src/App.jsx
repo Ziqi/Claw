@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { fetchEventSource } from '@microsoft/fetch-event-source'
 import './index.css'
 
 const API = 'http://localhost:8000/api/v1'
@@ -266,14 +267,15 @@ function AiPanel({ width, onResize }) {
   const [streaming, setStreaming] = useState(false)
   const [model, setModel] = useState(MODELS[0])
   const [menuOpen, setMenuOpen] = useState(false)
+  const [interactionId, setInteractionId] = useState(null)
   const chatRef = useRef(null)
   const isDragging = useRef(false)
+  const abortRef = useRef(null)
 
   const scrollBottom = () => setTimeout(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
   }, 10)
 
-  // Drag resize
   const startDrag = (e) => {
     isDragging.current = true
     document.body.style.cursor = 'col-resize'
@@ -294,7 +296,7 @@ function AiPanel({ width, onResize }) {
     document.addEventListener('mouseup', onUp)
   }
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim() || streaming) return
     const userMsg = input.trim()
     setInput('')
@@ -302,23 +304,105 @@ function AiPanel({ width, onResize }) {
     setStreaming(true)
     scrollBottom()
 
-    // Context-aware AI responses
-    const responses = [
-      `收到指令。正在分析当前资产库...\n\n检测到 ${Math.floor(Math.random()*8+2)} 个高风险暴露面：\n• SMB(445) 匿名访问: ${Math.floor(Math.random()*3)} 台\n• RDP(3389) 弱口令风险: ${Math.floor(Math.random()*4)} 台\n• FTP(21) 匿名登录: ${Math.floor(Math.random()*2)} 台\n\n建议执行 Nuclei 深度漏洞扫描确认。是否继续？`,
-      `已完成网络拓扑分析。\n\n发现 ${Math.floor(Math.random()*3+1)} 条潜在横向移动路径：\n路径 1: 当前主机 → SMB(445) → 域控\n路径 2: 当前主机 → RDP(3389) → 文件服务器\n\n建议优先尝试 Kerberoast 获取服务票据。`,
-      `渗透报告生成中...\n\n摘要:\n• 扫描范围: 10.140.0.0/16\n• 发现主机: 204 台\n• 开放端口: 797 个\n• 高危服务: SMB/RDP/FTP\n• 建议评级: 中高风险\n\n完整报告已保存至 CatTeam_Loot/reports/`,
-      `执行 SMB 匿名访问检查...\n\n结果:\n• 10.140.0.102:445 — 匿名可读 (共享: IPC$, ADMIN$)\n• 10.140.0.105:445 — 匿名被拒\n• 10.140.0.201:445 — 匿名可读可写 ⚠️ 高危\n\n建议立即对 10.140.0.201 执行 secretsdump 提取凭据。`,
-    ]
-    const reply = responses[Math.floor(Math.random() * responses.length)]
+    let aiText = ''
+    let toolCalls = []
 
-    setTimeout(() => {
-      setMessages(prev => [...prev, { role: 'ai', text: reply, model: model.label }])
+    setMessages(prev => [...prev, {
+      role: 'ai', text: '', tools: [], model: model.label, thinking: true,
+    }])
+
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+
+    try {
+      await fetchEventSource('http://localhost:8000/api/agent/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: userMsg, interaction_id: interactionId }),
+        signal: ctrl.signal,
+        openWhenHidden: true,
+
+        onmessage(ev) {
+          const data = JSON.parse(ev.data)
+          switch (ev.event) {
+            case 'thinking':
+              setMessages(prev => {
+                const msgs = [...prev]; const last = msgs[msgs.length - 1]
+                if (last?.role === 'ai') { last.thinking = true; last.thinkingStatus = data.status }
+                return msgs
+              })
+              scrollBottom()
+              break
+            case 'tool_call':
+              toolCalls.push({ name: data.name, args: data.args, risk: data.risk_level || 'green', status: 'running' })
+              setMessages(prev => {
+                const msgs = [...prev]; const last = msgs[msgs.length - 1]
+                if (last?.role === 'ai') { last.tools = [...toolCalls]; last.thinking = false }
+                return msgs
+              })
+              scrollBottom()
+              break
+            case 'tool_result': {
+              const tc = toolCalls.findLast(t => t.name === data.name)
+              if (tc) { tc.status = data.status; tc.preview = data.preview }
+              setMessages(prev => {
+                const msgs = [...prev]; const last = msgs[msgs.length - 1]
+                if (last?.role === 'ai') last.tools = [...toolCalls]
+                return msgs
+              })
+              scrollBottom()
+              break
+            }
+            case 'delta':
+              aiText += data.text
+              setMessages(prev => {
+                const msgs = [...prev]; const last = msgs[msgs.length - 1]
+                if (last?.role === 'ai') { last.text = aiText; last.thinking = false }
+                return msgs
+              })
+              scrollBottom()
+              break
+            case 'done':
+              if (data.interaction_id) setInteractionId(data.interaction_id)
+              setMessages(prev => {
+                const msgs = [...prev]; const last = msgs[msgs.length - 1]
+                if (last?.role === 'ai') { last.thinking = false; last.done = true }
+                return msgs
+              })
+              setStreaming(false)
+              scrollBottom()
+              break
+            case 'error':
+              setMessages(prev => {
+                const msgs = [...prev]; const last = msgs[msgs.length - 1]
+                if (last?.role === 'ai') { last.text = `⚠️ ${data.message}`; last.thinking = false; last.done = true; last.isError = true }
+                return msgs
+              })
+              setStreaming(false)
+              scrollBottom()
+              break
+          }
+        },
+        onerror(err) {
+          console.error('SSE error:', err)
+          setMessages(prev => {
+            const msgs = [...prev]; const last = msgs[msgs.length - 1]
+            if (last?.role === 'ai') { last.text = '⚠️ 连接中断，请重试'; last.thinking = false; last.done = true; last.isError = true }
+            return msgs
+          })
+          setStreaming(false)
+          throw err
+        },
+        onclose() { setStreaming(false) },
+      })
+    } catch (e) {
+      if (e.name !== 'AbortError') console.error('Agent stream failed:', e)
       setStreaming(false)
-      scrollBottom()
-    }, 400)
+    }
   }
 
-  const chips = ['扫描高危端口', '分析攻击路径', '生成渗透报告', '检查匿名访问']
+  const stopStream = () => { if (abortRef.current) abortRef.current.abort(); setStreaming(false) }
+  const chips = ['列出所有资产', '分析攻击路径', '扫描高危端口', '查看最新漏洞']
 
   return (
     <>
@@ -327,7 +411,7 @@ function AiPanel({ width, onResize }) {
         <div className="ai-header">
           <div className="ai-title"><span>✧</span> 作战副官 · Lynx</div>
           <div className="ai-tools">
-            <div className="ai-tool-btn" onClick={() => setMessages([])}>[清空]</div>
+            <div className="ai-tool-btn" onClick={() => { setMessages([]); setInteractionId(null) }}>[清空]</div>
           </div>
         </div>
 
@@ -338,7 +422,7 @@ function AiPanel({ width, onResize }) {
                 系统就绪
               </div>
               <div style={{fontSize:'12px', color:'#666', marginBottom:'4px'}}>
-                输入自然语言指令，Lynx 将自主分析并执行
+                连接 Gemini 3 Interactions API · 实时流式对话
               </div>
               <div className="chip-group-title">── 快捷指令 ──</div>
               <div className="chips-wrap">
@@ -355,21 +439,19 @@ function AiPanel({ width, onResize }) {
             ) : (
               <div key={i} className="msg-ai">
                 <div className="ai-identity">✧ {m.model || model.label} 引擎</div>
-                <StreamingText text={m.text} />
+                {m.thinking && (
+                  <div className="thinking-indicator">
+                    <span className="thinking-dot"></span>
+                    <span style={{color:'#888', fontSize:'12px'}}>{m.thinkingStatus || 'Lynx 正在思考...'}</span>
+                  </div>
+                )}
+                {m.tools?.map((tc, j) => <ToolCallCard key={j} tool={tc} />)}
+                {m.text && <StreamingText text={m.text} done={m.done} isError={m.isError} />}
               </div>
             )
           ))}
-
-          {streaming && (
-            <div className="msg-ai">
-              <div className="ai-identity">✧ {model.label} 引擎</div>
-              <div className="skeleton-line"></div>
-              <div className="skeleton-line"></div>
-            </div>
-          )}
         </div>
 
-        {/* Floating bottom input */}
         <div className="ai-input-float">
           <div className="input-card">
             <textarea
@@ -377,11 +459,7 @@ function AiPanel({ width, onResize }) {
               placeholder="输入战术指令..."
               rows={1}
               value={input}
-              onChange={e => {
-                setInput(e.target.value)
-                e.target.style.height = 'auto'
-                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
-              }}
+              onChange={e => { setInput(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px' }}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
             />
             <div className="input-tools">
@@ -393,11 +471,7 @@ function AiPanel({ width, onResize }) {
                 {menuOpen && (
                   <div className="model-dropdown">
                     {MODELS.map(m => (
-                      <div
-                        key={m.key}
-                        className={`dd-item ${model.key === m.key ? 'active' : ''}`}
-                        onClick={() => { setModel(m); setMenuOpen(false) }}
-                      >
+                      <div key={m.key} className={`dd-item ${model.key === m.key ? 'active' : ''}`} onClick={() => { setModel(m); setMenuOpen(false) }}>
                         <span style={{color: m.color}}>● {m.label}</span>
                         <span style={{fontSize:'9px', color:'#666'}}>{m.desc}</span>
                       </div>
@@ -405,11 +479,15 @@ function AiPanel({ width, onResize }) {
                   </div>
                 )}
               </div>
-              <button className="send-btn" onClick={sendMessage} disabled={!input.trim()}>
-                <svg className="send-icon" viewBox="0 0 24 24">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-              </button>
+              {streaming ? (
+                <button className="send-btn" onClick={stopStream} style={{background:'#FF3B30'}}>
+                  <svg className="send-icon" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                </button>
+              ) : (
+                <button className="send-btn" onClick={sendMessage} disabled={!input.trim()}>
+                  <svg className="send-icon" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -418,12 +496,36 @@ function AiPanel({ width, onResize }) {
   )
 }
 
-function StreamingText({ text }) {
-  const { displayed, done } = useTypewriter(text, 12)
+function ToolCallCard({ tool }) {
+  const riskColors = { green: '#30D158', yellow: '#FF9900', red: '#FF3B30' }
+  const riskLabels = { green: '🟢', yellow: '🟡', red: '🔴' }
   return (
-    <div>
-      {displayed.split('\n').map((line, i) => (
-        <span key={i}>{line}{i < displayed.split('\n').length - 1 && <br/>}</span>
+    <div style={{
+      background: 'rgba(255,255,255,0.03)', border: '1px solid #222',
+      borderLeft: `3px solid ${riskColors[tool.risk] || '#333'}`,
+      borderRadius: '4px', padding: '8px 10px', margin: '6px 0',
+      fontSize: '12px', fontFamily: 'Consolas, monospace',
+    }}>
+      <div style={{display:'flex', alignItems:'center', gap:'6px', marginBottom:'4px'}}>
+        <span>{riskLabels[tool.risk] || '🔧'}</span>
+        <span style={{color:'#00FFFF'}}>{tool.name}</span>
+        <span style={{color: tool.status === 'ok' ? '#30D158' : tool.status === 'error' ? '#FF3B30' : '#888', fontSize: '10px'}}>
+          {tool.status === 'running' ? '⏳ 执行中...' : tool.status === 'ok' ? '✓ 完成' : tool.status === 'error' ? '✗ 失败' : tool.status}
+        </span>
+      </div>
+      <div style={{color:'#666', fontSize:'11px', wordBreak:'break-all'}}>
+        {JSON.stringify(tool.args).slice(0, 120)}
+      </div>
+      {tool.preview && <div style={{color:'#888', fontSize:'11px', marginTop:'4px'}}>{tool.preview}</div>}
+    </div>
+  )
+}
+
+function StreamingText({ text, done, isError }) {
+  return (
+    <div style={{color: isError ? '#FF3B30' : '#D0D0D0'}}>
+      {text.split('\n').map((line, i) => (
+        <span key={i}>{line}{i < text.split('\n').length - 1 && <br/>}</span>
       ))}
       {!done && <span className="typing-cursor"></span>}
     </div>
@@ -464,3 +566,4 @@ function App() {
 }
 
 export default App
+

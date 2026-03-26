@@ -7,7 +7,13 @@
 import os, sqlite3, json
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from contextlib import contextmanager
+from pydantic import BaseModel
+from typing import Optional
+
+# Agent 模块
+from backend.agent import react_loop_stream, API_KEY as AGENT_API_KEY
 
 # === 配置 ===
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -170,6 +176,60 @@ def get_audit_log(limit: int = Query(50, ge=1, le=200)):
     return {"entries": entries, "total": len(lines)}
 
 
+# ============================================================
+#  Agent SSE 流式端点 (Phase 2 核心)
+# ============================================================
+
+class ChatRequest(BaseModel):
+    query: str
+    interaction_id: Optional[str] = None
+
+
+@app.get("/api/agent/stream")
+async def agent_stream_get(
+    query: str = Query(..., description="用户消息"),
+    interaction_id: str = Query(None, description="上一轮 interaction_id")
+):
+    """SSE 流式 Agent 对话 (GET — 兼容 EventSource)"""
+    if not AGENT_API_KEY:
+        raise HTTPException(status_code=503, detail="未配置 Gemini API Key")
+
+    def event_generator():
+        for event in react_loop_stream(query, interaction_id):
+            yield event
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+@app.post("/api/agent/stream")
+async def agent_stream_post(req: ChatRequest):
+    """SSE 流式 Agent 对话 (POST — 支持 @microsoft/fetch-event-source)"""
+    if not AGENT_API_KEY:
+        raise HTTPException(status_code=503, detail="未配置 Gemini API Key")
+
+    def event_generator():
+        for event in react_loop_stream(req.query, req.interaction_id):
+            yield event
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
 @app.get("/")
 def root():
     return {
@@ -177,4 +237,5 @@ def root():
         "version": "8.0.0-alpha",
         "docs": "/docs",
         "status": "operational",
+        "agent": "ready" if AGENT_API_KEY else "no_api_key",
     }
