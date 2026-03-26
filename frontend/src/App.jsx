@@ -128,9 +128,17 @@ function Sidebar({ assets, onSelect, selected, view }) {
       </div>
     )
   }
+
+  return null
 }
 
 // ========== WORK AREA TABS ==========
+const VIEW_TABS = {
+  RC: ['侦察态势', '漏洞日志'],
+  AT: ['全局资产库', '端口暴露面'],
+  AG: ['执行轨道', 'AI审计树'],
+}
+
 function WorkArea({ assets, selectedIp, view }) {
   const [tab, setTab] = useState(0)
   
@@ -138,14 +146,7 @@ function WorkArea({ assets, selectedIp, view }) {
   useEffect(() => { setTab(0) }, [view])
 
   const asset = assets.find(a => a.ip === selectedIp)
-  
-  const getViewTabs = () => {
-    if (view === 'RC') return ['侦察态势', '漏洞日志']
-    if (view === 'AT') return ['全局资产库', '端口暴露面']
-    if (view === 'AG') return ['执行轨道', 'AI审计树']
-    return []
-  }
-  const tabs = getViewTabs()
+  const tabs = VIEW_TABS[view] || []
 
   return (
     <div className="activity-main">
@@ -455,7 +456,6 @@ function App() {
           ))}
         </div>
         <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} view={view} />
-        <div className="resizer"></div>
         <WorkArea assets={assets} selectedIp={selectedIp} view={view} />
         <AiPanel width={aiWidth} onResize={setAiWidth} />
       </div>

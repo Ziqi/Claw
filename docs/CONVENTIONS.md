@@ -51,7 +51,7 @@ Agent 智能体**独立于**平台版本，因为 Agent 演进频率更高。
 | A3.0 (M3) *(计划)* | 自主任务链 + LLM Routing | – |
 | A4.0 (M4) *(远期)* | 多 Agent 协作 + 知识图谱 | – |
 
-### 1.2 Dockerfile 版本
+### 1.3 Dockerfile 版本
 
 Docker 镜像版本**独立于** CLAW 平台版本，因为镜像构建由用户手动触发。
 
@@ -179,7 +179,7 @@ CatTeam/
 - Web 服务配置 (如 IP、端口) 可使用 `.env` 或复用 `config.sh` (由 Python 解析)
 - API Key 等密钥**禁止**提交 Git
 
-### 4.4 Git 提交规范
+### 4.5 Git 提交规范
 
 ```
 格式: {emoji} {简要描述}
