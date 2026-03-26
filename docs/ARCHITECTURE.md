@@ -1,6 +1,47 @@
 # CatTeam 架构设计文档 V8.0-alpha / A2.0
 
-## 1. 设计哲学
+## 1. 平台定位与行业对标
+
+### 1.1 三个层次
+
+```
+┌────────────────────────────────────────────────────────┐
+│  作战平台 (Platform)                                    │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  框架 (Framework)                                │  │
+│  │  ┌──────────────────────────────────────────┐    │  │
+│  │  │  工具集 (Toolkit)                        │    │  │
+│  │  │  nmap, hashcat, sqlmap, binwalk...       │    │  │
+│  │  └──────────────────────────────────────────┘    │  │
+│  │  编排 + 数据共享 + API                            │  │
+│  └──────────────────────────────────────────────────┘  │
+│  GUI + 协作 + AI + 态势感知 + 审计                       │
+└────────────────────────────────────────────────────────┘
+
+CLAW V7.0: 工具集 → 框架 (已跨越: 有编排+数据层+Agent)
+CLAW V8.0: 框架 → 作战平台 (GUI + 协作 + 审计 + 态势感知)
+```
+
+### 1.2 竞品对标
+
+| 系统 | 类型 | 界面 | 开源 | 核心能力 |
+|---|---|---|---|---|
+| **Kali Linux** | 工具集 | CLI | ✅ | 600+ 工具预装 |
+| **Metasploit** | 框架 | CLI + Armitage | ✅ | exploit 库 + payload + 后渗透 |
+| **Cobalt Strike** | 框架 | Java GUI | ❌ | Beacon C2 + Malleable C2 |
+| **Sliver** | 框架 | CLI (gRPC) | ✅ | 现代 C2, CS 开源替代 |
+| **Havoc** | 框架 | Qt5 GUI | ✅ | 最新 C2, 类 CS 免费 |
+| **Mythic** | 平台 | Web Dashboard | ✅ | Web UI + 多 Agent + 审计 |
+| **Caldera** | 平台 | Web Dashboard | ✅ | MITRE ATT&CK 自动化 |
+| **BloodHound** | 分析 | Web UI | ✅ | AD 域攻击路径图谱 (Neo4j) |
+| **Faraday** | 平台 | Web Dashboard | ✅ | 漏洞管理协作平台 |
+| **Pentera** | 平台 | Web GUI | ❌ | 全自动渗透测试验证 |
+
+> **CLAW 核心差异化**: 市面上没有任何平台内置 AI Agent。AI 赋能红队作战是独一无二的竞争力。
+
+---
+
+## 2. 设计哲学
 
 1. **模块化编排** — 每个脚本独立可用，Makefile 统一编排
 2. **混合执行** — Mac 宿主机 (嗅探/解析/GPU) + Docker 容器 (Nmap/Impacket)
@@ -12,7 +53,7 @@
 
 ---
 
-## 2. 分层架构
+## 3. 分层架构
 
 ```
 ┌──────────────────────────────────────────┐
@@ -60,7 +101,7 @@
 
 ---
 
-## 3. 全模块职责矩阵
+## 4. 全模块职责矩阵
 
 ### 侦察链 (Recon Chain)
 
@@ -132,7 +173,7 @@
 
 ---
 
-## 4. 模块递进关系与数据流
+## 5. 模块递进关系与数据流
 
 ```mermaid
 graph TD
@@ -194,7 +235,7 @@ asset_diff.json            →  07-report (可选)
 
 ---
 
-## 5. 混合执行模型
+## 6. 混合执行模型
 
 ### 为什么不全用 Docker？
 
@@ -209,7 +250,7 @@ asset_diff.json            →  07-report (可选)
 
 ---
 
-## 6. 任务隔离机制
+## 7. 任务隔离机制
 
 ```
 CatTeam_Loot/
@@ -234,7 +275,7 @@ CatTeam_Loot/
 
 ---
 
-## 7. 错误处理策略
+## 8. 错误处理策略
 
 | 场景 | 策略 |
 |---|---|
@@ -248,3 +289,81 @@ CatTeam_Loot/
 | 密码暴露在 history | OPSEC: 禁止命令行参数传递密码 |
 | `jq` 在 Mac 不存在 | 用 Python 替代 JSON 解析 |
 | 多次运行覆盖数据 | 时间戳目录隔离 |
+
+---
+
+## 8. REST API 规范 (V8.0)
+
+```
+/api/v1/
+├── auth/
+│   ├── POST /login            # JWT 登录
+│   └── POST /refresh          # Token 刷新
+├── assets/
+│   ├── GET  /list             # 资产列表 (分页/搜索)
+│   ├── GET  /{ip}/detail      # 资产详情
+│   └── GET  /topology         # 网络拓扑数据
+├── agent/
+│   ├── POST /chat             # 发送消息给 Agent
+│   ├── GET  /stream           # SSE 流式推送 (D9 定调)
+│   ├── GET  /history          # 对话历史
+│   ├── POST /approve/{id}     # HITL 审批 (Action Token)
+│   └── GET  /audit            # 审计日志
+├── scans/
+│   ├── POST /run              # 启动扫描
+│   ├── GET  /status           # 扫描状态
+│   └── GET  /results          # 扫描结果
+├── reports/
+│   ├── POST /generate         # 生成报告
+│   └── GET  /download/{id}    # 下载报告
+└── ws/
+    └── WS  /stream            # WebSocket 实时推送 (备用)
+```
+
+---
+
+## 9. 数据库演进路线
+
+```
+当前 V7.0: SQLite (claw.db) — 4 张表 (scans/assets/ports/vulns)
+    ↓
+V8.0: SQLite + 扩展表
+  + conversations     (Agent 会话持久化)
+  + messages          (多轮对话记录)
+  + agent_audit       (审计日志, 替代文件)
+  + attack_paths      (攻击路径图谱)
+  + credentials       (凭据管理)
+  + pending_actions   (HITL Action Token 队列)
+    ↓
+V9.0+ (长期): PostgreSQL
+  + 并发支持 (多用户协作)
+  + 全文检索
+  + JSONB 查询
+```
+
+---
+
+## 10. 工具集成路线
+
+### 已集成 (V1-V7)
+
+| 工具 | 类型 | 集成方式 |
+|---|---|---|
+| Nmap | 侦察 | Docker + XML 解析 |
+| Responder | 投毒 | Mac 原生 |
+| Hashcat | 破解 | Mac GPU (Metal) |
+| Impacket | 横移 | Docker (psexec/secretsdump) |
+| Nuclei | 漏洞 | Docker + JSONL 解析 |
+| binwalk | 逆向 | Docker |
+| httpx | Web 指纹 | Docker / 纯 Python |
+
+### 待集成 (V8.0 规划, 导师已批准)
+
+| 工具 | 类型 | 优先级 | 集成方式 |
+|---|---|---|---|
+| **NetExec (nxc)** | AD 批量 | P0 | Docker (D9 定调, 替代 CrackMapExec) |
+| **Certipy** | AD CS 攻击 | P1 | Docker (D9 定调) |
+| **Sliver** | C2 框架 | P1 | 独立部署, gRPC API |
+| **Ligolo-ng** | 隧道穿透 | P1 | 独立部署 |
+| **BloodHound CE** | AD 图谱 | P2 | Docker + Neo4j |
+| **Chisel** | HTTP 隧道 | P2 | 二进制 |

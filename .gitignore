@@ -20,3 +20,9 @@ __pycache__/
 *.swp
 *.swo
 *~
+
+# 导师交流材料 (含讨论敏感内容, 不推 GitHub)
+docs/advisor/
+
+# 第三方 API 文档参考 (体积大, 不推 GitHub)
+docs/Gemini3/
