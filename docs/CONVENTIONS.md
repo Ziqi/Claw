@@ -1,7 +1,7 @@
 # 🐱 CatTeam/CLAW 技术标准文档 (Conventions & Standards)
 
-**版本：** 2.1  
-**最后更新：** 2026-03-26
+**版本：** 2.2  
+**最后更新：** 2026-03-27
 
 ---
 
@@ -32,6 +32,7 @@
 | V6.0 *(计划)* | Sliver C2 + Ligolo-ng |
 | **V7.0** | **Agentic AI 智能体 (M1+M2)** |
 | **V8.0-alpha** | **全栈作战平台 (FastAPI+React Bloomberg UI)** |
+| **V8.0.1** | **交互重构 + Docker 实弹 + 武器库 36 模块 + Agent 工具修复** |
 
 ### 1.2 Agent 版本 (A 前缀)
 

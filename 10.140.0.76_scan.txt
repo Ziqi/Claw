@@ -1,0 +1,81 @@
+# Nmap 7.98 scan initiated Fri Mar 27 00:30:01 2026 as: nmap -sV -sC -Pn -p 80,443,445,5000,5900 -oN 10.140.0.76_scan.txt 10.140.0.76
+Nmap scan report for 10.140.0.76
+Host is up (0.26s latency).
+
+PORT     STATE  SERVICE       VERSION
+80/tcp   closed http
+443/tcp  closed https
+445/tcp  open   microsoft-ds?
+5000/tcp open   rtsp
+| fingerprint-strings: 
+|   FourOhFourRequest: 
+|     HTTP/1.1 403 Forbidden
+|     Content-Length: 0
+|     Server: AirTunes/870.14.1
+|     X-Apple-ProcessingTime: 2
+|     X-Apple-RequestReceivedTimestamp: 1632744909
+|   GetRequest: 
+|     HTTP/1.1 403 Forbidden
+|     Content-Length: 0
+|     Server: AirTunes/870.14.1
+|     X-Apple-ProcessingTime: 2
+|     X-Apple-RequestReceivedTimestamp: 1632739749
+|   HTTPOptions: 
+|     HTTP/1.1 403 Forbidden
+|     Content-Length: 0
+|     Server: AirTunes/870.14.1
+|     X-Apple-ProcessingTime: 2
+|     X-Apple-RequestReceivedTimestamp: 1632744885
+|   RTSPRequest: 
+|     RTSP/1.0 403 Forbidden
+|     Content-Length: 0
+|     Server: AirTunes/870.14.1
+|     X-Apple-ProcessingTime: 2
+|     X-Apple-RequestReceivedTimestamp: 1632739772
+|   SIPOptions: 
+|     RTSP/1.0 403 Forbidden
+|     Content-Length: 0
+|     Server: AirTunes/870.14.1
+|     CSeq: 42 OPTIONS
+|     X-Apple-ProcessingTime: 2
+|_    X-Apple-RequestReceivedTimestamp: 1632744930
+|_rtsp-methods: ERROR: Script execution failed (use -d to debug)
+5900/tcp open   vnc           Apple remote desktop vnc
+| vnc-info: 
+|   Protocol version: 3.889
+|   Security types: 
+|     Apple Remote Desktop (30)
+|     Unknown security type (33)
+|     Unknown security type (36)
+|_    Mac OS X security type (35)
+1 service unrecognized despite returning data. If you know the service/version, please submit the following fingerprint at https://nmap.org/cgi-bin/submit.cgi?new-service :
+SF-Port5000-TCP:V=7.98%I=7%D=3/27%Time=69C55F15%P=arm-apple-darwin25.2.0%r
+SF:(GetRequest,91,"HTTP/1\.1\x20403\x20Forbidden\r\nContent-Length:\x200\r
+SF:\nServer:\x20AirTunes/870\.14\.1\r\nX-Apple-ProcessingTime:\x202\r\nX-A
+SF:pple-RequestReceivedTimestamp:\x201632739749\r\n\r\n")%r(RTSPRequest,91
+SF:,"RTSP/1\.0\x20403\x20Forbidden\r\nContent-Length:\x200\r\nServer:\x20A
+SF:irTunes/870\.14\.1\r\nX-Apple-ProcessingTime:\x202\r\nX-Apple-RequestRe
+SF:ceivedTimestamp:\x201632739772\r\n\r\n")%r(HTTPOptions,91,"HTTP/1\.1\x2
+SF:0403\x20Forbidden\r\nContent-Length:\x200\r\nServer:\x20AirTunes/870\.1
+SF:4\.1\r\nX-Apple-ProcessingTime:\x202\r\nX-Apple-RequestReceivedTimestam
+SF:p:\x201632744885\r\n\r\n")%r(FourOhFourRequest,91,"HTTP/1\.1\x20403\x20
+SF:Forbidden\r\nContent-Length:\x200\r\nServer:\x20AirTunes/870\.14\.1\r\n
+SF:X-Apple-ProcessingTime:\x202\r\nX-Apple-RequestReceivedTimestamp:\x2016
+SF:32744909\r\n\r\n")%r(SIPOptions,A3,"RTSP/1\.0\x20403\x20Forbidden\r\nCo
+SF:ntent-Length:\x200\r\nServer:\x20AirTunes/870\.14\.1\r\nCSeq:\x2042\x20
+SF:OPTIONS\r\nX-Apple-ProcessingTime:\x202\r\nX-Apple-RequestReceivedTimes
+SF:tamp:\x201632744930\r\n\r\n");
+Service Info: OS: Mac OS X; CPE: cpe:/o:apple:mac_os_x
+
+Host script results:
+|_nbstat: NetBIOS name: MACBOOK, NetBIOS user: <unknown>, NetBIOS MAC: 16:0b:2a:e5:5f:f4 (unknown)
+|_clock-skew: -24s
+| smb2-security-mode: 
+|   3.0.2: 
+|_    Message signing enabled and required
+| smb2-time: 
+|   date: 2026-03-26T16:30:11
+|_  start_date: N/A
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+# Nmap done at Fri Mar 27 00:30:36 2026 -- 1 IP address (1 host up) scanned in 35.73 seconds

@@ -2,6 +2,46 @@
 
 ---
 
+## [V8.0.1 / A2.1] — 2026-03-27 ⭐ 交互重构 + 实弹就绪
+
+### 🎯 交互重构 (UX Overhaul)
+
+- **Sidebar 联动**: 左侧从冗余 IP 列表改为筛选面板 (搜索/风险/端口过滤)，右侧台账实时响应
+- **冗余清理**: 删除 AG Tab、AT 子 Tab (端口暴露面)、重复 IP 列表
+- **自动定位**: 选中资产时右侧台账自动平滑滚动至视口中央
+- **代码块可操作**: AI 回复中 ```bash 代码块渲染为面板，支持 📋 复制 / ▶ 执行
+- **Console Tab**: OUTPUT (Agent审计日志) + DEBUG CONSOLE 完整功能化
+
+### 🐳 Docker 实弹集成
+
+- **云端战车**: Docker 面板从占位符改为实时状态面板，显示 v1-v4 镜像 + 容器状态
+- **容器控制**: Web 端 ▶ 启动 / ⏹ 停止 / 🔄 重启 容器
+- **API**: `GET /api/v1/docker/status`, `POST /api/v1/docker/{action}/{name}`
+
+### 🔫 武器库扩展
+
+- **36 个模块**: 从 12 个扩展至 36 个 (含 MSF/Hashcat/John/Hydra/Responder/Aircrack-ng 等)
+- **6 大分类**: 侦察 / 漏洞利用 / 密码破解 / 横向移动 / 无线与固件 / AI+报告
+- **紧凑卡片**: 去编号，中文标题，180px 最小宽度
+- **点击调用**: 每张卡片点击直接触发 AI 对选定目标执行操作
+
+### 🛡️ Agent 工具修复 (5 个同类 Bug)
+
+- `claw_read_file`: 支持读取项目根目录脚本 (不再限于 Loot)
+- `claw_run_module`: 已知 make target 从 10 扩展到 18，自动补全 `make ` 前缀
+- `claw_sliver_execute`: 修复 justification/reason 参数名不匹配
+- `tool_read_file` 路径穿越检查: 白名单加入项目根目录
+- 工具描述: 更新为包含项目脚本的说明
+
+### 🌐 可视化增强
+
+- **拓扑图**: 节点可点击，右上角浮动卡片显示详情
+- **ATT&CK 矩阵**: 技术卡片可点击，底部显示覆盖状态
+- **C2 面板**: 新增 MOCK 标签和中文说明
+- **Scope 管理**: HUD 栏 Scope 按钮 + 配置模态框
+
+---
+
 ## [V8.0-alpha / A2.0] — 2026-03-26 ⭐ 全栈作战平台
 
 ### 🖥️ Web Dashboard (Phase 1: 黎明中枢)

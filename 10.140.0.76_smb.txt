@@ -1,0 +1,8 @@
+# Nmap 7.98 scan initiated Fri Mar 27 00:31:57 2026 as: nmap -Pn -p 445 --script smb-enum-shares,smb-enum-users,smb-os-discovery -oN 10.140.0.76_smb.txt 10.140.0.76
+Nmap scan report for 10.140.0.76
+Host is up (0.11s latency).
+
+PORT    STATE SERVICE
+445/tcp open  microsoft-ds
+
+# Nmap done at Fri Mar 27 00:32:02 2026 -- 1 IP address (1 host up) scanned in 4.73 seconds

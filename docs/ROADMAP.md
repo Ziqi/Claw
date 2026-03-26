@@ -118,7 +118,23 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 
 ---
 
-## ⭐ V8.0-alpha — 全栈作战平台 (03-26) ← 当前版本
+## ⭐ V8.0.1 — 交互重构 + 实弹就绪 (03-27) ← 当前版本
+
+> **将看板型 UI 升级为交互式作战平台。全面消除 UX 冗余，武器库扩充至 36 模块。**
+
+### ✅ Sprint 4: 交互重构 (已完成)
+
+- Sidebar 从冗余 IP 列表改为筛选/探测面板 (搜索+风险+端口过滤)
+- 删除 AG Tab、AT 子 Tab (端口暴露面)，合并审计日志至 RC
+- 代码块可操作 (📋 复制 / ▶ 执行)，Console OUTPUT/DEBUG Tab 功能化
+- Docker 云端战车: 实时镜像/容器状态 + Web 端启停控制
+- 武器库 36 模块: 含 MSF/Hashcat/John/Hydra/Responder/Aircrack-ng/Binwalk 等
+- Agent 工具修复: read_file 路径回退、run_module 自动补全、参数名兼容
+- 拓扑图节点可点击、ATT&CK 矩阵技术卡可点击
+
+---
+
+## V8.0-alpha — 全栈作战平台 (03-26)
 
 > **Phase 1 黎明中枢已交付。从 CLI 工具集升级为 B/S 三层架构作战平台。**
 
@@ -132,8 +148,7 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 **前端 (React + Vite):**
 - Bloomberg Terminal 彭博终端级 UI
 - HUD 状态栏 (Hosts/Ports/Vulns/Scans/实时时钟)
-- Activity Bar (RC/AT/AG) + 威胁热力图 + 资产列表
-- 工作区 3 Tab: RECON_OVERVIEW / ASSET_TABLE / PORT_MATRIX
+- Activity Bar (RC/AT/AM/C2/VS) + 威胁热力图 + 筛选面板
 - AI Copilot 面板: 拖拽缩放 / 模型选择器 (Flash/Pro/Deep) / 流式打字 / 快捷指令
 - 网络拓扑图 (vis.js 力导向, 风险着色, 点击查看)
 

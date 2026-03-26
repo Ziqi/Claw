@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
+import { Network } from 'vis-network'
+import { Terminal } from 'xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import 'xterm/css/xterm.css'
 import './index.css'
 
 const API = 'http://localhost:8000/api/v1'
@@ -24,18 +28,52 @@ function useTypewriter(text, speed = 15) {
 }
 
 // ========== HUD BAR ==========
-function HudBar({ stats }) {
+function HudBar({ stats, onToggleTerminal, onRefreshAssets }) {
   const [time, setTime] = useState('')
+  const [showScope, setShowScope] = useState(false)
+  const [scopeList, setScopeList] = useState([])
+  const [scopeInput, setScopeInput] = useState('')
+  const [godMode, setGodMode] = useState(true)
+  const [scopeStatus, setScopeStatus] = useState('')
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
     tick()
     const t = setInterval(tick, 1000)
     return () => clearInterval(t)
   }, [])
+  const handleExportReport = async () => {
+    try {
+      const res = await fetch(`${API}/report/generate`);
+      const data = await res.json();
+      const blob = new Blob([data.report], { type: 'text/markdown' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `CLAW_PTES_Report_${new Date().toISOString().replace(/[:.]/g,'-')}.md`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch(err) {
+      console.error("Failed to export report", err);
+      alert("Report generation failed.");
+    }
+  }
 
   return (
     <div className="hud-bar">
-      <div className="hud-brand">CLAW V8.0</div>
+      <div className="hud-brand" style={{position:'relative', cursor:'pointer'}} onMouseOver={e => {const tip = e.currentTarget.querySelector('.cat-tip'); if(tip) tip.style.display='block'}} onMouseOut={e => {const tip = e.currentTarget.querySelector('.cat-tip'); if(tip) tip.style.display='none'}}>
+        <span style={{fontFamily:'Consolas, monospace', color:'#FF9900', marginRight:'6px', fontSize:'13px'}}>{'/\\_/\\'}</span>
+        <span style={{fontFamily:'Consolas, monospace', color:'#00FFFF', marginRight:'6px', fontSize:'13px'}}>{'( o.o )'}</span>
+        CLAW V8.0
+        <div className="cat-tip" style={{display:'none', position:'absolute', top:'100%', left:0, marginTop:'8px', background:'#111', border:'1px solid #333', borderRadius:'8px', padding:'16px 20px', zIndex:9999, whiteSpace:'pre', fontFamily:'Consolas, monospace', fontSize:'13px', lineHeight:'1.4', boxShadow:'0 8px 24px rgba(0,0,0,0.8)', minWidth:'340px'}}>
+          <span style={{color:'#00FFFF'}}>{"         /\\_/\\\n"}</span>
+          <span style={{color:'#00FFFF'}}>{"        ( o.o ) "}</span><span style={{color:'#FFF', fontWeight:'bold'}}>Project CLAW</span> <span style={{color:'#30D158'}}>V8.0</span>{"\n"}
+          <span style={{color:'#00FFFF'}}>{"         > ^ <  "}</span><span style={{color:'#666'}}>CatTeam Lateral Arsenal Weapon</span>{"\n"}
+          <span style={{color:'#00FFFF'}}>{"        /|   |\\\n"}</span>
+          <span style={{color:'#00FFFF'}}>{"       (_|   |_) "}</span><span style={{color:'#999'}}>Codename: Lynx</span>
+        </div>
+      </div>
       <div className="stat-item">
         <span className="stat-label">存活主机</span>
         <span className="stat-value c-cyan">{stats?.hosts ?? '—'}</span>
@@ -60,71 +98,213 @@ function HudBar({ stats }) {
         <span className="stat-label">系统时间</span>
         <span className="stat-value c-gold">{time}</span>
       </div>
+      <div className="stat-item" style={{cursor:'pointer', marginLeft:'auto', borderLeft:'1px solid #333', paddingLeft:'16px'}}>
+        <button style={{background: godMode ? 'rgba(255,59,48,0.15)' : 'rgba(48,209,88,0.1)', color: godMode ? '#FF3B30' : '#30D158', border:`1px solid ${godMode ? '#FF3B30' : '#30D158'}`, padding:'4px 12px', borderRadius:'4px', cursor:'pointer', fontSize:'11px', fontWeight:'bold', transition:'all 0.2s'}} onClick={() => {
+          fetch(`${API}/scope`).then(r=>r.json()).then(d => { setScopeList(d.scope); setGodMode(d.god_mode); setScopeInput(d.scope.join('\n')); setShowScope(true) })
+        }}>
+          {godMode ? '⚠ 上帝模式 (无限制)' : `🛡 Scope: ${scopeList.length} 项`}
+        </button>
+      </div>
+      <div className="stat-item" style={{cursor:'pointer', borderLeft:'1px solid #333', paddingLeft:'16px'}}>
+        <button style={{background:'rgba(0,255,255,0.1)', color:'#00FFFF', border:'1px solid #00FFFF', padding:'4px 12px', borderRadius:'4px', cursor:'pointer', fontSize:'12px', fontWeight:'bold', transition:'all 0.2s'}} onClick={handleExportReport} onMouseOver={e=>e.currentTarget.style.background='rgba(0,255,255,0.2)'} onMouseOut={e=>e.currentTarget.style.background='rgba(0,255,255,0.1)'}>
+          ⭳ 导出报告
+        </button>
+      </div>
+      <div className="stat-item" style={{cursor: 'pointer', borderLeft:'1px solid #333', paddingLeft:'16px'}} onClick={onToggleTerminal}>
+        <span className="stat-label">控制台</span>
+        <span className="stat-value" style={{color:'#D0D0D0'}}>[Cmd+J] 切换</span>
+      </div>
+
+      {/* Scope Config Modal */}
+      {showScope && (
+        <>
+          <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.7)', zIndex:9998}} onClick={() => setShowScope(false)} />
+          <div style={{position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', background:'#111', border:'1px solid #333', borderRadius:'8px', padding:'24px', zIndex:9999, width:'440px', boxShadow:'0 8px 32px rgba(0,0,0,0.9)'}}>
+            <div style={{fontSize:'16px', color:'#00FFFF', fontWeight:'bold', marginBottom:'16px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <span>🛡 作战授权范围 (Scope)</span>
+              <span style={{fontSize:'11px', color: godMode ? '#FF3B30' : '#30D158', background: godMode ? 'rgba(255,59,48,0.1)' : 'rgba(48,209,88,0.1)', padding:'2px 8px', borderRadius:'4px'}}>
+                {godMode ? '上帝模式: 无限制' : `限定 ${scopeList.length} 项`}
+              </span>
+            </div>
+            <div style={{fontSize:'11px', color:'#666', marginBottom:'12px'}}>每行一个 IP 或 CIDR 子网，留空 = 上帝模式 (无限制扫描)</div>
+            <textarea style={{width:'100%', height:'120px', background:'#0A0A0A', color:'#D0D0D0', border:'1px solid #333', borderRadius:'4px', padding:'8px', fontFamily:'Consolas, monospace', fontSize:'12px', resize:'vertical', boxSizing:'border-box'}} value={scopeInput} onChange={e => setScopeInput(e.target.value)} placeholder={'例如:\n10.140.0.0/16\n192.168.1.0/24\n8.8.8.8'} />
+            {scopeStatus && <div style={{color:'#30D158', fontSize:'11px', marginTop:'8px'}}>{scopeStatus}</div>}
+            <div style={{display:'flex', gap:'8px', marginTop:'12px', justifyContent:'flex-end'}}>
+              <button style={{background:'#222', color:'#999', border:'1px solid #333', padding:'6px 16px', borderRadius:'4px', cursor:'pointer', fontSize:'12px'}} onClick={() => setShowScope(false)}>取消</button>
+              <button style={{background:'rgba(0,255,255,0.1)', color:'#00FFFF', border:'1px solid #00FFFF', padding:'6px 16px', borderRadius:'4px', cursor:'pointer', fontSize:'12px', fontWeight:'bold'}} onClick={() => {
+                const lines = scopeInput.split('\n').filter(l => l.trim())
+                fetch(`${API}/scope`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({scope:lines})})
+                  .then(r=>r.json()).then(d => { setScopeList(lines); setGodMode(d.god_mode); setScopeStatus('✓ 已保存'); setTimeout(() => { setScopeStatus(''); setShowScope(false) }, 1000) })
+              }}>保存 Scope</button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
 // ========== LEFT SIDEBAR ==========
-function Sidebar({ assets, onSelect, selected, view }) {
+function Sidebar({ assets, onSelect, selected, view, onNavigate, onRefreshAssets }) {
   const critical = assets.filter(a => a.ports.some(p => [445, 3389, 21].includes(p.port)))
   const webHosts = assets.filter(a => a.ports.some(p => [80, 443, 8080, 8443].includes(p.port)))
+  const [probeTarget, setProbeTarget] = useState('')
+  const [probeProfile, setProbeProfile] = useState('default')
+  const [probeStatus, setProbeStatus] = useState(null)
+
+  // AT filters (hooks must be at top level, not inside conditionals)
+  const [search, setSearch] = useState('')
+  const [riskFilter, setRiskFilter] = useState('all')
+  const [portFilter, setPortFilter] = useState(null)
+
+  useEffect(() => {
+    window.__claw_filters = { search, riskFilter, portFilter }
+  }, [search, riskFilter, portFilter])
+
+  const critCount = assets.filter(a => a.ports.some(p => [445,3389,21].includes(p.port))).length
 
   if (view === 'RC') {
     return (
       <div className="sidebar-panel">
         <div className="p-head">[ 威胁大盘 ]</div>
         <div className="threat-grid">
-          <div className="threat-cell" style={{background:'rgba(255,59,48,0.15)'}}>
+          <div className="threat-cell" style={{background:'rgba(255,59,48,0.15)', cursor:'pointer'}} title="开放了 SMB(445)/RDP(3389)/FTP(21) 等高危端口的主机" onClick={() => { if(critical.length > 0) { onNavigate('AT'); onSelect(critical[0].ip) } }}>
             <span className="tc-label">极危节点</span>
             <span className="tc-value" style={{color:'#FF3B30'}}>{critical.length}</span>
+            <span style={{fontSize:'9px', color:'#666', marginTop:'4px'}}>含 SMB/RDP/FTP 高危端口</span>
           </div>
-          <div className="threat-cell" style={{background:'rgba(0,255,255,0.08)'}}>
+          <div className="threat-cell" style={{background:'rgba(0,255,255,0.08)', cursor:'pointer'}} title="开放了 HTTP/HTTPS 类 Web 端口的主机总数" onClick={() => { if(webHosts.length > 0) { onNavigate('AT'); onSelect(webHosts[0].ip) } }}>
             <span className="tc-label">Web服务</span>
             <span className="tc-value" style={{color:'#00FFFF'}}>{webHosts.length}</span>
+            <span style={{fontSize:'9px', color:'#666', marginTop:'4px'}}>含 80/443/8080 端口</span>
           </div>
-          <div className="threat-cell" style={{background:'rgba(48,209,88,0.1)'}}>
+          <div className="threat-cell" style={{background:'rgba(48,209,88,0.1)', cursor:'pointer'}} title="本次扫描中发现的所有存活 IP 总数" onClick={() => onNavigate('AT')}>
             <span className="tc-label">资产总数</span>
             <span className="tc-value" style={{color:'#30D158'}}>{assets.length}</span>
+            <span style={{fontSize:'9px', color:'#666', marginTop:'4px'}}>本次扫描存活 IP</span>
           </div>
-          <div className="threat-cell" style={{background:'rgba(255,153,0,0.1)'}}>
+          <div className="threat-cell" style={{background:'rgba(255,153,0,0.1)'}} title="每台主机平均开放的端口数量，越高说明攻击面越大">
             <span className="tc-label">平均端口</span>
             <span className="tc-value" style={{color:'#FF9900'}}>
               {assets.length ? Math.round(assets.reduce((s,a) => s+a.port_count, 0)/assets.length) : 0}
             </span>
+            <span style={{fontSize:'9px', color:'#666', marginTop:'4px'}}>平均暴露面指标</span>
           </div>
+        </div>
+        {critical.length > 0 && (
+          <div style={{marginTop:'12px', padding:'0 4px'}}>
+            <div style={{fontSize:'10px', color:'#FF3B30', marginBottom:'6px', fontWeight:'bold'}}>-- 极危节点清单 --</div>
+            {critical.map(a => (
+              <div key={a.ip} style={{fontSize:'11px', color:'#D0D0D0', padding:'4px 8px', marginBottom:'2px', cursor:'pointer', borderLeft:'2px solid #FF3B30', background:'rgba(255,59,48,0.05)', borderRadius:'2px', transition:'background 0.2s'}} onClick={() => { onNavigate('AT'); onSelect(a.ip) }} onMouseOver={e=>e.currentTarget.style.background='rgba(255,59,48,0.15)'} onMouseOut={e=>e.currentTarget.style.background='rgba(255,59,48,0.05)'}>
+                <span style={{color:'#00FFFF'}}>{a.ip}</span>
+                <span style={{color:'#666', marginLeft:'8px'}}>{a.ports.filter(p=>[445,3389,21].includes(p.port)).map(p=>p.port).join(',')}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Target Probe */}
+        <div style={{marginTop:'16px', padding:'12px', borderTop:'1px solid #222'}}>
+          <div className="p-head" style={{marginBottom:'8px'}}>[ 目标探测 ]</div>
+          <div style={{fontSize:'10px', color:'#666', marginBottom:'8px'}}>输入 IP 或 CIDR，发起实弹 Nmap 扫描</div>
+          <input type="text" value={probeTarget} onChange={e => setProbeTarget(e.target.value)} placeholder="例如: 192.168.1.1 或 10.0.0.0/24" style={{width:'100%', background:'#0A0A0A', color:'#D0D0D0', border:'1px solid #333', borderRadius:'4px', padding:'6px 8px', fontFamily:'Consolas, monospace', fontSize:'12px', boxSizing:'border-box', marginBottom:'6px'}} onKeyDown={e => { if(e.key === 'Enter' && probeTarget.trim()) { document.getElementById('probe-btn')?.click() } }} />
+          <div style={{display:'flex', gap:'4px', marginBottom:'8px'}}>
+            {['default','iot','full'].map(p => (
+              <button key={p} style={{flex:1, background: probeProfile === p ? 'rgba(0,255,255,0.15)' : '#111', color: probeProfile === p ? '#00FFFF' : '#666', border:`1px solid ${probeProfile === p ? '#00FFFF' : '#333'}`, borderRadius:'4px', padding:'4px', fontSize:'10px', cursor:'pointer', transition:'all 0.2s'}} onClick={() => setProbeProfile(p)}>
+                {p === 'default' ? '常规 (7口)' : p === 'iot' ? 'IoT (11口)' : '全量 (30口)'}
+              </button>
+            ))}
+          </div>
+          <button id="probe-btn" style={{width:'100%', background:'rgba(255,59,48,0.1)', color:'#FF3B30', border:'1px solid #FF3B30', borderRadius:'4px', padding:'8px', cursor:'pointer', fontSize:'12px', fontWeight:'bold', transition:'all 0.2s'}} disabled={!probeTarget.trim() || probeStatus === 'scanning'} onClick={() => {
+            setProbeStatus('scanning')
+            fetch(`${API}/probe`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({target:probeTarget.trim(), profile:probeProfile})})
+              .then(r=>r.json()).then(d => {
+                setProbeStatus(`✓ ${d.message}`)
+                // 30 秒后自动刷新资产列表
+                setTimeout(() => { if(onRefreshAssets) onRefreshAssets(); setProbeStatus(null) }, 30000)
+              }).catch(e => { setProbeStatus(`✗ 失败: ${e.message}`); setTimeout(() => setProbeStatus(null), 5000) })
+          }} onMouseOver={e=>{if(probeTarget.trim()) e.currentTarget.style.background='rgba(255,59,48,0.2)'}} onMouseOut={e=>e.currentTarget.style.background='rgba(255,59,48,0.1)'}>
+            {probeStatus === 'scanning' ? '⏳ 扫描中...' : '🎯 发起探测'}
+          </button>
+          {probeStatus && probeStatus !== 'scanning' && <div style={{fontSize:'10px', color:'#30D158', marginTop:'6px'}}>{probeStatus}</div>}
         </div>
       </div>
     )
   }
 
   if (view === 'AT') {
-    return (
-      <div className="sidebar-panel">
-        <div className="p-head">[ 活跃资产清单 ]</div>
-        {assets.map(a => (
-          <div key={a.ip} className={`asset-row ${selected === a.ip ? 'active-row' : ''}`} onClick={() => onSelect(a.ip)}>
-            <div>
-              <span className="asset-ip">{a.ip}</span>
-              <span className="asset-ports"> ({a.port_count}口)</span>
-            </div>
-            <div style={{color: a.ports.some(p=>[445,3389].includes(p.port)) ? '#FF3B30' : '#666', fontSize:'10px'}}>
-              {a.ports.slice(0,3).map(p=>p.port).join(',')}
-            </div>
-          </div>
-        ))}
-      </div>
-    )
-  }
 
-  if (view === 'AG') {
     return (
       <div className="sidebar-panel">
-        <div className="p-head">[ COMMAND & CONTROL ]</div>
-        <div style={{padding: '16px', color:'#999', fontSize:'12px', lineHeight:'1.5'}}>
-          <div style={{color:'#00FFFF', marginBottom:'8px'}}>» Agentic Loop</div>
-          <div>状态: <span style={{color:'#30D158'}}>Active (Waiting)</span></div>
-          <div>工具池: 5/5 在线</div>
-          <div>沙箱: Secure</div>
+        <div className="p-head">[ 筛选与探测 ]</div>
+        
+        {/* Search */}
+        <div style={{padding:'8px 8px 0'}}>
+          <input type="text" value={search} onChange={e => { setSearch(e.target.value); onSelect(null) }} placeholder="搜索 IP 地址..." style={{width:'100%', background:'#0A0A0A', color:'#D0D0D0', border:'1px solid #333', borderRadius:'4px', padding:'6px 8px', fontFamily:'Consolas, monospace', fontSize:'11px', boxSizing:'border-box'}} />
+        </div>
+
+        {/* Risk Filter */}
+        <div style={{padding:'8px'}}>
+          <div style={{fontSize:'10px', color:'#666', marginBottom:'4px'}}>风险等级</div>
+          <div style={{display:'flex', gap:'4px'}}>
+            {[['all','全部',assets.length,'#D0D0D0'],['red','极危',critCount,'#FF3B30'],['low','普通',assets.length - critCount,'#30D158']].map(([k,label,count,color]) => (
+              <button key={k} style={{flex:1, background: riskFilter === k ? 'rgba(0,255,255,0.1)' : '#111', color: riskFilter === k ? '#00FFFF' : '#666', border:`1px solid ${riskFilter === k ? '#00FFFF' : '#333'}`, borderRadius:'4px', padding:'6px 4px', fontSize:'10px', cursor:'pointer', transition:'all 0.2s', textAlign:'center'}} onClick={() => setRiskFilter(k)}>
+                <div>{label}</div>
+                <div style={{color, fontSize:'14px', fontWeight:'bold'}}>{count}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Port Type Filter */}
+        <div style={{padding:'0 8px 8px'}}>
+          <div style={{fontSize:'10px', color:'#666', marginBottom:'4px'}}>端口类型快筛</div>
+          <div style={{display:'flex', flexWrap:'wrap', gap:'4px'}}>
+            {[[null,'全部'],[80,'Web'],[445,'SMB'],[3389,'RDP'],[22,'SSH'],[3306,'DB']].map(([port, label]) => (
+              <button key={label} style={{background: portFilter === port ? 'rgba(0,255,255,0.1)' : '#111', color: portFilter === port ? '#00FFFF' : '#666', border:`1px solid ${portFilter === port ? '#00FFFF' : '#333'}`, borderRadius:'4px', padding:'4px 8px', fontSize:'10px', cursor:'pointer', transition:'all 0.2s'}} onClick={() => setPortFilter(port)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div style={{padding:'8px', borderTop:'1px solid #222'}}>
+          <div style={{fontSize:'10px', color:'#666', marginBottom:'4px'}}>当前筛选结果</div>
+          <div style={{fontSize:'12px', color:'#00FFFF'}}>
+            {assets.filter(a => {
+              if (search && !a.ip.includes(search)) return false
+              if (riskFilter === 'red' && !a.ports.some(p => [445,3389,21].includes(p.port))) return false
+              if (riskFilter === 'low' && a.ports.some(p => [445,3389,21].includes(p.port))) return false
+              if (portFilter && !a.ports.some(p => p.port === portFilter)) return false
+              return true
+            }).length} / {assets.length} 台主机
+          </div>
+        </div>
+
+        {/* Target Probe */}
+        <div style={{padding:'12px 8px', borderTop:'1px solid #222'}}>
+          <div style={{fontSize:'10px', color:'#FF9900', fontWeight:'bold', marginBottom:'6px'}}>目标探测</div>
+          <div style={{fontSize:'10px', color:'#666', marginBottom:'6px'}}>输入 IP 或 CIDR 发起实弹 Nmap 扫描</div>
+          <input type="text" value={probeTarget} onChange={e => setProbeTarget(e.target.value)} placeholder="例: 192.168.1.1" style={{width:'100%', background:'#0A0A0A', color:'#D0D0D0', border:'1px solid #333', borderRadius:'4px', padding:'6px 8px', fontFamily:'Consolas, monospace', fontSize:'11px', boxSizing:'border-box', marginBottom:'6px'}} onKeyDown={e => { if(e.key === 'Enter' && probeTarget.trim()) document.getElementById('probe-btn-at')?.click() }} />
+          <div style={{display:'flex', gap:'4px', marginBottom:'6px'}}>
+            {['default','iot','full'].map(p => (
+              <button key={p} style={{flex:1, background: probeProfile === p ? 'rgba(0,255,255,0.15)' : '#111', color: probeProfile === p ? '#00FFFF' : '#666', border:`1px solid ${probeProfile === p ? '#00FFFF' : '#333'}`, borderRadius:'4px', padding:'3px', fontSize:'9px', cursor:'pointer'}} onClick={() => setProbeProfile(p)}>
+                {p === 'default' ? '常规' : p === 'iot' ? 'IoT' : '全量'}
+              </button>
+            ))}
+          </div>
+          <button id="probe-btn-at" style={{width:'100%', background:'rgba(255,59,48,0.1)', color:'#FF3B30', border:'1px solid #FF3B30', borderRadius:'4px', padding:'6px', cursor:'pointer', fontSize:'11px', fontWeight:'bold'}} disabled={!probeTarget.trim() || probeStatus === 'scanning'} onClick={() => {
+            setProbeStatus('scanning')
+            fetch(`${API}/probe`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({target:probeTarget.trim(), profile:probeProfile})})
+              .then(r=>r.json()).then(d => {
+                setProbeStatus(`✓ ${d.message}`)
+                setTimeout(() => { if(onRefreshAssets) onRefreshAssets(); setProbeStatus(null) }, 30000)
+              }).catch(e => { setProbeStatus(`✗ ${e.message}`); setTimeout(() => setProbeStatus(null), 5000) })
+          }}>
+            {probeStatus === 'scanning' ? '⏳ 扫描中...' : '🎯 发起探测'}
+          </button>
+          {probeStatus && probeStatus !== 'scanning' && <div style={{fontSize:'10px', color:'#30D158', marginTop:'4px'}}>{probeStatus}</div>}
         </div>
       </div>
     )
@@ -133,14 +313,15 @@ function Sidebar({ assets, onSelect, selected, view }) {
   return null
 }
 
-// ========== WORK AREA TABS ==========
 const VIEW_TABS = {
-  RC: ['侦察态势', '漏洞日志'],
-  AT: ['全局资产库', '端口暴露面'],
-  AG: ['执行轨道', 'AI审计树'],
+  RC: ['侦察态势', 'Agent 审计日志'],
+  AT: ['全局资产库'],
+  AM: ['作战兵器库 (Armory)', '云端战车 (Docker)'],
+  C2: ['控制中心 (Sessions)', '监听器 (Listeners)'],
+  VS: ['星图拓扑 (Network)', 'ATT&CK 杀伤链'],
 }
 
-function WorkArea({ assets, selectedIp, view }) {
+function WorkArea({ assets, selectedIp, view, onExecCommand }) {
   const [tab, setTab] = useState(0)
   
   // reset tab when view changes
@@ -158,13 +339,24 @@ function WorkArea({ assets, selectedIp, view }) {
       </div>
       <div className="tab-content-area">
         {view === 'RC' && tab === 0 && <ReconOverview assets={assets} asset={asset} />}
-        {view === 'RC' && tab === 1 && <div style={{color:'#666', fontSize:'12px', padding:'16px'}}>[SYS] 暂无未修复的高危漏洞记录</div>}
+        {view === 'RC' && tab === 1 && (
+          <div style={{padding:'16px', fontSize:'12px', color:'#999', fontFamily:'Consolas, monospace', overflowY:'auto', height:'100%'}}>
+            <div style={{color:'#FF9900', fontWeight:'bold', marginBottom:'12px'}}>Agent 审计追踪</div>
+            <div style={{color:'#666'}}>[正在获取审计日志...] 所有 Agent 执行的工具调用、审批记录将在此展示。
+            当前审计日志存储在: backend/audit.log</div>
+          </div>
+        )}
         
-        {view === 'AT' && tab === 0 && <AssetTable assets={assets} />}
-        {view === 'AT' && tab === 1 && (asset ? <PortMatrix asset={asset} /> : <div style={{color:'#666', padding:'16px'}}>请从左侧选择资产...</div>)}
+        {view === 'AT' && tab === 0 && <AssetTable assets={assets} onExecCommand={onExecCommand} selectedIp={selectedIp} />}
 
-        {view === 'AG' && tab === 0 && <div style={{color:'#00FFFF', fontSize:'12px', padding:'16px'}}>[SYS] 智能体循环处于待命状态。请使用右侧 Copilot 下发战术指令。</div>}
-        {view === 'AG' && tab === 1 && <div style={{color:'#666', fontSize:'12px', padding:'16px'}}>[SYS] 审计追踪服务已启动。等待 Agent 执行动作...</div>}
+        {view === 'VS' && tab === 0 && <TopologyView />}
+        {view === 'VS' && tab === 1 && <AttackMatrixView />}
+
+        {view === 'AM' && tab === 0 && <ArmoryViewTab assets={assets} selectedIp={selectedIp} onExecCommand={onExecCommand} />}
+        {view === 'AM' && tab === 1 && <DockerPanel />}
+
+        {view === 'C2' && tab === 0 && <SliverViewTab onExecCommand={onExecCommand} />}
+        {view === 'C2' && tab === 1 && <div style={{color:'#666', padding:'16px'}}>[SYS] 监听器 (Listeners) 管理模块暂未上线</div>}
       </div>
     </div>
   )
@@ -211,26 +403,132 @@ function ReconOverview({ assets, asset }) {
   )
 }
 
-function AssetTable({ assets }) {
+function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
+  const [osintStatus, setOsintStatus] = useState(null)
+  const [expandedIp, setExpandedIp] = useState(null)
+  const [filters, setFilters] = useState({ search: '', riskFilter: 'all', portFilter: null })
+
+  // Read filters from sidebar
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const f = window.__claw_filters
+      if (f) setFilters(prev => {
+        if (prev.search !== f.search || prev.riskFilter !== f.riskFilter || prev.portFilter !== f.portFilter) return { ...f }
+        return prev
+      })
+    }, 200)
+    return () => clearInterval(interval)
+  }, [])
+
+  // 左侧 sidebar 选择联动右侧展开 + 自动滚动
+  useEffect(() => {
+    if (selectedIp) {
+      setExpandedIp(selectedIp)
+      setTimeout(() => {
+        const el = document.getElementById(`asset-row-${selectedIp}`)
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [selectedIp])
+
+  // Apply filters
+  const filtered = assets.filter(a => {
+    if (filters.search && !a.ip.includes(filters.search)) return false
+    if (filters.riskFilter === 'red' && !a.ports.some(p => [445,3389,21].includes(p.port))) return false
+    if (filters.riskFilter === 'low' && a.ports.some(p => [445,3389,21].includes(p.port))) return false
+    if (filters.portFilter && !a.ports.some(p => p.port === filters.portFilter)) return false
+    return true
+  })
+  
+  const handleDeepResearch = () => {
+    setOsintStatus('指令已下发...')
+    fetch(`${API}/osint/research`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({target: "GLOBAL OSINT SWEEP"})
+    }).then(r=>r.json()).then(d => {
+      setOsintStatus(d.message)
+      setTimeout(() => setOsintStatus(null), 3000)
+    }).catch(console.error)
+  }
+
+  const expanded = expandedIp ? assets.find(a => a.ip === expandedIp) : null
+
   return (
-    <table className="data-table">
-      <thead>
-        <tr><th>IP 地址</th><th>指纹/OS</th><th>端口数</th><th>服务清单</th><th>杀伤链评级</th></tr>
-      </thead>
+    <div>
+      <div style={{padding:'16px', borderBottom:'1px solid #222', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+         <div>
+           <span style={{color:'#00FFFF', fontSize:'14px', fontWeight:'bold'}}>资产台账</span>
+           <span style={{color:'#666', fontSize:'10px', marginLeft:'8px'}}>显示 {filtered.length}/{assets.length} 台 · 点击行展开详情</span>
+         </div>
+         <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+           {osintStatus && <span style={{color:'#FF9900', fontSize:'12px'}}>{osintStatus}</span>}
+           <button style={{background:'rgba(255,59,48,0.1)', color:'#FF3B30', border:'1px solid #FF3B30', padding:'6px 12px', borderRadius:'4px', cursor:'pointer', fontSize:'12px'}} onClick={handleDeepResearch}>
+             OSINT 深网侦察
+           </button>
+         </div>
+      </div>
+      <table className="data-table">
+        <thead>
+          <tr><th>IP 地址</th><th>指纹/OS</th><th>端口数</th><th>服务清单</th><th>杀伤链评级</th><th>快捷操作</th></tr>
+        </thead>
       <tbody>
-        {assets.map(a => (
-          <tr key={a.ip}>
-            <td style={{color:'#00FFFF'}}>{a.ip}</td>
+        {filtered.map(a => (
+          <>
+          <tr key={a.ip} id={`asset-row-${a.ip}`} style={{cursor:'pointer', background: expandedIp === a.ip ? 'rgba(0,255,255,0.05)' : 'transparent'}} onClick={() => { setExpandedIp(expandedIp === a.ip ? null : a.ip); if(onSelectAsset) onSelectAsset(a.ip) }}>
+            <td style={{color:'#00FFFF'}}>{expandedIp === a.ip ? '[-] ' : '[+] '}{a.ip}</td>
             <td style={{color:'#666'}}>{a.os || '—'}</td>
             <td>{a.port_count}</td>
             <td style={{fontSize:'10px',color:'#999'}}>{a.ports.map(p=>p.port+'/'+p.service).join(', ')}</td>
             <td style={{color: a.ports.some(p=>[445,3389].includes(p.port)) ? '#FF3B30' : '#30D158'}}>
               {a.ports.some(p=>[445,3389].includes(p.port)) ? '极危 (RED)' : '普通 (LOW)'}
             </td>
+            <td onClick={e => e.stopPropagation()}>
+              <button style={{background:'#222', color:'#FF9900', border:'1px solid #333', padding:'4px 8px', borderRadius:'4px', cursor: 'pointer', fontSize:'11px', transition:'background 0.2s', whiteSpace:'nowrap'}} onClick={() => onExecCommand(`请对目标资产 ${a.ip} 进行深度渗透和漏洞探测。如果存在高危端口，请直接尝试漏洞利用。`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>
+                AI 渗透
+              </button>
+            </td>
           </tr>
+          {expandedIp === a.ip && (
+            <tr key={a.ip + '_detail'}>
+              <td colSpan="6" style={{padding:0}}>
+                <div style={{background:'rgba(0,255,255,0.03)', padding:'12px 16px', borderTop:'1px dashed #333', borderBottom:'1px dashed #333'}}>
+                  <div style={{display:'flex', gap:'24px', marginBottom:'12px'}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:'11px', color:'#FF9900', marginBottom:'8px', fontWeight:'bold'}}>-- 端口详情 --</div>
+                      <table style={{width:'100%', fontSize:'11px'}}>
+                        <thead><tr style={{color:'#666'}}><th style={{textAlign:'left', padding:'2px 8px'}}>端口</th><th style={{textAlign:'left', padding:'2px 8px'}}>服务</th><th style={{textAlign:'left', padding:'2px 8px'}}>产品</th><th style={{textAlign:'left', padding:'2px 8px'}}>版本</th></tr></thead>
+                        <tbody>
+                          {a.ports.map(p => (
+                            <tr key={p.port}>
+                              <td style={{color: [445,3389,21].includes(p.port) ? '#FF3B30' : '#00FFFF', padding:'2px 8px'}}>{p.port}</td>
+                              <td style={{color:'#D0D0D0', padding:'2px 8px'}}>{p.service}</td>
+                              <td style={{color:'#999', padding:'2px 8px'}}>{p.product || '未知'}</td>
+                              <td style={{color:'#999', padding:'2px 8px'}}>{p.version || '未知'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{width:'200px', flexShrink:0}}>
+                      <div style={{fontSize:'11px', color:'#FF9900', marginBottom:'8px', fontWeight:'bold'}}>-- 快捷攻击 --</div>
+                      <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                        {a.ports.some(p=>p.port===445) && <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'6px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`对 ${a.ip} 执行 SMB 枚举和弱口令探测`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>SMB 枚举与爆破</button>}
+                        {a.ports.some(p=>[80,443].includes(p.port)) && <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'6px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`对 ${a.ip} 的 Web 服务执行 Nuclei 漏洞扫描`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>Web 漏洞扫描</button>}
+                        {a.ports.some(p=>p.port===3389) && <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'6px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`检查 ${a.ip} 的 RDP 是否存在 BlueKeep 等漏洞`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>RDP 漏洞检测</button>}
+                        <button style={{background:'#222', color:'#FF9900', border:'1px solid #333', padding:'6px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`对 ${a.ip} 进行全面的深度安全分析`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>全面深度分析</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          )}
+          </>
         ))}
       </tbody>
     </table>
+    </div>
   )
 }
 
@@ -254,6 +552,257 @@ function PortMatrix({ asset }) {
   )
 }
 
+// ========== TERMINAL PANEL ==========
+function XTermConsole() {
+  const containerRef = useRef(null)
+  
+  useEffect(() => {
+    if (!containerRef.current) return
+    const fitAddon = new FitAddon()
+    const terminal = new Terminal({
+      theme: { background: '#000', foreground: '#00FFFF', cursor: '#FF9900' },
+      fontFamily: 'Consolas, monospace',
+      fontSize: 14
+    })
+    terminal.loadAddon(fitAddon)
+    terminal.open(containerRef.current)
+    setTimeout(() => { fitAddon.fit() }, 50)
+    
+    const ws = new WebSocket('ws://localhost:8000/api/v1/terminal')
+    ws.onopen = () => {
+      terminal.writeln('\x1b[33m✧ Eavesdropping Shell / PTY Bridge Connected \x1b[0m\r\n')
+      ws.send(JSON.stringify({type: 'resize', cols: terminal.cols, rows: terminal.rows}))
+    }
+    
+    const ro = new ResizeObserver(() => {
+      try {
+        fitAddon.fit()
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({type: 'resize', cols: terminal.cols, rows: terminal.rows}))
+        }
+      } catch (e) {}
+    })
+    ro.observe(containerRef.current)
+
+    ws.onmessage = (ev) => {
+      const msg = JSON.parse(ev.data)
+      if (msg.type === 'output') terminal.write(msg.data)
+    }
+    
+    terminal.onData(data => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({type: 'input', data}))
+      }
+    })
+    
+    return () => {
+      ro.disconnect()
+      ws.close()
+      terminal.dispose()
+    }
+  }, [])
+  
+  return <div ref={containerRef} style={{width:'100%', height:'100%', overflow:'hidden'}} />
+}
+
+function ArmoryViewTab({ assets, selectedIp, onExecCommand }) {
+  const armoryData = [
+    { cat: '侦察 (Recon)', color: '#00FFFF', mods: [
+        { label: '存活探测', desc: 'fping/ping 目标存活心跳扫描', cmd: 'make fast' },
+        { label: 'Nmap 深扫', desc: '全端口 TCP/UDP 指纹探测', cmd: 'nmap -sV -O' },
+        { label: '服务识别', desc: '低频协议报文特征提取', cmd: 'make probe' },
+        { label: '结果解析', desc: 'Nmap XML 解析写入数据库', cmd: 'make parse' },
+        { label: '幽灵侦察', desc: '被动侦察降低 IDS 触发', cmd: 'make ghost_recon' },
+        { label: 'Gobuster', desc: '目录/DNS/VHost 高速枚举', cmd: 'gobuster dir' },
+        { label: 'FFuf', desc: 'Web Fuzzer 路径与参数爆破', cmd: 'ffuf' },
+        { label: 'enum4linux', desc: 'Windows/Samba 信息枚举', cmd: 'enum4linux' },
+    ]},
+    { cat: '漏洞利用 (Exploit)', color: '#FF3B30', mods: [
+        { label: 'Metasploit', desc: 'MSF 6.4 世界级渗透框架', cmd: 'msfconsole' },
+        { label: 'Nuclei', desc: '模板驱动漏洞批量扫描', cmd: 'nuclei' },
+        { label: 'Nikto', desc: 'Web 服务器安全扫描器', cmd: 'nikto' },
+        { label: 'SQLMap', desc: 'SQL 注入自动化检测利用', cmd: 'sqlmap' },
+        { label: 'Web 审计', desc: 'XSS/RCE 专项漏洞审计', cmd: 'make web' },
+        { label: '定制 Exploit', desc: '目标定制化漏洞利用脚本', cmd: 'make exploit' },
+        { label: '代理穿透', desc: '认证绕过 Payload 生成器', cmd: 'make proxy-unlock' },
+    ]},
+    { cat: '密码破解 (Cracking)', color: '#FF9900', mods: [
+        { label: 'Hashcat', desc: 'GPU 加速哈希破解引擎', cmd: 'hashcat' },
+        { label: 'John', desc: 'John the Ripper 密码破解', cmd: 'john' },
+        { label: 'Hydra', desc: '在线多协议暴力破解', cmd: 'hydra' },
+        { label: 'Responder', desc: 'LLMNR/NBT-NS 投毒抓哈希', cmd: 'responder' },
+        { label: 'Crunch', desc: '自定义字典生成器', cmd: 'crunch' },
+        { label: 'Wordlists', desc: 'RockYou + SecLists 字典库', cmd: 'ls /usr/share/wordlists/' },
+    ]},
+    { cat: '横向移动 (Pivot)', color: '#FF3B30', mods: [
+        { label: 'Impacket', desc: 'PsExec/SMBExec 获取 Shell', cmd: 'impacket-psexec' },
+        { label: '凭据搜刮', desc: 'SAM/SYSTEM/LSA 注册表导出', cmd: 'make loot' },
+        { label: 'Kerberoast', desc: 'SPN TGS 提取与离线破解', cmd: 'make kerberoast' },
+        { label: 'SMBClient', desc: 'SMB 共享枚举与文件操作', cmd: 'smbclient' },
+        { label: '幽灵点火', desc: '持久化植入与隐蔽通道', cmd: 'make ghost_ignition' },
+        { label: 'Socat/Netcat', desc: '隧道转发与反弹 Shell', cmd: 'socat/nc' },
+    ]},
+    { cat: '无线与固件 (Wireless/IoT)', color: '#30D158', mods: [
+        { label: 'Aircrack-ng', desc: 'WiFi WEP/WPA 破解套件', cmd: 'aircrack-ng' },
+        { label: 'Wifite', desc: '无线审计自动化工具', cmd: 'wifite' },
+        { label: 'Binwalk', desc: '固件逆向分析与提取', cmd: 'binwalk' },
+    ]},
+    { cat: 'AI 参谋部 + 报告', color: '#FF9900', mods: [
+        { label: 'AI 攻击研判', desc: '大模型靶标分析与链路推演', cmd: 'make ai-analyze' },
+        { label: 'AI 血猎犬', desc: 'AD 域图谱分析与路径推演', cmd: 'make bloodhound' },
+        { label: 'Lynx 战术问答', desc: '高权限红队 AI 评估引擎', cmd: 'make ask-lynx' },
+        { label: '渗透报告', desc: '基于审计日志自动生成报告', cmd: 'make report' },
+        { label: '差异对比', desc: '多次扫描差异分析', cmd: 'make diff' },
+        { label: 'Webhook', desc: '关键事件推送外部平台', cmd: 'make webhook' },
+    ]},
+  ]
+
+  return (
+    <div style={{padding:'16px', overflowY:'auto', height:'100%', boxSizing:'border-box'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px'}}>
+        <span style={{fontSize:'16px', color:'#00FFFF', fontWeight:'bold'}}>全域武器库阵列</span>
+        <span style={{fontSize:'10px', color:'#666'}}>{armoryData.reduce((s,g)=>s+g.mods.length,0)} 模块就绪 · 点击卡片调用 AI 执行 · 目标: {selectedIp || '全局'}</span>
+      </div>
+      {armoryData.map(group => (
+        <div key={group.cat} style={{marginBottom:'20px'}}>
+          <div style={{color:group.color, fontSize:'12px', fontWeight:'bold', marginBottom:'8px', padding:'4px 10px', background:`${group.color}15`, borderRadius:'4px', display:'inline-block'}}>{group.cat}</div>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:'8px'}}>
+            {group.mods.map(m => (
+              <div key={m.label} style={{background:'#111', border:'1px solid #222', borderRadius:'4px', padding:'10px', cursor:'pointer', transition:'all 0.2s'}} onClick={() => {
+                  onExecCommand(`使用 ${m.label} (${m.cmd}) 对 ${selectedIp || '全局资产'} 进行操作`);
+              }} onMouseOver={e=>{e.currentTarget.style.borderColor=group.color; e.currentTarget.style.background='rgba(255,255,255,0.03)'}} onMouseOut={e=>{e.currentTarget.style.borderColor='#222'; e.currentTarget.style.background='#111'}}>
+                <div style={{fontSize:'12px', color:group.color, fontWeight:'bold', marginBottom:'4px'}}>{m.label}</div>
+                <div style={{fontSize:'10px', color:'#666', lineHeight:'1.4'}}>{m.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SliverViewTab({ onExecCommand }) {
+  const [sessions, setSessions] = useState([])
+  useEffect(() => {
+    fetch(`${API}/sliver/sessions`).then(r=>r.json()).then(d=>setSessions(d.sessions||[])).catch(console.error)
+  }, [])
+  return (
+    <div style={{padding:'24px', overflowY:'auto', height:'100%', boxSizing:'border-box'}}>
+      <div style={{fontSize:'18px', color:'#FF3B30', fontWeight:'bold', borderBottom:'1px solid #333', paddingBottom:'12px', marginBottom:'12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <span>C2 控制中心 (Sliver Sessions)</span>
+        <span style={{fontSize:'10px', color:'#FF9900', background:'rgba(255,153,0,0.1)', padding:'2px 8px', borderRadius:'4px', fontWeight:'normal'}}>MOCK 演示数据</span>
+      </div>
+      <div style={{fontSize:'10px', color:'#666', marginBottom:'16px'}}>远程控制面板：显示通过 Sliver 信标成功上线的被控主机。当前为模拟数据，V8.1 将对接真实 Sliver Server。</div>
+      <table className="data-table">
+        <thead>
+          <tr><th>ID / Node</th><th>主机名</th><th>OS</th><th>内网 IP</th><th>权限 (User)</th><th>最后心跳</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          {sessions.map(s => (
+            <tr key={s.id}>
+              <td style={{color:'#00FFFF', fontFamily:'Consolas', fontWeight:'bold'}}>{s.id}</td>
+              <td style={{color:'#D0D0D0'}}>{s.name}</td>
+              <td style={{color:'#999'}}>{s.os}</td>
+              <td style={{color:'#30D158'}}>{s.ip}</td>
+              <td style={{color: s.user.toLowerCase().includes('system') || s.user === 'root' ? '#FF3B30' : '#FF9900'}}>{s.user}</td>
+              <td style={{color:'#666'}}>{s.last_checkin}</td>
+              <td>
+                <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'4px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'11px', transition:'all 0.2s'}} onClick={() => onExecCommand(`利用 Sliver 远控向 session ${s.id} (${s.ip}) 凭证节点下发信息收集和维持指令`)} onMouseOver={e=>e.currentTarget.style.background='rgba(0,255,255,0.1)'} onMouseOut={e=>e.currentTarget.style.background='#222'}>
+                  🚀 X-Pivot 横向扩展
+                </button>
+              </td>
+            </tr>
+          ))}
+          {sessions.length === 0 && <tr><td colSpan="7" style={{textAlign:'center', color:'#666', padding:'16px'}}>暂无上线的主机 / Waiting for beacon...</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ========== VISUALIZATION PANELS ==========
+function TopologyView() {
+  const container = useRef(null)
+  const [selectedNode, setSelectedNode] = useState(null)
+  useEffect(() => {
+    fetch(`${API}/topology`).then(r=>r.json()).then(data => {
+      if(!container.current) return
+      const network = new Network(container.current, data, {
+        nodes: { shape: 'dot', size: 18, font: { color: '#00FFFF', size: 12, face: 'Consolas' } },
+        edges: { color: 'rgba(0,255,255,0.3)', width: 2, arrows: 'to' },
+        groups: {
+          attacker: { color: { background: '#FF3B30', border: '#FF3B30' }, font:{color:'#FF3B30'}, size: 28 },
+          target: { color: { background: 'rgba(0,255,255,0.1)', border: '#00FFFF' } }
+        },
+        physics: { stabilization: false, barnesHut: { springLength: 200 } },
+        interaction: { hover: true, tooltipDelay: 100 }
+      })
+      network.on('click', (params) => {
+        if (params.nodes.length > 0) {
+          const nodeId = params.nodes[0]
+          const node = data.nodes.find(n => n.id === nodeId)
+          setSelectedNode(node || { id: nodeId, label: nodeId })
+        } else {
+          setSelectedNode(null)
+        }
+      })
+    }).catch(console.error)
+  }, [])
+  return (
+    <div style={{position:'relative', width:'100%', height:'100%'}}>
+      <div style={{position:'absolute', top:'8px', left:'16px', zIndex:10, fontSize:'10px', color:'#666', maxWidth:'280px'}}>
+        星图拓扑：可视化当前网络中发现的所有资产及连接关系。红色 = 攻击者节点，青色 = 目标主机。点击节点查看详情。
+      </div>
+      <div ref={container} style={{width:'100%', height:'100%', minHeight:'600px'}} />
+      {selectedNode && (
+        <div style={{position:'absolute', top:'8px', right:'16px', background:'#111', border:'1px solid #333', borderRadius:'6px', padding:'12px 16px', zIndex:10, minWidth:'180px', boxShadow:'0 4px 16px rgba(0,0,0,0.6)'}}>
+          <div style={{fontSize:'12px', color:'#00FFFF', fontWeight:'bold', marginBottom:'6px'}}>{selectedNode.label || selectedNode.id}</div>
+          {selectedNode.title && <div style={{fontSize:'10px', color:'#999', whiteSpace:'pre-line'}}>{selectedNode.title}</div>}
+          {selectedNode.group && <div style={{fontSize:'10px', color: selectedNode.group === 'attacker' ? '#FF3B30' : '#30D158', marginTop:'4px'}}>{selectedNode.group === 'attacker' ? '攻击者节点' : '目标主机'}</div>}
+          <button style={{marginTop:'8px', background:'#222', color:'#666', border:'1px solid #333', borderRadius:'4px', padding:'2px 8px', fontSize:'10px', cursor:'pointer'}} onClick={() => setSelectedNode(null)}>关闭</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AttackMatrixView() {
+  const [data, setData] = useState({matrix:{}, active:[]})
+  const [selectedTech, setSelectedTech] = useState(null)
+  useEffect(() => { fetch(`${API}/attack_matrix`).then(r=>r.json()).then(setData).catch(console.error) }, [])
+  return (
+    <div style={{display:'flex', flexDirection:'column', height:'100%'}}>
+      <div style={{padding:'8px 16px', fontSize:'10px', color:'#666', borderBottom:'1px solid #222'}}>
+        MITRE ATT&CK 杀伤链：安全行业标准攻击分类框架。红色高亮 = 当前行动已覆盖的攻击阶段。点击查看技术说明。
+      </div>
+      <div style={{display:'flex', gap:'8px', overflowX:'auto', padding:'16px', flex:1, alignItems:'flex-start'}}>
+        {Object.entries(data.matrix).map(([tactic, techniques]) => (
+          <div key={tactic} style={{minWidth:'140px', flex: 1}}>
+            <div style={{background:'#111', borderTop:'2px solid #FF9900', padding:'8px', color:'#FF9900', fontSize:'12px', fontWeight:'bold', marginBottom:'8px', textAlign:'center'}}>{tactic}</div>
+            {techniques.map(t => {
+              const isActive = data.active.includes(t)
+              return (
+                <div key={t} style={{padding:'8px 4px', marginBottom:'6px', fontSize:'11px', color: isActive ? '#000' : '#888', background: isActive ? '#FF3B30' : selectedTech === t ? 'rgba(0,255,255,0.1)' : 'rgba(255,255,255,0.02)', borderRadius:'2px', textAlign:'center', cursor:'pointer', border: isActive ? '1px solid #FF3B30' : selectedTech === t ? '1px solid #00FFFF' : '1px solid #222', fontWeight: isActive ? 'bold' : 'normal', transition:'all 0.3s'}} onClick={() => setSelectedTech(selectedTech === t ? null : t)}>
+                  {t}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+      {selectedTech && (
+        <div style={{padding:'12px 16px', borderTop:'1px solid #333', background:'#0A0A0A', fontSize:'11px'}}>
+          <span style={{color:'#00FFFF', fontWeight:'bold'}}>{selectedTech}</span>
+          <span style={{color:'#666', marginLeft:'8px'}}>
+            {data.active.includes(selectedTech) ? '⚡ 已在本次行动中使用' : '未覆盖 — 可作为下一步战术方向'}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ========== AI COPILOT PANEL ==========
 const MODELS = [
   { key: 'flash', label: 'Flash', color: '#00FFFF', desc: '快速' },
@@ -261,20 +810,41 @@ const MODELS = [
   { key: 'deep', label: 'Deep Think', color: '#FF3B30', desc: '深度' },
 ]
 
-function AiPanel({ width, onResize }) {
+function AiPanel({ width, onResize, selectedIp, assets, externalCommand }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [model, setModel] = useState(MODELS[0])
   const [menuOpen, setMenuOpen] = useState(false)
   const [interactionId, setInteractionId] = useState(null)
+  const [challengeMsg, setChallengeMsg] = useState(null)
+  const [campaignId, setCampaignId] = useState(`camp_${Math.random().toString(36).slice(2,8)}`)
+  const [campaignTitle, setCampaignTitle] = useState('New Session')
+  const [campaigns, setCampaigns] = useState([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [showArmory, setShowArmory] = useState(false)
   const chatRef = useRef(null)
   const isDragging = useRef(false)
   const abortRef = useRef(null)
+  const inputRef = useRef(null)
+  const sendRef = useRef(null)
+
+  useEffect(() => {
+    if (externalCommand && sendRef.current) sendRef.current(externalCommand.cmd)
+  }, [externalCommand])
 
   const scrollBottom = () => setTimeout(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
   }, 10)
+
+  // Listen for code block "Execute" button clicks
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail && sendRef.current) sendRef.current(`请执行以下命令:\n${e.detail}`)
+    }
+    window.addEventListener('claw-exec-cmd', handler)
+    return () => window.removeEventListener('claw-exec-cmd', handler)
+  }, [])
 
   const startDrag = (e) => {
     isDragging.current = true
@@ -296,10 +866,16 @@ function AiPanel({ width, onResize }) {
     document.addEventListener('mouseup', onUp)
   }
 
-  const sendMessage = async () => {
-    if (!input.trim() || streaming) return
-    const userMsg = input.trim()
-    setInput('')
+  const sendMessage = async (overrideInput = null) => {
+    const userMsg = overrideInput !== null ? overrideInput : input.trim()
+    if (!userMsg) return
+    if (streaming) { console.warn('[LYNX] Agent is busy, queued command ignored.'); return }
+    if (overrideInput === null) setInput('')
+
+    if (messages.length === 0) {
+      setCampaignTitle(userMsg.length > 20 ? userMsg.slice(0, 20) + '...' : userMsg)
+    }
+
     setMessages(prev => [...prev, { role: 'user', text: userMsg }])
     setStreaming(true)
     scrollBottom()
@@ -318,7 +894,7 @@ function AiPanel({ width, onResize }) {
       await fetchEventSource('http://localhost:8000/api/agent/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: userMsg, interaction_id: interactionId }),
+        body: JSON.stringify({ query: userMsg, campaign_id: campaignId }),
         signal: ctrl.signal,
         openWhenHidden: true,
 
@@ -345,6 +921,7 @@ function AiPanel({ width, onResize }) {
             case 'tool_result': {
               const tc = toolCalls.findLast(t => t.name === data.name)
               if (tc) { tc.status = data.status; tc.preview = data.preview }
+              if (data.requires_approval) setChallengeMsg({ command: tc?.args?.command || tc?.args?.module || tc?.args?.sql || '未知高危操作' })
               setMessages(prev => {
                 const msgs = [...prev]; const last = msgs[msgs.length - 1]
                 if (last?.role === 'ai') last.tools = [...toolCalls]
@@ -371,6 +948,7 @@ function AiPanel({ width, onResize }) {
               })
               setStreaming(false)
               scrollBottom()
+              abortRef.current?.abort()
               break
             case 'error':
               setMessages(prev => {
@@ -380,6 +958,7 @@ function AiPanel({ width, onResize }) {
               })
               setStreaming(false)
               scrollBottom()
+              abortRef.current?.abort()
               break
           }
         },
@@ -402,16 +981,135 @@ function AiPanel({ width, onResize }) {
   }
 
   const stopStream = () => { if (abortRef.current) abortRef.current.abort(); setStreaming(false) }
-  const chips = ['列出所有资产', '分析攻击路径', '扫描高危端口', '查看最新漏洞']
+  sendRef.current = sendMessage
+  const asset = selectedIp ? assets.find(a => a.ip === selectedIp) : null;
+  let dynamicChips = [
+    '全面侦察该资产',
+    '端口指纹识别',
+    '扫描常见高危漏洞',
+    '分析操作系统和服务版本',
+    '识别 WAF / CDN 类型',
+  ]
+  if (asset?.ports) {
+    if (asset.ports.some(p => p.port === 445)) dynamicChips.push('执行 SMB 弱口令探测', '检查 SMBGhost / EternalBlue', '枚举共享目录')
+    if (asset.ports.some(p => p.port === 3389)) dynamicChips.push('扫描 RDP 漏洞', '试探 RDP 弱凭证')
+    if (asset.ports.some(p => [80, 443, 8080, 8443].includes(p.port))) dynamicChips.push('启动目录爆破', '扫描常规 Web 漏洞', 'Nuclei 自动化扫描', '识别 Web 框架与 CMS')
+    if (asset.ports.some(p => p.port === 21)) dynamicChips.push('尝试 FTP 匿名登录')
+    if (asset.ports.some(p => p.port === 22)) dynamicChips.push('SSH 版本探测与弱口令', '检查 SSH 密钥泄露风险')
+    if (asset.ports.some(p => p.port === 53)) dynamicChips.push('DNS 区域传送测试')
+    if (asset.ports.some(p => p.port === 161)) dynamicChips.push('SNMP 社区字符串枚举')
+    if (asset.ports.some(p => p.port === 1433)) dynamicChips.push('MSSQL 弱口令与 xp_cmdshell')
+    if (asset.ports.some(p => p.port === 3306)) dynamicChips.push('MySQL 弱口令 / UDF 提权')
+    if (asset.ports.some(p => [5432].includes(p.port))) dynamicChips.push('PostgreSQL 弱口令探测')
+    if (asset.ports.some(p => p.port === 6379)) dynamicChips.push('Redis 未授权访问检测')
+    if (asset.ports.some(p => [139, 445].includes(p.port))) dynamicChips.push('NetBIOS / NTLM 信息泄露')
+  }
+  const chips = asset ? dynamicChips.slice(0, 6) : [
+    '列出所有资产',
+    '分析攻击路径',
+    '扫描高危端口',
+    '查看最新漏洞',
+    '全局攻击面报告',
+    '查看 Agent 审计日志',
+  ]
+
+  const handleChallenge = () => {
+    if (!input.trim()) return
+    const override = `审批通过: ${challengeMsg.command} (口令: ${input.trim()})`
+    setChallengeMsg(null)
+    setInput('')
+    sendMessage(override)
+  }
 
   return (
     <>
       <div className="resizer" onMouseDown={startDrag}></div>
       <div className="col-right" style={{ width: width + 'px' }}>
-        <div className="ai-header">
-          <div className="ai-title"><span>✧</span> 作战副官 · Lynx</div>
-          <div className="ai-tools">
-            <div className="ai-tool-btn" onClick={() => { setMessages([]); setInteractionId(null) }}>[清空]</div>
+        <div className="ai-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center', position:'relative', zIndex:100}}>
+          <div className="ai-title" style={{display:'flex', alignItems:'center', gap:'8px', whiteSpace:'nowrap', flexShrink:1, overflow:'hidden'}}>
+            <span style={{flexShrink:0}}>✧</span> <span style={{flexShrink:0}}>LYNX AI</span>
+            <span style={{fontSize:'10px', color:'#666', background:'rgba(255,255,255,0.05)', padding:'2px 6px', borderRadius:'4px', fontFamily:'Consolas, monospace', fontWeight:'normal', textOverflow:'ellipsis', overflow:'hidden', maxWidth:'180px'}} title={campaignTitle !== 'New Session' ? campaignTitle : campaignId}>
+              {campaignTitle !== 'New Session' ? campaignTitle : campaignId}
+            </span>
+          </div>
+          <div className="ai-tools" style={{display:'flex', gap:'8px', position:'relative', whiteSpace:'nowrap', flexShrink:0, marginLeft:'8px'}}>
+            <div className="ai-tool-btn" onClick={() => { 
+                setCampaignId(`camp_${Math.random().toString(36).slice(2,8)}`);
+                setCampaignTitle('New Session');
+                setMessages([]); 
+                setInteractionId(null);
+            }}>[+]</div>
+            <div className="ai-tool-btn" onClick={() => {
+                fetch(`${API}/campaigns`).then(r => r.json()).then(d => { setCampaigns(d.campaigns); setShowHistory(!showHistory); setShowArmory(false) })
+            }}>[历史]</div>
+            <div className="ai-tool-btn" onClick={() => { setShowArmory(!showArmory); setShowHistory(false) }}>[武器库]</div>
+            {showHistory && (
+              <>
+                <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:99}} onClick={() => setShowHistory(false)} />
+                <div style={{position:'absolute', top:'calc(100% + 8px)', right:0, background:'#111', border:'1px solid #333', borderRadius:'4px', zIndex:100, width:'240px', maxHeight:'300px', overflowY:'auto', boxShadow:'0 4px 12px rgba(0,0,0,0.8)'}}>
+                  {campaigns.length === 0 ? <div style={{padding:'12px', color:'#666', fontSize:'12px', textAlign:'center'}}>NO RECORDS</div> : null}
+                  {campaigns.map(c => (
+                    <div key={c.campaign_id} style={{padding:'8px 12px', borderBottom:'1px solid #222', cursor:'pointer', fontSize:'12px', color: c.campaign_id === campaignId ? '#00FFFF' : '#999', transition:'background 0.2s', display:'flex', flexDirection:'column', gap:'4px'}} onClick={() => {
+                        setCampaignId(c.campaign_id);
+                        setCampaignTitle(c.title || c.campaign_id);
+                        setMessages([{role:'ai', text:`[SYS] 已恢复会话上下文: ${c.title || c.campaign_id}\n(底层模型推理数据流由服务端记忆)`, thinking:false, done:true}]);
+                        setShowHistory(false);
+                    }} onMouseOver={e=>e.currentTarget.style.background='#222'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                      <div style={{fontWeight:'bold', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{c.title || c.campaign_id}</div>
+                      <div style={{fontSize:'10px', color:'#666'}}>ID: {c.campaign_id} • {new Date(c.updated_at + 'Z').toLocaleString('zh-CN', {hour12:false})}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {showArmory && (
+              <>
+                <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:99}} onClick={() => setShowArmory(false)} />
+                <div style={{position:'absolute', top:'calc(100% + 8px)', right:0, background:'#111', border:'1px solid #333', borderRadius:'4px', zIndex:100, width:'300px', maxHeight:'500px', overflowY:'auto', boxShadow:'0 4px 12px rgba(0,0,0,0.8)', padding:'12px'}}>
+                  <div style={{fontSize:'12px', color:'#00FFFF', marginBottom:'12px', fontWeight:'bold', display:'flex', justifyContent:'space-between'}}>
+                    <span>TACTICAL ARMORY (战术武器库)</span>
+                  </div>
+                  {Object.entries({
+                    '侦察 (Recon)': [
+                      { id: '00-armory', label: '基础网段连通性探测' },
+                      { id: '01-recon', label: '全端口指纹深度扫描' },
+                      { id: '02-probe', label: '特殊服务与组件识别' }
+                    ],
+                    '打点 (Weaponize)': [
+                      { id: '03-audit', label: '常用高危漏洞自动化审计' },
+                      { id: '04-phantom', label: 'Web 应用目录与接口发现' },
+                      { id: '05-cracker', label: '弱口令协议在线字典暴破' },
+                      { id: '23-hp-proxy-unlocker', label: '特殊设备代理穿透漏洞利用' }
+                    ],
+                    '渗透 (Pivot)': [
+                      { id: '06-psexec', label: '内网横向 Psexec 指令执行' },
+                      { id: '09-loot', label: '实战主机密码票据全面搜刮' },
+                      { id: '10-kerberoast', label: 'Kerberoast AD票据攻击' }
+                    ],
+                    '智能 (AI)': [
+                      { id: '16-ai-analyze', label: '全域攻击面结构化关联归纳' },
+                      { id: '17-ask-lynx', label: '申请参谋部高权限接管 / 问答' }
+                    ]
+                  }).map(([cat, mods]) => (
+                     <div key={cat} style={{marginBottom:'12px'}}>
+                        <div style={{fontSize:'11px', color:'#FF9900', marginBottom:'6px', opacity: 0.9, fontWeight: 'bold'}}>{cat}</div>
+                        <div style={{display:'grid', gridTemplateColumns:'1fr', gap:'4px'}}>
+                           {mods.map(m => (
+                             <div key={m.id} className="ai-tool-btn" style={{textAlign:'left', fontSize:'11px', padding:'8px 10px'}} onClick={() => {
+                                 setShowArmory(false);
+                                 sendMessage(`调用模块 ${m.id} 对 ${selectedIp ? selectedIp : '全局范围'} 进行操作`);
+                             }}>
+                               <span style={{color:'#666', marginRight:'6px', fontFamily: 'Consolas'}}>{m.id.split('-')[0]}</span>
+                               <span style={{color:'#D0D0D0'}}>{m.label}</span>
+                             </div>
+                           ))}
+                        </div>
+                     </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <div className="ai-tool-btn" onClick={() => { setMessages([]); setInteractionId(null) }}>[-]</div>
           </div>
         </div>
 
@@ -422,12 +1120,13 @@ function AiPanel({ width, onResize }) {
                 系统就绪
               </div>
               <div style={{fontSize:'12px', color:'#666', marginBottom:'4px'}}>
-                连接 Gemini 3 Interactions API · 实时流式对话
+                连接 Gemini 3 Interactions API · 实时流式对话<br/>
+                战役通信 ID: {campaignId}
               </div>
               <div className="chip-group-title">── 快捷指令 ──</div>
               <div className="chips-wrap">
                 {chips.map(c => (
-                  <div key={c} className="agent-chip" onClick={() => setInput(c)}>{c}</div>
+                  <div key={c} className="agent-chip" onClick={() => { setInput(c); setTimeout(() => { if(inputRef.current) inputRef.current.focus() }, 50) }}>{c}</div>
                 ))}
               </div>
             </div>
@@ -453,14 +1152,26 @@ function AiPanel({ width, onResize }) {
         </div>
 
         <div className="ai-input-float">
-          <div className="input-card">
+          {challengeMsg && (
+            <div style={{ padding: '8px 12px', background: 'rgba(255, 68, 68, 0.1)', borderTop: '2px solid #ff4444', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
+              <div style={{ color: '#ff4444', fontWeight: 'bold', marginBottom: '4px', fontSize: '13px' }}>
+                ⚠ 高危操作人工授权 (RED)
+              </div>
+              <div style={{ color: '#d0d0d0', fontSize: '12px', marginBottom: '6px' }}>
+                目标指令: <code style={{color: '#ff9900'}}>{challengeMsg.command}</code>
+              </div>
+              <div style={{ fontSize: '11px', color: '#999' }}>请输入审批口令 (如 CONFIRM/回车) 确认：</div>
+            </div>
+          )}
+          <div className="input-card" style={{ borderTopLeftRadius: challengeMsg ? 0 : 8, borderTopRightRadius: challengeMsg ? 0 : 8 }}>
             <textarea
+              ref={inputRef}
               className="ai-input"
-              placeholder="输入战术指令..."
+              placeholder={challengeMsg ? "输入验证码并回车..." : "输入战术指令..."}
               rows={1}
               value={input}
               onChange={e => { setInput(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px' }}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); challengeMsg ? handleChallenge() : sendMessage() } }}
             />
             <div className="input-tools">
               <div style={{position:'relative'}}>
@@ -484,7 +1195,7 @@ function AiPanel({ width, onResize }) {
                   <svg className="send-icon" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
                 </button>
               ) : (
-                <button className="send-btn" onClick={sendMessage} disabled={!input.trim()}>
+                <button className="send-btn" onClick={challengeMsg ? handleChallenge : () => sendMessage(null)} disabled={!input.trim()} style={{background: challengeMsg ? '#ff4444' : ''}}>
                   <svg className="send-icon" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </button>
               )}
@@ -497,37 +1208,287 @@ function AiPanel({ width, onResize }) {
 }
 
 function ToolCallCard({ tool }) {
-  const riskColors = { green: '#30D158', yellow: '#FF9900', red: '#FF3B30' }
-  const riskLabels = { green: '🟢', yellow: '🟡', red: '🔴' }
+  const riskColor = tool.risk?.toLowerCase() === 'red' ? '#FF3B30' : tool.risk?.toLowerCase() === 'yellow' ? '#FF9900' : '#30D158'
+  const TOOL_CN = {
+    claw_query_db: '数据库查询',
+    claw_read_file: '文件读取',
+    claw_list_assets: '资产列举',
+    claw_execute_shell: '命令执行',
+    claw_run_module: '模块调用',
+    claw_sliver_execute: '远控指令',
+  }
+  const cnName = TOOL_CN[tool.name] || ''
   return (
-    <div style={{
+    <details style={{
       background: 'rgba(255,255,255,0.03)', border: '1px solid #222',
-      borderLeft: `3px solid ${riskColors[tool.risk] || '#333'}`,
+      borderLeft: `3px solid ${riskColor}`,
       borderRadius: '4px', padding: '8px 10px', margin: '6px 0',
       fontSize: '12px', fontFamily: 'Consolas, monospace',
     }}>
-      <div style={{display:'flex', alignItems:'center', gap:'6px', marginBottom:'4px'}}>
-        <span>{riskLabels[tool.risk] || '🔧'}</span>
+      <summary style={{display:'flex', alignItems:'center', gap:'6px', cursor: 'pointer', outline: 'none'}}>
+        <span style={{background: riskColor, color: '#000', padding: '1px 6px', borderRadius: '3px', fontSize: '10px', fontWeight: 'bold'}}>
+          {tool.risk?.toUpperCase() || 'GREEN'}
+        </span>
         <span style={{color:'#00FFFF'}}>{tool.name}</span>
-        <span style={{color: tool.status === 'ok' ? '#30D158' : tool.status === 'error' ? '#FF3B30' : '#888', fontSize: '10px'}}>
+        {cnName && <span style={{color:'#666', fontSize:'10px'}}>({cnName})</span>}
+        <span style={{color: tool.status === 'ok' ? '#30D158' : tool.status === 'error' ? '#FF3B30' : '#D0D0D0', fontSize: '10px', marginLeft: 'auto'}}>
           {tool.status === 'running' ? '⏳ 执行中...' : tool.status === 'ok' ? '✓ 完成' : tool.status === 'error' ? '✗ 失败' : tool.status}
         </span>
+      </summary>
+      <div style={{marginTop:'8px', paddingTop:'8px', borderTop:'1px dashed #333'}}>
+        {tool.args && Object.entries(tool.args).map(([k, v]) => (
+          <div key={k} style={{marginBottom:'4px'}}>
+            <span style={{color:'#999'}}>{k}:</span> <span style={{color:'#D0D0D0'}}>{v}</span>
+          </div>
+        ))}
+        {tool.preview && (
+          <div style={{marginTop:'8px'}}>
+            <div style={{color:'#30D158', background:'rgba(48,209,88,0.1)', padding:'8px', borderRadius:'4px', whiteSpace:'pre-wrap', maxHeight:'300px', overflowY:'auto', fontSize:'11px', lineHeight:'1.5', cursor:'text', userSelect:'text'}}>
+              {tool.preview}
+            </div>
+          </div>
+        )}
       </div>
-      <div style={{color:'#666', fontSize:'11px', wordBreak:'break-all'}}>
-        {JSON.stringify(tool.args).slice(0, 120)}
-      </div>
-      {tool.preview && <div style={{color:'#888', fontSize:'11px', marginTop:'4px'}}>{tool.preview}</div>}
-    </div>
+    </details>
   )
 }
 
 function StreamingText({ text, done, isError }) {
+  // Parse text into segments: regular text and code blocks
+  const segments = []
+  const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g
+  let lastIndex = 0
+  let match
+  const textStr = text || ''
+  
+  while ((match = codeBlockRegex.exec(textStr)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: 'text', content: textStr.slice(lastIndex, match.index) })
+    }
+    segments.push({ type: 'code', lang: match[1] || 'bash', content: match[2].trim() })
+    lastIndex = match.index + match[0].length
+  }
+  if (lastIndex < textStr.length) {
+    segments.push({ type: 'text', content: textStr.slice(lastIndex) })
+  }
+
+  const handleCopy = (code) => {
+    navigator.clipboard.writeText(code).catch(() => {})
+  }
+
+  const handleExec = (code) => {
+    // Dispatch to AI panel as a user command
+    const event = new CustomEvent('claw-exec-cmd', { detail: code })
+    window.dispatchEvent(event)
+  }
+
   return (
     <div style={{color: isError ? '#FF3B30' : '#D0D0D0'}}>
-      {text.split('\n').map((line, i) => (
-        <span key={i}>{line}{i < text.split('\n').length - 1 && <br/>}</span>
-      ))}
+      {segments.map((seg, i) => {
+        if (seg.type === 'code') {
+          const isBash = ['bash','sh','shell',''].includes(seg.lang)
+          return (
+            <div key={i} style={{background:'#0A0A0A', border:'1px solid #333', borderRadius:'4px', margin:'8px 0', overflow:'hidden'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 8px', background:'#111', borderBottom:'1px solid #222'}}>
+                <span style={{color:'#666', fontSize:'10px'}}>{seg.lang || 'code'}</span>
+                <div style={{display:'flex', gap:'4px'}}>
+                  <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', borderRadius:'3px', padding:'2px 8px', fontSize:'10px', cursor:'pointer'}} onClick={() => handleCopy(seg.content)} title="复制到剪贴板">📋 复制</button>
+                  {isBash && <button style={{background:'rgba(255,59,48,0.1)', color:'#FF3B30', border:'1px solid #333', borderRadius:'3px', padding:'2px 8px', fontSize:'10px', cursor:'pointer'}} onClick={() => handleExec(seg.content)} title="发送到 AI 执行">▶ 执行</button>}
+                </div>
+              </div>
+              <pre style={{margin:0, padding:'8px 10px', color:'#D0D0D0', fontSize:'12px', fontFamily:'Consolas, monospace', overflowX:'auto', whiteSpace:'pre-wrap'}}>{seg.content}</pre>
+            </div>
+          )
+        }
+        return (
+          <span key={i}>
+            {seg.content.split('\n').map((line, j) => (
+              <span key={j}>{line}{j < seg.content.split('\n').length - 1 && <br/>}</span>
+            ))}
+          </span>
+        )
+      })}
       {!done && <span className="typing-cursor"></span>}
+    </div>
+  )
+}
+
+// ========== DOCKER PANEL ==========
+function DockerPanel() {
+  const [data, setData] = useState({ images: [], containers: [] })
+  const [loading, setLoading] = useState(true)
+  const [actionStatus, setActionStatus] = useState(null)
+
+  const fetchStatus = () => {
+    fetch(`${API}/docker/status`).then(r => r.json()).then(d => { setData(d); setLoading(false) }).catch(e => { setLoading(false) })
+  }
+
+  useEffect(() => { fetchStatus() }, [])
+
+  const handleAction = (action, name) => {
+    setActionStatus(`${action === 'start' ? '启动' : action === 'stop' ? '停止' : '重启'}中...`)
+    fetch(`${API}/docker/${action}/${name}`, { method: 'POST' })
+      .then(r => r.json()).then(d => {
+        setActionStatus(d.error ? `✗ ${d.error}` : `✓ ${action} 完成`)
+        setTimeout(() => { fetchStatus(); setActionStatus(null) }, 2000)
+      }).catch(e => { setActionStatus(`✗ ${e.message}`); setTimeout(() => setActionStatus(null), 3000) })
+  }
+
+  if (loading) return <div style={{color:'#666', padding:'24px'}}>正在查询 Docker 状态...</div>
+
+  return (
+    <div style={{padding:'24px', overflowY:'auto', height:'100%', boxSizing:'border-box'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px'}}>
+        <div>
+          <span style={{fontSize:'16px', color:'#FF9900', fontWeight:'bold'}}>云端战车 (Docker Arsenal)</span>
+          <span style={{fontSize:'10px', color:'#666', marginLeft:'8px'}}>{data.images?.length || 0} 镜像 · {data.containers?.length || 0} 容器</span>
+        </div>
+        <div style={{display:'flex', gap:'8px', alignItems:'center'}}>
+          {actionStatus && <span style={{fontSize:'11px', color:'#30D158'}}>{actionStatus}</span>}
+          <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', borderRadius:'4px', padding:'4px 12px', fontSize:'11px', cursor:'pointer'}} onClick={fetchStatus}>🔄 刷新</button>
+        </div>
+      </div>
+
+      {/* Containers */}
+      <div style={{marginBottom:'24px'}}>
+        <div style={{fontSize:'12px', color:'#00FFFF', fontWeight:'bold', marginBottom:'8px', borderBottom:'1px solid #222', paddingBottom:'4px'}}>容器 (Containers)</div>
+        {(!data.containers || data.containers.length === 0) ? (
+          <div style={{color:'#666', fontSize:'12px', padding:'8px'}}>无运行容器</div>
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>名称</th><th>镜像</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              {data.containers.map(c => (
+                <tr key={c.id}>
+                  <td style={{color:'#00FFFF', fontWeight:'bold'}}>{c.name}</td>
+                  <td style={{color:'#D0D0D0'}}>{c.image}</td>
+                  <td>
+                    <span style={{color: c.running ? '#30D158' : '#FF9900', background: c.running ? 'rgba(48,209,88,0.1)' : 'rgba(255,153,0,0.1)', padding:'2px 8px', borderRadius:'4px', fontSize:'10px'}}>
+                      {c.running ? '● 运行中' : '○ 已停止'}
+                    </span>
+                    <span style={{color:'#666', fontSize:'10px', marginLeft:'6px'}}>{c.status}</span>
+                  </td>
+                  <td>
+                    <div style={{display:'flex', gap:'4px'}}>
+                      {!c.running && <button style={{background:'rgba(48,209,88,0.1)', color:'#30D158', border:'1px solid #333', borderRadius:'4px', padding:'3px 8px', fontSize:'10px', cursor:'pointer'}} onClick={() => handleAction('start', c.name)}>▶ 启动</button>}
+                      {c.running && <button style={{background:'rgba(255,59,48,0.1)', color:'#FF3B30', border:'1px solid #333', borderRadius:'4px', padding:'3px 8px', fontSize:'10px', cursor:'pointer'}} onClick={() => handleAction('stop', c.name)}>⏹ 停止</button>}
+                      <button style={{background:'#222', color:'#FF9900', border:'1px solid #333', borderRadius:'4px', padding:'3px 8px', fontSize:'10px', cursor:'pointer'}} onClick={() => handleAction('restart', c.name)}>🔄 重启</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Images */}
+      <div>
+        <div style={{fontSize:'12px', color:'#FF9900', fontWeight:'bold', marginBottom:'8px', borderBottom:'1px solid #222', paddingBottom:'4px'}}>镜像库 (Images)</div>
+        <table className="data-table">
+          <thead><tr><th>镜像名称</th><th>ID</th><th>大小</th><th>构建时间</th></tr></thead>
+          <tbody>
+            {(data.images || []).map(img => (
+              <tr key={img.id}>
+                <td style={{color: img.name.includes('arsenal') ? '#FF3B30' : img.name.includes('dvwa') ? '#FF9900' : '#D0D0D0', fontWeight: img.name.includes('v4') ? 'bold' : 'normal'}}>
+                  {img.name}
+                  {img.name.includes(':v4') && <span style={{marginLeft:'6px', fontSize:'9px', color:'#30D158', background:'rgba(48,209,88,0.1)', padding:'1px 6px', borderRadius:'3px'}}>LATEST</span>}
+                </td>
+                <td style={{color:'#666', fontFamily:'Consolas'}}>{img.id}</td>
+                <td style={{color:'#00FFFF'}}>{img.size}</td>
+                <td style={{color:'#666'}}>{img.created}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+const ALL_MODULES = [
+  '00-armory', '01-recon', '02-probe', '03-audit', '04-phantom', '05-cracker',
+  '06-psexec', '09-loot', '10-kerberoast', '16-ai-analyze', '17-ask-lynx', '23-hp-proxy-unlocker'
+];
+
+function OutputConsole() {
+  const [logs, setLogs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const containerRef = useRef(null)
+
+  const fetchLogs = () => {
+    fetch(`${API}/audit`)
+      .then(r => r.json())
+      .then(d => {
+        const entries = (d.entries || []).map(e => ({
+          time: e.timestamp || '',
+          level: e.action?.includes('ERROR') ? 'ERROR' : e.action?.includes('SLIVER') ? 'WARN' : 'INFO',
+          msg: `${e.action || ''} ${e.detail || ''}`
+        }))
+        setLogs(entries)
+        setLoading(false)
+      })
+      .catch(() => {
+        setLogs([{time: new Date().toLocaleTimeString(), level: 'INFO', msg: 'Audit log is empty. Outputs will appear when Agent executes tool calls.'}])
+        setLoading(false)
+      })
+  }
+
+  useEffect(() => {
+    fetchLogs()
+    const interval = setInterval(fetchLogs, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    if (containerRef.current) containerRef.current.scrollTop = containerRef.current.scrollHeight
+  }, [logs])
+
+  return (
+    <div ref={containerRef} style={{color:'#D0D0D0', fontSize:'11px', fontFamily:'Consolas, monospace', padding:'4px', overflowY:'auto', height:'100%', lineHeight:'1.6'}}>
+      <div style={{color:'#FF9900', marginBottom:'8px'}}>--- Agent Output Log (Auto-refresh: 5s) ---</div>
+      {loading && <div style={{color:'#666'}}>Loading...</div>}
+      {logs.map((l, i) => (
+        <div key={i} style={{borderBottom:'1px solid #111', padding:'2px 0'}}>
+          <span style={{color:'#666'}}>[{l.time || ''}]</span>
+          <span style={{color: l.level === 'ERROR' ? '#FF3B30' : l.level === 'WARN' ? '#FF9900' : '#30D158', marginLeft:'4px'}}>{l.level || 'LOG'}</span>
+          <span style={{marginLeft:'8px', color:'#D0D0D0'}}>{l.msg || JSON.stringify(l)}</span>
+        </div>
+      ))}
+      {!loading && logs.length === 0 && <div style={{color:'#666'}}>暂无输出记录。当 Agent 执行工具调用时，输出会自动显示在此。</div>}
+    </div>
+  )
+}
+
+function Spotlight({ assets, open, onClose, onSelectAsset, onSelectModule }) {
+  if (!open) return null;
+  const [query, setQuery] = useState('')
+  const filteredAssets = assets.filter(a => a.ip.includes(query) || a.os.toLowerCase().includes(query.toLowerCase()))
+  const filteredModules = query ? ALL_MODULES.filter(m => m.includes(query.toLowerCase())) : []
+
+  return (
+    <div style={{position:'fixed', top:0, left:0, width:'100vw', height:'100vh', background:'rgba(0,0,0,0.6)', backdropFilter:'blur(4px)', zIndex:9999, display:'flex', justifyContent:'center', paddingTop:'15vh'}} onClick={onClose}>
+      <div style={{width:'500px', background:'#111', border:'1px solid #333', borderRadius:'8px', overflow:'hidden', boxShadow:'0 10px 30px rgba(0,0,0,0.8)'}} onClick={e => e.stopPropagation()}>
+        <input autoFocus placeholder="Cmd+K 搜索资产 IP / 操作系统 / 战术模块..." value={query} onChange={e => setQuery(e.target.value)} style={{width:'100%', padding:'16px', background:'#1a1a1a', border:'none', borderBottom:'1px solid #333', color:'#00FFFF', fontSize:'16px', outline:'none', fontFamily:'Consolas, monospace'}} />
+        <div style={{maxHeight:'320px', overflowY:'auto'}}>
+          {filteredModules.length > 0 && <div style={{padding:'4px 16px', fontSize:'10px', color:'#00FFFF', background:'#1a1a1a'}}>战术模块 (TACTICAL MODULES)</div>}
+          {filteredModules.map(m => (
+            <div key={m} onClick={() => { onSelectModule(`调用模块 ${m} 进行操作`); onClose() }} style={{padding:'12px 16px', borderBottom:'1px solid #222', cursor:'pointer', display:'flex', justifyContent:'space-between', color:'#FF9900', transition:'background 0.2s', fontWeight:'bold'}} onMouseOver={e=>e.currentTarget.style.background='#222'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+              <span>{m}</span>
+              <span style={{fontSize:'12px', color:'#666'}}>执行模块</span>
+            </div>
+          ))}
+
+          {filteredAssets.length > 0 && <div style={{padding:'4px 16px', fontSize:'10px', color:'#00FFFF', background:'#1a1a1a'}}>已知资产 (TARGET ASSETS)</div>}
+          {filteredAssets.slice(0, 8).map(a => (
+            <div key={a.ip} onClick={() => { onSelectAsset(a.ip); onClose() }} style={{padding:'12px 16px', borderBottom:'1px solid #222', cursor:'pointer', display:'flex', justifyContent:'space-between', color:'#d0d0d0', transition:'background 0.2s'}} onMouseOver={e=>e.currentTarget.style.background='#222'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+              <span style={{color: '#30D158'}}>{a.ip}</span>
+              <span style={{color: '#666', fontSize:'12px'}}>{a.os || 'Unknown OS'} · {a.port_count} ports</span>
+            </div>
+          ))}
+          {filteredAssets.length === 0 && filteredModules.length === 0 && <div style={{padding:'16px', color:'#666', textAlign:'center', fontSize:'13px'}}>无匹配记录</div>}
+        </div>
+      </div>
     </div>
   )
 }
@@ -539,28 +1500,109 @@ function App() {
   const [selectedIp, setSelectedIp] = useState(null)
   const [view, setView] = useState('RC')
   const [aiWidth, setAiWidth] = useState(380)
+  const [spotlightOpen, setSpotlightOpen] = useState(false)
+  const [externalCommand, setExternalCommand] = useState(null)
+  const [terminalOpen, setTerminalOpen] = useState(true)
+  const [consoleTab, setConsoleTab] = useState('xterm')
+  const [terminalHeight, setTerminalHeight] = useState(240)
+  const isTermDragging = useRef(false)
+
+  const startTerminalDrag = (e) => {
+    isTermDragging.current = true
+    document.body.style.cursor = 'row-resize'
+    document.body.style.userSelect = 'none'
+    const onMove = (ev) => {
+      if (!isTermDragging.current) return
+      const newH = Math.max(100, Math.min(window.innerHeight - ev.clientY, window.innerHeight * 0.8))
+      setTerminalHeight(newH)
+    }
+    const onUp = () => {
+      isTermDragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
 
   useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSpotlightOpen(o => !o)
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+        e.preventDefault()
+        setTerminalOpen(o => !o)
+      }
+      if (e.key === 'Escape') setSpotlightOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const refreshAssets = () => {
     fetch(`${API}/stats`).then(r => r.json()).then(setStats).catch(console.error)
-    fetch(`${API}/assets`).then(r => r.json()).then(d => {
-      setAssets(d.assets || [])
-      if (d.assets?.length) setSelectedIp(d.assets[0].ip)
-    }).catch(console.error)
+    fetch(`${API}/assets`).then(r => r.json()).then(d => setAssets(d.assets || [])).catch(console.error)
+  }
+
+  useEffect(() => {
+    refreshAssets()
   }, [])
 
   return (
     <div className="app-container">
-      <HudBar stats={stats} />
-      <div className="main-shell">
-        <div className="activity-bar">
-          {[['RC','侦察'],['AT','资产'],['AG','AI']].map(([k,label]) => (
-            <div key={k} className={`activity-icon ${view===k?'active':''}`} onClick={() => setView(k)}>{k}</div>
-          ))}
+      <HudBar stats={stats} onToggleTerminal={() => setTerminalOpen(o => !o)} onRefreshAssets={refreshAssets} />
+      <div className="main-shell" style={{display:'flex', flexDirection:'row', flex:1, overflow:'hidden'}}>
+        
+        {/* Left pane: Activities, Sidebar, Center WorkArea OVER Terminal */}
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+          
+          {/* Top section */}
+          <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+            <div className="activity-bar">
+              {[['RC','侦察'],['AT','资产'],['AM','武库'],['C2','远控'],['VS','全域']].map(([k,label]) => (
+                <div key={k} className={`activity-icon ${view===k?'active':''}`} onClick={() => setView(k)}>{label}</div>
+              ))}
+            </div>
+            <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} view={view} onNavigate={setView} onRefreshAssets={refreshAssets} />
+            <WorkArea assets={assets} selectedIp={selectedIp} view={view} onExecCommand={cmd => setExternalCommand({id: Date.now(), cmd})} />
+          </div>
+
+          {/* Bottom section: TERMINAL PANEL */}
+          <div style={{ display: terminalOpen ? 'flex' : 'none', height: terminalHeight, borderTop: '1px solid #333', flexDirection: 'column', backgroundColor: '#050505', zIndex: 50 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 16px', borderBottom: '1px solid #222', backgroundColor: '#111', fontSize: '11px', color: '#999', cursor: 'row-resize', userSelect: 'none' }}
+                 onMouseDown={startTerminalDrag}>
+              <div style={{ display: 'flex', gap: '0' }}>
+                {[['xterm','XTERM CONSOLE'],['output','OUTPUT'],['debug','DEBUG CONSOLE']].map(([k,label]) => (
+                  <span key={k} style={{ cursor:'pointer', padding:'4px 12px', color: consoleTab === k ? '#00FFFF' : '#999', fontWeight: consoleTab === k ? 'bold' : 'normal', borderBottom: consoleTab === k ? '2px solid #00FFFF' : '2px solid transparent', transition:'all 0.2s' }} onClick={(e) => { e.stopPropagation(); setConsoleTab(k) }}>{label}</span>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <span style={{ cursor: 'pointer', color: '#ccc' }} onClick={(e) => { e.stopPropagation(); setTerminalOpen(false) }}>✕</span>
+              </div>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: '8px' }}>
+              {consoleTab === 'xterm' && <XTermConsole />}
+              {consoleTab === 'output' && <OutputConsole />}
+              {consoleTab === 'debug' && (
+                <div style={{color:'#666', fontSize:'12px', fontFamily:'Consolas, monospace', padding:'8px', overflowY:'auto', height:'100%'}}>
+                  [SYS] Debug console active. Backend: {API}<br/>
+                  [SYS] Agent model: Gemini 3 Flash<br/>
+                  [SYS] HITL: Enabled (RED commands require approval)<br/>
+                  [SYS] Scope: God Mode (无限制)
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-        <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} view={view} />
-        <WorkArea assets={assets} selectedIp={selectedIp} view={view} />
-        <AiPanel width={aiWidth} onResize={setAiWidth} />
+
+        {/* Right pane: AI Panel */}
+        <AiPanel width={aiWidth} onResize={setAiWidth} selectedIp={selectedIp} assets={assets} externalCommand={externalCommand} />
       </div>
+      <Spotlight assets={assets} open={spotlightOpen} onClose={() => setSpotlightOpen(false)} onSelectAsset={ip => setSelectedIp(ip)} onSelectModule={cmd => setExternalCommand({id: Date.now(), cmd})} />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-# CatTeam 架构设计文档 V8.0-alpha / A2.0
+# CatTeam 架构设计文档 V8.0.1 / A2.1
 
 ## 1. 平台定位与行业对标
 
@@ -63,6 +63,7 @@ CLAW V8.0: 框架 → 作战平台 (GUI + 协作 + 审计 + 态势感知)
 ├──────────────────────────────────────────┤
 │    🌐 API 层 (FastAPI)                    │ ← V8.0 NEW
 │  /api/v1/stats · assets · scans · audit  │
+│  /api/v1/docker · scope · probe          │ ← V8.0.1
 │  CORS · SQLite 查询 · Agent Chat 代理     │
 ├──────────────────────────────────────────┤
 │         控制面 (Makefile v5.0 + TUI)      │
@@ -70,8 +71,8 @@ CLAW V8.0: 框架 → 作战平台 (GUI + 协作 + 审计 + 态势感知)
 ├──────────────────────────────────────────┤
 │      🧠 Agent 层 (Gemini 3 Interactions)  │
 │  claw-agent: ReAct Loop + HITL 三级分权   │
-│  5 工具: query_db/read_file/list_assets   │
-│         /execute_shell/run_module        │
+│  6 工具: query_db/read_file/list_assets   │
+│    /execute_shell/run_module/sliver_exec  │
 ├──────────────────────────────────────────┤
 │         AI 辅助层 (Gemini Flash)            │
 │  16-ai-analyze / 17-ask-lynx / 脱敏层    │
@@ -166,7 +167,7 @@ CLAW V8.0: 框架 → 作战平台 (GUI + 协作 + 审计 + 态势感知)
 |---|---|---|---|---|
 | `claw-agent` | Mac (Python) | 自然语言 | 智能分析 + 命令执行 | Gemini 3 Interactions API, ReAct Loop |
 | 工具: `claw_query_db` | 内嵌 | SQL | JSON | 只允许 SELECT, 自动放行 |
-| 工具: `claw_read_file` | 内嵌 | 文件路径 | 文件内容 | 路径穿越防护, 自动放行 |
+| 工具: `claw_read_file` | 内嵌 | 文件路径 | 文件内容 | 路径穿越防护, 支持 Loot + 项目根目录 |
 | 工具: `claw_list_assets` | 内嵌 | 环境名 | 资产清单 | 自动放行 |
 | 工具: `claw_execute_shell` | 内嵌 | shell 命令 | 执行结果 | HITL 三级分权 |
 | 工具: `claw_run_module` | 内嵌 | make 命令 | 执行结果 | HITL 三级分权 |

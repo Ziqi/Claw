@@ -140,6 +140,14 @@ SYSTEM_PROMPT = """你是 CLAW Agent (代号 Lynx 🐱), 一个由 CatTeam 打�
 #  TOOL DECLARATIONS
 # ============================================================
 
+COMMON_PROPS = {
+    "thought": {"type": "string", "description": "你的思考过程分析"},
+    "mitre_ttp": {"type": "string", "description": "符合 MITRE ATT&CK 的战术/技术编号 (如 T1021.002) 或 'N/A'"},
+    "justification": {"type": "string", "description": "调用此工具的安全视角理由"},
+    "risk_level": {"type": "string", "description": "风险等级评估 (GREEN/YELLOW/RED)"}
+}
+COMMON_REQ = ["thought", "mitre_ttp", "justification", "risk_level"]
+
 TOOLS = [
     {
         "type": "function",
@@ -148,22 +156,24 @@ TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "sql": {"type": "string", "description": "SQL 查询语句 (只允许 SELECT)"}
+                "sql": {"type": "string", "description": "SQL 查询语句 (只允许 SELECT)"},
+                **COMMON_PROPS
             },
-            "required": ["sql"]
+            "required": ["sql"] + COMMON_REQ
         }
     },
     {
         "type": "function",
         "name": "claw_read_file",
-        "description": "读取 CatTeam_Loot 目录下的文件。常用: latest/web_fingerprints.txt, latest/targets.txt, latest/nmap_results.xml",
+        "description": "读取项目文件或战利品文件。支持: (1) CatTeam_Loot 目录下的文件如 latest/targets.txt; (2) CatTeam 根目录下的脚本如 03-audit-web.py, 04-phantom.sh 等。直接传文件名即可，系统会自动搜索。",
         "parameters": {
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "相对于 CatTeam_Loot/ 的路径"},
-                "max_lines": {"type": "integer", "description": "最多行数 (默认 30)"}
+                "max_lines": {"type": "integer", "description": "最多行数 (默认 30)"},
+                **COMMON_PROPS
             },
-            "required": ["path"]
+            "required": ["path"] + COMMON_REQ
         }
     },
     {
@@ -173,8 +183,24 @@ TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "env": {"type": "string", "description": "环境名称 (可选)"}
-            }
+                "env": {"type": "string", "description": "环境名称 (可选)"},
+                **COMMON_PROPS
+            },
+            "required": COMMON_REQ
+        }
+    },
+    {
+        "type": "function",
+        "name": "claw_sliver_execute",
+        "description": "通过 Sliver C2 远控框架，向已经沦陷接管的 Session 发送执行命令。可以随时向不同机器横向下发指令。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "session_id": {"type": "string", "description": "Sliver Session 的唯一标识符，如 'c8a4b3d1'"},
+                "command": {"type": "string", "description": "要执行的 Shell 指令"},
+                **COMMON_PROPS
+            },
+            "required": ["session_id", "command"] + COMMON_REQ
         }
     },
     {
@@ -185,22 +211,24 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "command": {"type": "string", "description": "shell 命令"},
-                "reason": {"type": "string", "description": "执行原因"}
+                "reason": {"type": "string", "description": "执行原因"},
+                **COMMON_PROPS
             },
-            "required": ["command", "reason"]
+            "required": ["command", "reason"] + COMMON_REQ
         }
     },
     {
         "type": "function",
         "name": "claw_run_module",
-        "description": "运行 CLAW 模块 (make fast, make web, make diff 等)。",
+        "description": "运行 CLAW 战术模块。必须传入以 'make' 开头的命令，例如: 'make fast', 'make web', 'make audit', 'make crack', 'make diff', 'make recon'。如果用户提到模块编号如 03-audit，对应命令为 'make audit'。",
         "parameters": {
             "type": "object",
             "properties": {
-                "module": {"type": "string", "description": "make 命令"},
-                "reason": {"type": "string", "description": "运行原因"}
+                "module": {"type": "string", "description": "make 命令，例如 'make audit' 或 'make web'"},
+                "reason": {"type": "string", "description": "运行原因"},
+                **COMMON_PROPS
             },
-            "required": ["module", "reason"]
+            "required": ["module", "reason"] + COMMON_REQ
         }
     },
 ]
@@ -245,7 +273,8 @@ def _list_loot_files():
 
 def tool_read_file(path: str, max_lines: int = 50) -> str:
     full_path = os.path.normpath(os.path.join(LOOT_DIR, path))
-    if not full_path.startswith(os.path.normpath(LOOT_DIR)):
+    # Allow reads from both LOOT_DIR and BASE_DIR (project root)
+    if not (full_path.startswith(os.path.normpath(LOOT_DIR)) or full_path.startswith(os.path.normpath(BASE_DIR))):
         return json.dumps({"error": "安全拦截: 路径穿越被禁止"})
     if os.path.islink(os.path.join(LOOT_DIR, "latest")):
         full_path = full_path.replace(
@@ -253,11 +282,20 @@ def tool_read_file(path: str, max_lines: int = 50) -> str:
             os.path.realpath(os.path.join(LOOT_DIR, "latest"))
         )
     if not os.path.exists(full_path):
-        candidates = glob.glob(os.path.join(LOOT_DIR, "**", os.path.basename(path)), recursive=True)
-        if candidates:
-            full_path = candidates[0]
+        # Try project root directory
+        project_path = os.path.join(BASE_DIR, path)
+        if os.path.exists(project_path):
+            full_path = project_path
         else:
-            return json.dumps({"error": f"文件不存在: {path}", "available": _list_loot_files()})
+            # Search in loot dir recursively
+            candidates = glob.glob(os.path.join(LOOT_DIR, "**", os.path.basename(path)), recursive=True)
+            if not candidates:
+                # Search in project root recursively
+                candidates = glob.glob(os.path.join(BASE_DIR, "**", os.path.basename(path)), recursive=True)
+            if candidates:
+                full_path = candidates[0]
+            else:
+                return json.dumps({"error": f"文件不存在: {path}", "available": _list_loot_files()})
     try:
         with open(full_path, "r", errors="replace") as f:
             lines = f.readlines()
@@ -323,7 +361,7 @@ def tool_execute_shell(command: str, reason: str = "") -> str:
     try:
         proc = subprocess.Popen(
             command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            cwd=BASE_DIR, text=True, bufsize=1
+            cwd=os.path.join(BASE_DIR), text=True, bufsize=1
         )
         stdout_lines = []
         stderr_buf = []
@@ -354,9 +392,35 @@ def tool_execute_shell(command: str, reason: str = "") -> str:
 
 
 def tool_run_module(module: str, reason: str = "") -> str:
-    if not module.strip().startswith("make "):
-        return json.dumps({"error": "只允许 make 开头的模块命令"})
+    module = module.strip()
+    # Auto-fix: if AI sends just the target name, prepend 'make '
+    if not module.startswith("make "):
+        # Try to extract a valid make target
+        known = ['fast','web','audit','crack','diff','recon','scan','loot','probe','phantom','report','webhook','ghost','bloodhound','ask-lynx','ai-analyze','exploit','proxy-unlock']
+        for k in known:
+            if k in module.lower():
+                module = f"make {k}"
+                break
+        else:
+            return json.dumps({"error": f"无法识别模块 '{module}'。请使用 make 命令，如: make audit, make web, make fast"})
     return tool_execute_shell(module, reason)
+
+
+def tool_sliver_execute(session_id: str, command: str, reason: str) -> str:
+    """执行 Sliver 远控指令 (Mock)"""
+    audit_log_write("SLIVER", f"[{session_id}] cmd={command} reason={reason}")
+    risk = classify_command(command)
+    if risk == "red":
+        return json.dumps({
+            "requires_approval": True,
+            "command": f"sliver [{session_id}] > {command}",
+            "error": f"[SYSTEM] Command '{command}' on {session_id} blocked. Requires human CONFIRM."
+        })
+    return json.dumps({
+        "status": "success",
+        "session_id": session_id,
+        "output": f"[*] Executing target command... done.\nuid=0(root) gid=0(root) \n\n[MOCK] Command '{command}' sent."
+    })
 
 
 TOOL_DISPATCH = {
@@ -365,6 +429,7 @@ TOOL_DISPATCH = {
     "claw_list_assets": lambda args: tool_list_assets(args.get("env")),
     "claw_execute_shell": lambda args: tool_execute_shell(args.get("command", ""), args.get("reason", "")),
     "claw_run_module": lambda args: tool_run_module(args.get("module", ""), args.get("reason", "")),
+    "claw_sliver_execute": lambda args: tool_sliver_execute(args.get("session_id", ""), args.get("command", ""), args.get("justification", args.get("reason", ""))),
 }
 
 
@@ -378,7 +443,7 @@ def api_call(payload: dict) -> dict:
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=300, context=CTX) as resp:
+        with urllib.request.urlopen(req, timeout=120, context=CTX) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
@@ -391,7 +456,7 @@ def api_call(payload: dict) -> dict:
 #  SSE STREAMING REACT LOOP
 # ============================================================
 
-def react_loop_stream(user_input: str, prev_id: str = None):
+def react_loop_stream(user_input: str, campaign_id: str = "default"):
     """
     流式 ReAct 循环 — 每一步 yield SSE 事件字符串。
 
@@ -406,6 +471,29 @@ def react_loop_stream(user_input: str, prev_id: str = None):
 
     yield sse("thinking", {"status": "Lynx 正在分析您的请求..."})
 
+    prev_id = None
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("CREATE TABLE IF NOT EXISTS conversations (campaign_id TEXT PRIMARY KEY, title TEXT, interaction_id TEXT, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+        try:
+            conn.execute("ALTER TABLE conversations ADD COLUMN title TEXT")
+        except sqlite3.OperationalError:
+            pass # Column already exists
+            
+        row = conn.execute("SELECT interaction_id, title FROM conversations WHERE campaign_id=?", (campaign_id,)).fetchone()
+        campaign_title = None
+        if row:
+            prev_id = row[0]
+            campaign_title = row[1]
+            
+        if not campaign_title:
+            campaign_title = user_input[:20] + "..." if len(user_input) > 20 else user_input
+            
+        conn.close()
+    except Exception as e:
+        audit_log_write("DB_ERROR", f"Failed to load conversation state: {e}")
+        campaign_title = user_input[:20] + "..." if len(user_input) > 20 else user_input
+
     payload = {
         "model": MODEL,
         "input": user_input,
@@ -415,12 +503,30 @@ def react_loop_stream(user_input: str, prev_id: str = None):
     if prev_id:
         payload["previous_interaction_id"] = prev_id
 
-    max_steps = 10
+    # Risk-Aware Dynamic Cognitive Routing
+    prompt_risk = classify_command(user_input)
+    if "审批通过" in user_input or "确认执行" in user_input:
+        # 如果是用户刚刚审批通过了一个高危操作，强制反思
+        prompt_risk = "red"
+        
+    thinking_level = "LOW"
+    if prompt_risk == "red" or "思考" in user_input or "反思" in user_input:
+        thinking_level = "HIGH"
+    elif prompt_risk == "yellow":
+        thinking_level = "MEDIUM"
+        
+    # 添加至 generation_config
+    payload["generation_config"] = {
+        "thinking_level": thinking_level.lower()
+    }
+
+    max_steps = 25
     step = 0
     interaction_id = prev_id
 
     while step < max_steps:
         step += 1
+        yield sse("thinking", {"status": f"Lynx 正在调用 Gemini API (步骤 {step})... 请稍候"})
         result = api_call(payload)
 
         if "error" in result:
@@ -450,6 +556,14 @@ def react_loop_stream(user_input: str, prev_id: str = None):
             chunks = [final_text[i:i+50] for i in range(0, len(final_text), 50)]
             for chunk in chunks:
                 yield sse("delta", {"text": chunk})
+
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                conn.execute("INSERT OR REPLACE INTO conversations (campaign_id, title, interaction_id, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", (campaign_id, campaign_title, interaction_id))
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                audit_log_write("DB_ERROR", f"Failed to save conversation state: {e}")
 
             yield sse("done", {"interaction_id": interaction_id})
             return
@@ -495,6 +609,7 @@ def react_loop_stream(user_input: str, prev_id: str = None):
                 "status": "error" if is_error else "ok",
                 "size": len(tool_result),
                 "preview": parsed.get("error", "")[:100] if is_error else f"返回 {len(tool_result)} 字节",
+                "requires_approval": parsed.get("requires_approval", False)
             })
 
             function_results.append({
@@ -515,5 +630,14 @@ def react_loop_stream(user_input: str, prev_id: str = None):
             "previous_interaction_id": interaction_id,
         }
 
-    yield sse("delta", {"text": "[警告: ReAct 循环超过最大步数]"})
+    # 超限优雅降级: 保存状态 + 产出有意义的总结
+    audit_log_write("LOOP_LIMIT", f"ReAct loop reached {max_steps} steps for campaign {campaign_id}")
+    yield sse("delta", {"text": f"\n\n[LYNX] 本轮推理已执行 {max_steps} 步工具调用。为避免资源过度消耗，已自动暂停。上下文已保存，您可以继续追问或下达新指令，我将从断点处继续。"})
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("INSERT OR REPLACE INTO conversations (campaign_id, title, interaction_id, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)", (campaign_id, campaign_title, interaction_id))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        pass
     yield sse("done", {"interaction_id": interaction_id})

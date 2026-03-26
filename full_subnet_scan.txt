@@ -1,0 +1,3062 @@
+# Nmap 7.98 scan initiated Fri Mar 27 00:33:55 2026 as: nmap -Pn -p 80,443,445,1723,5000,5900,8080 -oN full_subnet_scan.txt 10.140.0.1-255
+Nmap scan report for 10.140.0.1
+Host is up (0.0042s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp open     pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.2
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.3
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.4
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.5
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.6
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.7
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.8
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.9
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.10
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.11
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.12
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.13
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.14
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.15
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.16
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.17
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.18
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.19
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.20
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.21
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.22
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.23
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.24
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.25
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.26
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.27
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.28
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.29
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.30
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.31
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.32
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.33
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.34
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.35
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.36
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.37
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.38
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.39
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.40
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.41
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.42
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.43
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.44
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.45
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.46
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.47
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.48
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.49
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.50
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.51
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.52
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.53
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.54
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.55
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.56
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.57
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.58
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.59
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.60
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.61
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.62
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.63
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.64
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.65
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.66
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.67
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.68
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.69
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.70
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.71
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.72
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.73
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.74
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.75
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.76
+Host is up (0.013s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  open     microsoft-ds
+1723/tcp filtered pptp
+5000/tcp open     upnp
+5900/tcp open     vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.77
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.78
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.79
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.80
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.81
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.82
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.83
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.84
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.85
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.86
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.87
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.88
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.89
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.90
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.91
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.92
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.93
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.94
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.95
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.96
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.97
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.98
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.99
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.100
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.101
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.102
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.103
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.104
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.105
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.106
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.107
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.108
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.109
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.110
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.111
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.112
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.113
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.114
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.115
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.116
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.117
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.118
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.119
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.120
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.121
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.122
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.123
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.124
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.125
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.126
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.127
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.128
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.129
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.130
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.131
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.132
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.133
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.134
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.135
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.136
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.137
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.138
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.139
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.140
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.141
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.142
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.143
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.144
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.145
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.146
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.147
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.148
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.149
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.150
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.151
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.152
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.153
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.154
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.155
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.156
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.157
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.158
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.159
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.160
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.161
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.162
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.163
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.164
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.165
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.166
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.167
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.168
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.169
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.170
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.171
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.172
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.173
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.174
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.175
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.176
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.177
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.178
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.179
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.180
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.181
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.182
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.183
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.184
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.185
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.186
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.187
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.188
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.189
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.190
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.191
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.192
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.193
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.194
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.195
+Host is up (0.00034s latency).
+
+PORT     STATE  SERVICE
+80/tcp   closed http
+443/tcp  closed https
+445/tcp  closed microsoft-ds
+1723/tcp closed pptp
+5000/tcp open   upnp
+5900/tcp closed vnc
+8080/tcp closed http-proxy
+
+Nmap scan report for 10.140.0.196
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.197
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.198
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.199
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.200
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.201
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.202
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.203
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.204
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.205
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.206
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.207
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.208
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.209
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.210
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.211
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.212
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.213
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.214
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.215
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.216
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.217
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.218
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.219
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.220
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.221
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.222
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.223
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.224
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.225
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.226
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.227
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.228
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.229
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.230
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.231
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.232
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.233
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.234
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.235
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.236
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.237
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.238
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.239
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.240
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.241
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.242
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.243
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.244
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.245
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.246
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.247
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.248
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.249
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.250
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.251
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.252
+Host is up.
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.253
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.254
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+Nmap scan report for 10.140.0.255
+Host is up (0.00s latency).
+
+PORT     STATE    SERVICE
+80/tcp   filtered http
+443/tcp  filtered https
+445/tcp  filtered microsoft-ds
+1723/tcp filtered pptp
+5000/tcp filtered upnp
+5900/tcp filtered vnc
+8080/tcp filtered http-proxy
+
+# Nmap done at Fri Mar 27 00:38:30 2026 -- 255 IP addresses (255 hosts up) scanned in 274.62 seconds
