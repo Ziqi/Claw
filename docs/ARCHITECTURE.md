@@ -1,4 +1,4 @@
-# CatTeam 架构设计文档 V8.0.1 / A2.1
+# CatTeam 架构设计文档 V8.2 / A2.1
 
 ## 1. 平台定位与行业对标
 
@@ -20,6 +20,7 @@
 
 CLAW V7.0: 工具集 → 框架 (已跨越: 有编排+数据层+Agent)
 CLAW V8.0: 框架 → 作战平台 (GUI + 协作 + 审计 + 态势感知)
+CLAW V8.2: 引入多战区隔离机制与流式作战流水线 (Operation Pipeline)
 ```
 
 ### 1.2 竞品对标
@@ -57,14 +58,12 @@ CLAW V8.0: 框架 → 作战平台 (GUI + 协作 + 审计 + 态势感知)
 
 ```
 ┌──────────────────────────────────────────┐
-│    🖥️ Web Dashboard (React + Vite)        │ ← V8.0 NEW
+│    🖥️ Web Dashboard (React + Vite)        │ ← V8.2 (多战区+流水线)
 │  Bloomberg Terminal UI · 彭博终端级交互    │
-│  HUD/Activity Bar/AI Copilot/拓扑图       │
+│  HUD/Activity Bar/AI Copilot/OP/拓扑图    │
 ├──────────────────────────────────────────┤
-│    🌐 API 层 (FastAPI)                    │ ← V8.0 NEW
-│  /api/v1/stats · assets · scans · audit  │
-│  /api/v1/docker · scope · probe          │ ← V8.0.1
-│  CORS · SQLite 查询 · Agent Chat 代理     │
+│    🌐 API 层 (FastAPI)                    │ ← V8.2 NEW
+│  /api/v1/ops/run · ops/log · env/switch  │
 ├──────────────────────────────────────────┤
 │         控制面 (Makefile v5.0 + TUI)      │
 │   preflight → run/fast/phantom/crack/... │

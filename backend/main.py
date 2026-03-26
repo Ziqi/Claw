@@ -12,7 +12,10 @@ from contextlib import contextmanager
 from pydantic import BaseModel
 import pty, fcntl, struct, termios, asyncio
 import time
-from typing import Optional
+from typing import Optional, List
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from db_engine import get_current_env, set_current_env, list_envs as db_list_envs
 
 # Agent 模块
 from backend.agent import react_loop_stream, API_KEY as AGENT_API_KEY
@@ -83,11 +86,15 @@ def list_assets(
 ):
     """资产列表（分页+搜索）"""
     with get_db() as conn:
-        # 获取 scan_id
+        # 获取 scan_id (按当前 env 过滤)
         if not scan_id:
-            row = conn.execute("SELECT scan_id FROM scans ORDER BY timestamp DESC LIMIT 1").fetchone()
+            env = get_current_env()
+            row = conn.execute("SELECT scan_id FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
             if not row:
-                return {"assets": [], "total": 0}
+                # Fallback: try any env
+                row = conn.execute("SELECT scan_id FROM scans ORDER BY timestamp DESC LIMIT 1").fetchone()
+            if not row:
+                return {"assets": [], "total": 0, "env": env}
             scan_id = row["scan_id"]
 
         # 查询资产
@@ -117,7 +124,7 @@ def list_assets(
                 "ports": [dict(p) for p in port_rows],
             })
 
-        return {"assets": assets, "total": total, "scan_id": scan_id, "page": page}
+        return {"assets": assets, "total": total, "scan_id": scan_id, "page": page, "env": get_current_env()}
 
 
 @app.get("/api/v1/assets/{ip}")
@@ -493,6 +500,149 @@ def docker_control(action: str, container_name: str):
         return {"status": "ok", "output": r.stdout.strip(), "error": r.stderr.strip() if r.returncode != 0 else None}
     except Exception as e:
         return {"error": str(e)}
+
+# ============================================================
+#  ENVIRONMENT / THEATER MANAGEMENT
+# ============================================================
+
+@app.get("/api/v1/env/list")
+def env_list():
+    """返回所有战区及其资产统计"""
+    current = get_current_env()
+    with get_db() as conn:
+        envs = []
+        rows = conn.execute(
+            "SELECT s.env, COUNT(DISTINCT a.ip) as asset_count, MAX(s.timestamp) as last_scan "
+            "FROM scans s LEFT JOIN assets a ON s.scan_id = a.scan_id "
+            "GROUP BY s.env ORDER BY last_scan DESC"
+        ).fetchall()
+        for r in rows:
+            envs.append({
+                "name": r["env"],
+                "asset_count": r["asset_count"] or 0,
+                "last_scan": r["last_scan"],
+                "active": r["env"] == current
+            })
+        # If current env not in list, add it
+        if not any(e["name"] == current for e in envs):
+            envs.insert(0, {"name": current, "asset_count": 0, "last_scan": None, "active": True})
+    return {"current": current, "theaters": envs}
+
+
+class EnvSwitchRequest(BaseModel):
+    name: str
+
+@app.post("/api/v1/env/switch")
+def env_switch(req: EnvSwitchRequest):
+    """切换当前战区"""
+    old = get_current_env()
+    new = set_current_env(req.name)
+    return {"status": "ok", "old": old, "current": new}
+
+
+class EnvCreateRequest(BaseModel):
+    name: str
+    env_type: str = "lan"  # lan / public / lab
+    targets: str = ""  # multi-line IPs/CIDRs
+
+@app.post("/api/v1/env/create")
+def env_create(req: EnvCreateRequest):
+    """创建新战区并切换"""
+    name = req.name.strip()
+    if not name:
+        return {"error": "战区名称不能为空"}
+    set_current_env(name)
+    # Write targets to scope.txt if provided
+    if req.targets.strip():
+        scope_file = os.path.join(BASE_DIR, "scope.txt")
+        with open(scope_file, "w") as f:
+            f.write(req.targets.strip() + "\n")
+    return {"status": "ok", "theater": name, "type": req.env_type, "targets": req.targets.strip()}
+
+# ============================================================
+# OPERATION PIPELINE (Sprint 2 - 流程引擎与流式输出)
+# ============================================================
+
+import uuid
+import subprocess
+
+ACTIVE_JOBS = {}  # job_id -> Popen object
+
+class OpsRunRequest(BaseModel):
+    command: str
+    theater: str = "default"
+
+@app.post("/api/v1/ops/run")
+def ops_run(req: OpsRunRequest, background_tasks: BackgroundTasks):
+    """异步执行作战命令，返回 job_id"""
+    job_id = f"job_{uuid.uuid4().hex[:8]}"
+    log_dir = os.path.join(BASE_DIR, "CatTeam_Loot", req.theater, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, f"{job_id}.log")
+
+    # Start process in background
+    with open(log_file, "w") as f:
+        f.write(f"--- [Project CLAW V8.2] Task Started: {req.command} ---\n\n")
+    
+    # We use shlex to safely parse or just pass through shell=True for complex piplines
+    # Since these are internal ops commands, shell=True is accepted for 'make' or chained commands
+    proc = subprocess.Popen(
+        req.command,
+        shell=True,
+        cwd=BASE_DIR,
+        stdout=open(log_file, "a"),
+        stderr=subprocess.STDOUT,
+        text=True
+    )
+    ACTIVE_JOBS[job_id] = proc
+    return {"status": "ok", "job_id": job_id, "command": req.command, "log_file": log_file}
+
+import asyncio
+
+@app.get("/api/v1/ops/log/{job_id}")
+async def ops_log(job_id: str, theater: str = "default"):
+    """SSE 流式返回该 job 的日志输出"""
+    log_file = os.path.join(BASE_DIR, "CatTeam_Loot", theater, "logs", f"{job_id}.log")
+    
+    async def log_generator():
+        if not os.path.exists(log_file):
+            yield f"data: [Error: Log file not found for {job_id}]\n\n"
+            return
+            
+        with open(log_file, "r") as f:
+            # Read whatever is already there
+            content = f.read()
+            if content:
+                # Send chunks or line by line
+                lines = content.split('\n')
+                for line in lines:
+                    if line:
+                        yield "data: {}\n\n".format(json.dumps({'text': line + '\n'}, ensure_ascii=False))
+            
+            # Tail the file
+            proc = ACTIVE_JOBS.get(job_id)
+            while True:
+                line = f.readline()
+                if line:
+                    yield f"data: {json.dumps({'text': line}, ensure_ascii=False)}\n\n"
+                else:
+                    if proc and proc.poll() is not None:
+                        # Process finished and no more lines
+                        finished_msg = f"\\n--- [Task Finished with code {proc.returncode}] ---\\n"
+                        yield f"data: {json.dumps({'text': finished_msg, 'done': True}, ensure_ascii=False)}\n\n"
+                        break
+                    await asyncio.sleep(0.5)
+
+    return StreamingResponse(
+        log_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
 
 
 class ProbeRequest(BaseModel):

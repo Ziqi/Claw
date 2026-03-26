@@ -35,12 +35,36 @@ function HudBar({ stats, onToggleTerminal, onRefreshAssets }) {
   const [scopeInput, setScopeInput] = useState('')
   const [godMode, setGodMode] = useState(true)
   const [scopeStatus, setScopeStatus] = useState('')
+  // Theater state
+  const [theaters, setTheaters] = useState([])
+  const [currentTheater, setCurrentTheater] = useState('default')
+  const [showTheaterMenu, setShowTheaterMenu] = useState(false)
+  const [showCreateTheater, setShowCreateTheater] = useState(false)
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
     tick()
     const t = setInterval(tick, 1000)
     return () => clearInterval(t)
   }, [])
+
+  // Fetch theaters on mount
+  const refreshTheaters = () => {
+    fetch(`${API}/env/list`).then(r => r.json()).then(d => {
+      setTheaters(d.theaters || [])
+      setCurrentTheater(d.current || 'default')
+    }).catch(console.error)
+  }
+  useEffect(() => { refreshTheaters() }, [])
+
+  const switchTheater = (name) => {
+    fetch(`${API}/env/switch`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})})
+      .then(r => r.json()).then(() => {
+        setCurrentTheater(name)
+        setShowTheaterMenu(false)
+        refreshTheaters()
+        onRefreshAssets()
+      })
+  }
   const handleExportReport = async () => {
     try {
       const res = await fetch(`${API}/report/generate`);
@@ -65,14 +89,44 @@ function HudBar({ stats, onToggleTerminal, onRefreshAssets }) {
       <div className="hud-brand" style={{position:'relative', cursor:'pointer'}} onMouseOver={e => {const tip = e.currentTarget.querySelector('.cat-tip'); if(tip) tip.style.display='block'}} onMouseOut={e => {const tip = e.currentTarget.querySelector('.cat-tip'); if(tip) tip.style.display='none'}}>
         <span style={{fontFamily:'Consolas, monospace', color:'#FF9900', marginRight:'6px', fontSize:'13px'}}>{'/\\_/\\'}</span>
         <span style={{fontFamily:'Consolas, monospace', color:'#00FFFF', marginRight:'6px', fontSize:'13px'}}>{'( o.o )'}</span>
-        CLAW V8.0
+        CLAW V8.1
         <div className="cat-tip" style={{display:'none', position:'absolute', top:'100%', left:0, marginTop:'8px', background:'#111', border:'1px solid #333', borderRadius:'8px', padding:'16px 20px', zIndex:9999, whiteSpace:'pre', fontFamily:'Consolas, monospace', fontSize:'13px', lineHeight:'1.4', boxShadow:'0 8px 24px rgba(0,0,0,0.8)', minWidth:'340px'}}>
           <span style={{color:'#00FFFF'}}>{"         /\\_/\\\n"}</span>
-          <span style={{color:'#00FFFF'}}>{"        ( o.o ) "}</span><span style={{color:'#FFF', fontWeight:'bold'}}>Project CLAW</span> <span style={{color:'#30D158'}}>V8.0</span>{"\n"}
+          <span style={{color:'#00FFFF'}}>{"        ( o.o ) "}</span><span style={{color:'#FFF', fontWeight:'bold'}}>Project CLAW</span> <span style={{color:'#30D158'}}>V8.1</span>{"\n"}
           <span style={{color:'#00FFFF'}}>{"         > ^ <  "}</span><span style={{color:'#666'}}>CatTeam Lateral Arsenal Weapon</span>{"\n"}
           <span style={{color:'#00FFFF'}}>{"        /|   |\\\n"}</span>
           <span style={{color:'#00FFFF'}}>{"       (_|   |_) "}</span><span style={{color:'#999'}}>Codename: Lynx</span>
         </div>
+      </div>
+
+      {/* Theater Switcher */}
+      <div style={{position:'relative', marginLeft:'8px', borderLeft:'1px solid #333', paddingLeft:'12px'}}>
+        <div style={{cursor:'pointer', display:'flex', alignItems:'center', gap:'6px'}} onClick={() => setShowTheaterMenu(o => !o)}>
+          <span style={{fontSize:'10px', color:'#666'}}>战区</span>
+          <span style={{fontSize:'12px', color:'#FF9900', fontWeight:'bold'}}>{currentTheater}</span>
+          <span style={{fontSize:'10px', color:'#666'}}>▾</span>
+        </div>
+        {showTheaterMenu && (
+          <div style={{position:'absolute', top:'100%', left:0, marginTop:'6px', background:'#111', border:'1px solid #333', borderRadius:'6px', padding:'4px', zIndex:9999, minWidth:'220px', boxShadow:'0 8px 24px rgba(0,0,0,0.8)'}}>
+            {theaters.map(t => (
+              <div key={t.name} style={{padding:'8px 12px', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', borderRadius:'4px', background: t.active ? 'rgba(255,153,0,0.1)' : 'transparent', transition:'all 0.15s'}}
+                   onClick={() => switchTheater(t.name)}
+                   onMouseOver={e => { if(!t.active) e.currentTarget.style.background='rgba(255,255,255,0.03)' }}
+                   onMouseOut={e => { if(!t.active) e.currentTarget.style.background='transparent' }}>
+                <div>
+                  <span style={{color: t.active ? '#FF9900' : '#D0D0D0', fontSize:'12px', fontWeight: t.active ? 'bold' : 'normal'}}>{t.active ? '● ' : ''}{t.name}</span>
+                </div>
+                <span style={{fontSize:'10px', color:'#666'}}>{t.asset_count} 台</span>
+              </div>
+            ))}
+            <div style={{borderTop:'1px solid #222', marginTop:'4px', paddingTop:'4px'}}>
+              <div style={{padding:'8px 12px', cursor:'pointer', color:'#00FFFF', fontSize:'12px', borderRadius:'4px', transition:'all 0.15s'}}
+                   onClick={() => { setShowTheaterMenu(false); setShowCreateTheater(true) }}
+                   onMouseOver={e => e.currentTarget.style.background='rgba(0,255,255,0.05)'}
+                   onMouseOut={e => e.currentTarget.style.background='transparent'}>+ 新建战区</div>
+            </div>
+          </div>
+        )}
       </div>
       <div className="stat-item">
         <span className="stat-label">存活主机</span>
@@ -140,7 +194,64 @@ function HudBar({ stats, onToggleTerminal, onRefreshAssets }) {
           </div>
         </>
       )}
+
+      {/* Create Theater Modal */}
+      {showCreateTheater && <CreateTheaterModal onClose={() => setShowCreateTheater(false)} onCreated={() => { refreshTheaters(); onRefreshAssets(); setShowCreateTheater(false) }} />}
     </div>
+  )
+}
+
+function CreateTheaterModal({ onClose, onCreated }) {
+  const [name, setName] = useState('')
+  const [envType, setEnvType] = useState('lan')
+  const [targets, setTargets] = useState('')
+  const [status, setStatus] = useState(null)
+
+  const handleCreate = () => {
+    if (!name.trim()) { setStatus('⚠ 战区名称不能为空'); return }
+    setStatus('创建中...')
+    fetch(`${API}/env/create`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name: name.trim(), env_type: envType, targets})})
+      .then(r => r.json()).then(d => {
+        if (d.error) { setStatus(`✗ ${d.error}`); return }
+        setStatus('✓ 已创建')
+        setTimeout(onCreated, 500)
+      }).catch(e => setStatus(`✗ ${e.message}`))
+  }
+
+  return (
+    <>
+      <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.7)', zIndex:9998}} onClick={onClose} />
+      <div style={{position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', background:'#111', border:'1px solid #333', borderRadius:'8px', padding:'24px', zIndex:9999, width:'440px', boxShadow:'0 8px 32px rgba(0,0,0,0.9)'}}>
+        <div style={{fontSize:'16px', color:'#FF9900', fontWeight:'bold', marginBottom:'16px'}}>+ 新建作战战区 (Theater)</div>
+        <div style={{fontSize:'11px', color:'#666', marginBottom:'16px'}}>每个战区独立隔离资产数据。切换网络或开展新任务时创建新战区。</div>
+
+        <div style={{marginBottom:'12px'}}>
+          <div style={{fontSize:'11px', color:'#999', marginBottom:'4px'}}>战区名称</div>
+          <input style={{width:'100%', background:'#0A0A0A', color:'#D0D0D0', border:'1px solid #333', borderRadius:'4px', padding:'8px', fontFamily:'Consolas', fontSize:'12px', boxSizing:'border-box'}} value={name} onChange={e => setName(e.target.value)} placeholder="如: IoT-Lab / AscottLot / 公网VPS" />
+        </div>
+
+        <div style={{marginBottom:'12px'}}>
+          <div style={{fontSize:'11px', color:'#999', marginBottom:'4px'}}>战区类型</div>
+          <div style={{display:'flex', gap:'8px'}}>
+            {[['lan','🏢 局域网'],['public','🌐 公网目标'],['lab','🧪 靶场']].map(([k,label]) => (
+              <button key={k} style={{flex:1, background: envType===k ? 'rgba(255,153,0,0.15)' : '#0A0A0A', color: envType===k ? '#FF9900' : '#666', border:`1px solid ${envType===k ? '#FF9900' : '#333'}`, borderRadius:'4px', padding:'6px', cursor:'pointer', fontSize:'11px', transition:'all 0.2s'}} onClick={() => setEnvType(k)}>{label}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{marginBottom:'12px'}}>
+          <div style={{fontSize:'11px', color:'#999', marginBottom:'4px'}}>初始目标 (可选, 每行一个 IP/CIDR)</div>
+          <textarea style={{width:'100%', height:'80px', background:'#0A0A0A', color:'#D0D0D0', border:'1px solid #333', borderRadius:'4px', padding:'8px', fontFamily:'Consolas', fontSize:'12px', resize:'vertical', boxSizing:'border-box'}} value={targets} onChange={e => setTargets(e.target.value)} placeholder={'10.140.0.0/24\n192.168.1.100\n45.76.x.x'} />
+        </div>
+
+        {status && <div style={{fontSize:'11px', color: status.includes('✗') || status.includes('⚠') ? '#FF3B30' : '#30D158', marginBottom:'8px'}}>{status}</div>}
+
+        <div style={{display:'flex', gap:'8px', justifyContent:'flex-end'}}>
+          <button style={{background:'#222', color:'#999', border:'1px solid #333', padding:'6px 16px', borderRadius:'4px', cursor:'pointer', fontSize:'12px'}} onClick={onClose}>取消</button>
+          <button style={{background:'rgba(255,153,0,0.15)', color:'#FF9900', border:'1px solid #FF9900', padding:'6px 16px', borderRadius:'4px', cursor:'pointer', fontSize:'12px', fontWeight:'bold'}} onClick={handleCreate}>创建并切换</button>
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -349,6 +460,8 @@ function WorkArea({ assets, selectedIp, view, onExecCommand }) {
         
         {view === 'AT' && tab === 0 && <AssetTable assets={assets} onExecCommand={onExecCommand} selectedIp={selectedIp} />}
 
+        {view === 'OP' && tab === 0 && <OperationPipeline />}
+
         {view === 'VS' && tab === 0 && <TopologyView />}
         {view === 'VS' && tab === 1 && <AttackMatrixView />}
 
@@ -365,41 +478,151 @@ function WorkArea({ assets, selectedIp, view, onExecCommand }) {
 function ReconOverview({ assets, asset }) {
   return (
     <>
-      <div className="p-head">[ 量化指标矩阵 ]</div>
-      <div className="indicator-grid">
-        <div className="ind-card" style={{borderTop:'2px solid #00FFFF'}}>
-          <div className="ind-card-title" style={{color:'#00FFFF'}}>扫描面统计</div>
-          <div className="m-row"><span className="lbl">IP总数:</span><span className="val">{assets.length}</span></div>
-          <div className="m-row"><span className="lbl">端口总数:</span><span className="val">{assets.reduce((s,a)=>s+a.port_count,0)}</span></div>
-          <div className="m-row"><span className="lbl">扫描引擎:</span><span className="val c-up">NMAP / HTTPX</span></div>
+      <div style={{display:'flex', gap:'24px', flexWrap:'wrap'}}>
+        
+        {/* 左侧: 量化指标 */}
+        <div style={{flex:'1 1 400px'}}>
+          <div className="p-head" style={{marginBottom:'16px'}}>[ 量化指标矩阵 ]</div>
+          <div className="indicator-grid">
+            <div className="ind-card" style={{borderTop:'2px solid #00FFFF', flexBasis:'calc(50% - 8px)'}}>
+              <div className="ind-card-title" style={{color:'#00FFFF'}}>扫描面统计</div>
+              <div className="m-row"><span className="lbl">IP总数:</span><span className="val">{assets.length}</span></div>
+              <div className="m-row"><span className="lbl">端口总数:</span><span className="val">{assets.reduce((s,a)=>s+a.port_count,0)}</span></div>
+              <div className="m-row"><span className="lbl">扫描引擎:</span><span className="val c-up">NMAP / HTTPX</span></div>
+            </div>
+            <div className="ind-card" style={{flexBasis:'calc(50% - 8px)'}}>
+              <div className="ind-card-title">脆弱性风险暴露</div>
+              <div className="m-row"><span className="lbl">SMB(445):</span><span className="val" style={{color:'#FF3B30'}}>{assets.filter(a=>a.ports.some(p=>p.port===445)).length} 靶标</span></div>
+              <div className="m-row"><span className="lbl">RDP(3389):</span><span className="val" style={{color:'#FF3B30'}}>{assets.filter(a=>a.ports.some(p=>p.port===3389)).length} 靶标</span></div>
+              <div className="m-row"><span className="lbl">FTP(21):</span><span className="val" style={{color:'#FF9900'}}>{assets.filter(a=>a.ports.some(p=>p.port===21)).length} 靶标</span></div>
+            </div>
+            <div className="ind-card" style={{flexBasis:'calc(50% - 8px)'}}>
+              <div className="ind-card-title">公防网域面</div>
+              <div className="m-row"><span className="lbl">HTTP:</span><span className="val">{assets.filter(a=>a.ports.some(p=>p.port===80)).length} 站点</span></div>
+              <div className="m-row"><span className="lbl">HTTPS:</span><span className="val">{assets.filter(a=>a.ports.some(p=>p.port===443)).length} 站点</span></div>
+              <div className="m-row"><span className="lbl">PROXY:</span><span className="val">{assets.filter(a=>a.ports.some(p=>[8080,8443].includes(p.port))).length} 代理</span></div>
+            </div>
+            <div className="ind-card" style={{borderTop:'2px solid #FF9900', flexBasis:'calc(50% - 8px)'}}>
+              <div className="ind-card-title" style={{color:'#FF9900'}}>作战智能体</div>
+              <div className="m-row"><span className="lbl">安全限级:</span><span className="val">M2 级指令权</span></div>
+              <div className="m-row"><span className="lbl">HITL拦截:</span><span className="val c-up">强鉴权启动</span></div>
+              <div className="m-row"><span className="lbl">算力核心:</span><span className="val">Gemini 3 阵列</span></div>
+            </div>
+          </div>
+          
+          {asset && (
+            <>
+              <div className="p-head" style={{marginTop:'24px', marginBottom:'16px'}}>[ 锁定目标细节: {asset.ip} ]</div>
+              <PortMatrix asset={asset} />
+            </>
+          )}
         </div>
-        <div className="ind-card">
-          <div className="ind-card-title">脆弱性风险暴露</div>
-          <div className="m-row"><span className="lbl">SMB(445):</span><span className="val" style={{color:'#FF3B30'}}>{assets.filter(a=>a.ports.some(p=>p.port===445)).length} 靶标</span></div>
-          <div className="m-row"><span className="lbl">RDP(3389):</span><span className="val" style={{color:'#FF3B30'}}>{assets.filter(a=>a.ports.some(p=>p.port===3389)).length} 靶标</span></div>
-          <div className="m-row"><span className="lbl">FTP(21):</span><span className="val" style={{color:'#FF9900'}}>{assets.filter(a=>a.ports.some(p=>p.port===21)).length} 靶标</span></div>
+
+        {/* 右侧: 实战流数据馈送 */}
+        <div style={{flex:'1 1 300px', background:'#0A0A0A', border:'1px solid #222', borderRadius:'8px', padding:'20px', display:'flex', flexDirection:'column', height:'auto'}}>
+          <div style={{fontSize:'14px', color:'#FF9900', fontWeight:'bold', marginBottom:'16px', display:'flex', alignItems:'center', gap:'8px'}}>
+            <span style={{display:'inline-block', width:'8px', height:'8px', background:'#FF3B30', borderRadius:'50%', animation:'pulse 2s infinite'}}></span>
+            实时动态日志 (Live Activity Feed)
+          </div>
+          <div style={{flex:1, overflowY:'auto', color:'#D0D0D0', fontSize:'12px', fontFamily:'Consolas, monospace', display:'flex', flexDirection:'column', gap:'12px'}}>
+            <div style={{borderLeft:'2px solid #30D158', paddingLeft:'12px'}}>
+              <div style={{color:'#666', fontSize:'10px', marginBottom:'4px'}}>10 分钟前</div>
+              <div style={{color:'#30D158', fontWeight:'bold'}}>[侦察] 新资产发现</div>
+              <div>探测到 {assets.length} 个存活主机节点</div>
+            </div>
+            <div style={{borderLeft:'2px solid #00FFFF', paddingLeft:'12px'}}>
+              <div style={{color:'#666', fontSize:'10px', marginBottom:'4px'}}>8 分钟前</div>
+              <div style={{color:'#00FFFF', fontWeight:'bold'}}>[扫描] 网络端口拓扑更新</div>
+              <div>扫描完毕，共发现 {assets.reduce((s,a)=>s+a.port_count,0)} 个开放端口</div>
+            </div>
+            <div style={{borderLeft:'2px solid #FF3B30', paddingLeft:'12px'}}>
+              <div style={{color:'#666', fontSize:'10px', marginBottom:'4px'}}>5 分钟前</div>
+              <div style={{color:'#FF3B30', fontWeight:'bold'}}>[告警] 高危服务暴露</div>
+              <div>发现 {assets.filter(a=>a.ports.some(p=>p.port===445||p.port===3389)).length} 台主机存在 SMB/RDP 高危暴露</div>
+            </div>
+            <div style={{marginTop:'auto', paddingTop:'16px', borderTop:'1px dashed #333', color:'#666', fontSize:'11px'}}>
+              [系统提示] 点击 "OP 作战" 面板执行自动漏洞审计
+            </div>
+          </div>
         </div>
-        <div className="ind-card">
-          <div className="ind-card-title">公防网域面</div>
-          <div className="m-row"><span className="lbl">HTTP:</span><span className="val">{assets.filter(a=>a.ports.some(p=>p.port===80)).length} 站点</span></div>
-          <div className="m-row"><span className="lbl">HTTPS:</span><span className="val">{assets.filter(a=>a.ports.some(p=>p.port===443)).length} 站点</span></div>
-          <div className="m-row"><span className="lbl">PROXY:</span><span className="val">{assets.filter(a=>a.ports.some(p=>[8080,8443].includes(p.port))).length} 代理</span></div>
-        </div>
-        <div className="ind-card" style={{borderTop:'2px solid #FF9900'}}>
-          <div className="ind-card-title" style={{color:'#FF9900'}}>作战智能体</div>
-          <div className="m-row"><span className="lbl">安全限级:</span><span className="val">M2 级指令权</span></div>
-          <div className="m-row"><span className="lbl">HITL拦截:</span><span className="val c-up">强鉴权启动</span></div>
-          <div className="m-row"><span className="lbl">算力核心:</span><span className="val">Gemini 3 阵列</span></div>
-        </div>
+
+      </div>
+    </>
+  )
+}
+
+// ========== OP: OPERATION PIPELINE ==========
+function OperationPipeline() {
+  const [activeStage, setActiveStage] = useState(0)
+  const [runningJob, setRunningJob] = useState(null)
+  
+  const stages = [
+    { name: '① 侦察 (Recon)', icon: '📡', steps: [{id:'passive', label:'被动嗅探 (tcpdump)', cmd:'./catteam.sh 1'}, {id:'active', label:'主动探活 (nmap -sn)', cmd:'./catteam.sh 2'}] },
+    { name: '② 扫描 (Scan)', icon: '🔍', steps: [{id:'port', label:'全端口发现 (make probe)', cmd:'./catteam.sh 3'}] },
+    { name: '③ 审计 (Audit)', icon: '📋', steps: [{id:'web', label:'Web指纹清扫 (make audit)', cmd:'./catteam.sh 4'}, {id:'nuclei', label:'Nuclei 深度漏洞扫描', cmd:'./catteam.sh 5'}] },
+    { name: '④ 攻击 (Exploit)', icon: '⚔️', steps: [{id:'poison', label:'投毒陷阱 (Responder)', cmd:'./catteam.sh 6'}, {id:'crack', label:'算力破解 (Hashcat)', cmd:'./catteam.sh 7'}, {id:'lateral', label:'横向移动 (Impacket)', cmd:'./catteam.sh 8'}, {id:'ad', label:'AD域攻击 (Kerberoast)', cmd:'./catteam.sh 10'}] },
+    { name: '⑤ 报告 (Report)', icon: '📊', steps: [{id:'report', label:'生成渗透战报', cmd:'./catteam.sh 11'}, {id:'diff', label:'资产变化检测', cmd:'./catteam.sh 12'}] }
+  ]
+
+  const executeStep = async (step) => {
+    try {
+      // 切换 Console 到 OUTPUT Tab
+      const evt = new CustomEvent('CLAW_SWITCH_CONSOLE_TAB', {detail: 'output'})
+      window.dispatchEvent(evt)
+      
+      const res = await fetch(`${API}/ops/run`, {
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({command: step.cmd, theater: 'default'}) // TODO theater state
+      })
+      const data = await res.json()
+      if (data.job_id) {
+        setRunningJob(data.job_id)
+        // 触发 OutputConsole 开始 SSE 监听
+        const logEvt = new CustomEvent('CLAW_START_SSE_LOG', {detail: {job_id: data.job_id, theater: 'default'}})
+        window.dispatchEvent(logEvt)
+      }
+    } catch(err) {
+      console.error(err)
+    }
+  }
+
+  return (
+    <div style={{padding:'24px', height:'100%', overflowY:'auto', color:'#D0D0D0', boxSizing:'border-box'}}>
+      <div style={{fontSize:'18px', color:'#FF9900', fontWeight:'bold', marginBottom:'24px', display:'flex', alignItems:'center', gap:'12px'}}>
+        <span>⚡ 标准化作战流程 (Operation Pipeline)</span>
       </div>
 
-      {asset && (
-        <>
-          <div className="p-head" style={{marginTop:'16px'}}>[ 锁定目标细节: {asset.ip} ]</div>
-          <PortMatrix asset={asset} />
-        </>
-      )}
-    </>
+      <div style={{display:'flex', gap:'16px', marginBottom:'32px'}}>
+        {stages.map((st, idx) => (
+          <div key={idx} onClick={() => setActiveStage(idx)} style={{flex:1, cursor:'pointer', padding:'12px', background: activeStage===idx ? 'rgba(255,153,0,0.1)' : '#111', border:`1px solid ${activeStage===idx ? '#FF9900' : '#333'}`, borderRadius:'6px', textAlign:'center', transition:'all 0.2s', position:'relative'}} onMouseOver={e=>{if(activeStage!==idx)e.currentTarget.style.borderColor='#666'}} onMouseOut={e=>{if(activeStage!==idx)e.currentTarget.style.borderColor='#333'}}>
+            <div style={{fontSize:'24px', marginBottom:'8px'}}>{st.icon}</div>
+            <div style={{fontSize:'13px', color: activeStage===idx ? '#FF9900' : '#999', fontWeight: activeStage===idx ? 'bold' : 'normal'}}>{st.name}</div>
+            {idx < stages.length-1 && <div style={{position:'absolute', right:'-16px', top:'50%', transform:'translateY(-50%)', color:'#333', zIndex:1, fontSize:'16px'}}>➔</div>}
+          </div>
+        ))}
+      </div>
+
+      <div style={{background:'#0A0A0A', border:'1px solid #333', borderRadius:'8px', padding:'24px', boxShadow:'0 4px 12px rgba(0,0,0,0.5)'}}>
+        <div style={{fontSize:'15px', color:'#00FFFF', fontWeight:'bold', marginBottom:'20px'}}>当前阶段工具箱：{stages[activeStage].name}</div>
+        <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:'20px'}}>
+          {stages[activeStage].steps.map(s => (
+            <div key={s.id} style={{background:'#111', border:'1px solid #222', borderRadius:'6px', padding:'16px', display:'flex', justifyContent:'space-between', alignItems:'center', transition:'background 0.2s'}} onMouseOver={e=>e.currentTarget.style.background='#1a1a1a'} onMouseOut={e=>e.currentTarget.style.background='#111'}>
+              <div>
+                <div style={{fontSize:'14px', color:'#E0E0E0', fontWeight:'bold', marginBottom:'6px'}}>{s.label}</div>
+                <div style={{fontSize:'11px', color:'#666', fontFamily:'Consolas, monospace'}}>{s.cmd}</div>
+              </div>
+              <button style={{background:'rgba(48,209,88,0.1)', color:'#30D158', border:'1px solid #30D158', padding:'8px 16px', borderRadius:'4px', cursor:'pointer', fontSize:'12px', fontWeight:'bold', transition:'all 0.2s'}} onClick={() => executeStep(s)} onMouseOver={e=>e.currentTarget.style.background='rgba(48,209,88,0.2)'} onMouseOut={e=>e.currentTarget.style.background='rgba(48,209,88,0.1)'}>▶ 执行</button>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* 底部保留位置给后续战区管理面板迁移 */}
+      <div style={{marginTop:'32px', paddingTop:'24px', borderTop:'1px dashed #333'}}>
+        <div style={{fontSize:'13px', color:'#666', fontFamily:'Consolas, monospace'}}>ℹ️ V8.2 作战流水线: 点击"▶ 执行"按键后，控制台会自动切换至 OUTPUT 标签，并实时回显远端节点的执行输出。</div>
+      </div>
+    </div>
   )
 }
 
@@ -510,14 +733,38 @@ function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
                         </tbody>
                       </table>
                     </div>
-                    <div style={{width:'200px', flexShrink:0}}>
-                      <div style={{fontSize:'11px', color:'#FF9900', marginBottom:'8px', fontWeight:'bold'}}>-- 快捷攻击 --</div>
-                      <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
-                        {a.ports.some(p=>p.port===445) && <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'6px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`对 ${a.ip} 执行 SMB 枚举和弱口令探测`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>SMB 枚举与爆破</button>}
-                        {a.ports.some(p=>[80,443].includes(p.port)) && <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'6px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`对 ${a.ip} 的 Web 服务执行 Nuclei 漏洞扫描`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>Web 漏洞扫描</button>}
-                        {a.ports.some(p=>p.port===3389) && <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'6px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`检查 ${a.ip} 的 RDP 是否存在 BlueKeep 等漏洞`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>RDP 漏洞检测</button>}
-                        <button style={{background:'#222', color:'#FF9900', border:'1px solid #333', padding:'6px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`对 ${a.ip} 进行全面的深度安全分析`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>全面深度分析</button>
+                    <div style={{width:'260px', flexShrink:0}}>
+                      <div style={{fontSize:'11px', color:'#FF9900', marginBottom:'8px', fontWeight:'bold'}}>-- 武器选择 --</div>
+                      <div style={{display:'flex', flexDirection:'column', gap:'3px', marginBottom:'8px'}}>
+                        {/* Smart suggestions based on ports */}
+                        {a.ports.some(p=>[80,443,8080,8443].includes(p.port)) && <>
+                          <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'5px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`使用 Nuclei 对 ${a.ip} 进行 Web 漏洞扫描`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>🔍 Nuclei 漏洞扫描</button>
+                          <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'5px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`使用 Nikto 对 ${a.ip} 进行 Web 服务安全扫描`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>🌐 Nikto Web 扫描</button>
+                          <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'5px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`使用 SQLMap 对 ${a.ip} 的 Web 服务进行 SQL 注入检测`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>💉 SQLMap 注入检测</button>
+                        </>}
+                        {a.ports.some(p=>p.port===445) && <>
+                          <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'5px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`使用 Impacket 对 ${a.ip} 进行 SMB 枚举和横向移动探测`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>🔓 Impacket SMB</button>
+                          <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'5px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`使用 enum4linux 对 ${a.ip} 进行 Windows/Samba 信息枚举`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>📋 enum4linux 枚举</button>
+                        </>}
+                        {a.ports.some(p=>p.port===22) &&
+                          <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'5px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`使用 Hydra 对 ${a.ip}:22 进行 SSH 弱口令暴破`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>🔑 Hydra SSH 暴破</button>
+                        }
+                        {a.ports.some(p=>p.port===3389) &&
+                          <button style={{background:'#222', color:'#00FFFF', border:'1px solid #333', padding:'5px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`检查 ${a.ip} 的 RDP 是否存在 BlueKeep (CVE-2019-0708) 漏洞`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>🖥 RDP BlueKeep</button>
+                        }
+                        {/* Universal tools */}
+                        <button style={{background:'#222', color:'#FF3B30', border:'1px solid #333', padding:'5px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`使用 Metasploit (msfconsole) 对 ${a.ip} 进行全面漏洞利用扫描`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>💀 Metasploit 扫描</button>
+                        <button style={{background:'#222', color:'#FF9900', border:'1px solid #333', padding:'5px 8px', borderRadius:'4px', cursor:'pointer', fontSize:'10px', textAlign:'left', transition:'background 0.2s'}} onClick={() => onExecCommand(`对 ${a.ip} 进行全面的深度安全分析，综合所有可用工具`)} onMouseOver={e=>e.currentTarget.style.background='#333'} onMouseOut={e=>e.currentTarget.style.background='#222'}>🎯 AI 全面分析</button>
                       </div>
+                      {/* More weapons dropdown */}
+                      <details style={{fontSize:'10px'}}>
+                        <summary style={{color:'#666', cursor:'pointer', padding:'4px 0'}}>更多武器 ▾</summary>
+                        <div style={{display:'flex', flexDirection:'column', gap:'2px', marginTop:'4px'}}>
+                          {[['Nmap 深扫','nmap -sV -sC -O'],['Gobuster 目录','gobuster dir'],['FFuf Fuzzer','ffuf'],['Hashcat 破解','hashcat'],['Responder 投毒','responder'],['Binwalk 固件','binwalk'],['Socat 隧道','socat']].map(([label, cmd]) => (
+                            <button key={label} style={{background:'#1a1a1a', color:'#999', border:'1px solid #222', padding:'4px 8px', borderRadius:'3px', cursor:'pointer', fontSize:'9px', textAlign:'left', transition:'all 0.2s'}} onClick={() => onExecCommand(`使用 ${label} (${cmd}) 对 ${a.ip} 进行操作`)} onMouseOver={e=>{e.currentTarget.style.color='#00FFFF'; e.currentTarget.style.borderColor='#333'}} onMouseOut={e=>{e.currentTarget.style.color='#999'; e.currentTarget.style.borderColor='#222'}}>{label}</button>
+                          ))}
+                        </div>
+                      </details>
                     </div>
                   </div>
                 </div>
@@ -1413,31 +1660,56 @@ const ALL_MODULES = [
 
 function OutputConsole() {
   const [logs, setLogs] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [activeJob, setActiveJob] = useState(null)
   const containerRef = useRef(null)
-
-  const fetchLogs = () => {
-    fetch(`${API}/audit`)
-      .then(r => r.json())
-      .then(d => {
-        const entries = (d.entries || []).map(e => ({
-          time: e.timestamp || '',
-          level: e.action?.includes('ERROR') ? 'ERROR' : e.action?.includes('SLIVER') ? 'WARN' : 'INFO',
-          msg: `${e.action || ''} ${e.detail || ''}`
-        }))
-        setLogs(entries)
-        setLoading(false)
-      })
-      .catch(() => {
-        setLogs([{time: new Date().toLocaleTimeString(), level: 'INFO', msg: 'Audit log is empty. Outputs will appear when Agent executes tool calls.'}])
-        setLoading(false)
-      })
-  }
+  const abortRef = useRef(null)
 
   useEffect(() => {
-    fetchLogs()
-    const interval = setInterval(fetchLogs, 5000)
-    return () => clearInterval(interval)
+    const handleStartLog = async (e) => {
+      const { job_id, theater } = e.detail
+      setActiveJob(job_id)
+      setLogs([{time: new Date().toLocaleTimeString(), level: 'SYS', msg: `[CLAW] 连接到作战任务流: ${job_id}`}])
+      
+      if (abortRef.current) abortRef.current.abort()
+      const ctrl = new AbortController()
+      abortRef.current = ctrl
+      
+      try {
+        await fetchEventSource(`http://localhost:8000/api/v1/ops/log/${job_id}?theater=${theater}`, {
+          method: 'GET',
+          signal: ctrl.signal,
+          openWhenHidden: true,
+          onmessage(ev) {
+            const data = JSON.parse(ev.data)
+            if (data.text) {
+              setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), level: 'OUT', msg: data.text }])
+            }
+            if (data.done) {
+              ctrl.abort()
+            }
+          },
+          onerror(err) {
+            console.error('Ops log SSE error:', err)
+            setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), level: 'ERR', msg: '[CLAW] 日志流连接中断' }])
+            throw err // auto retry unless we abort
+          }
+        })
+      } catch (err) {
+        // aborted or failed
+      }
+    }
+
+    const handleSwitchTab = (e) => {
+      // Logic handled by App state conceptually, but we can't change App state from here easily without props.
+      // We rely on the parent (App) to catch CLAW_SWITCH_CONSOLE_TAB if needed.
+    }
+
+    window.addEventListener('CLAW_START_SSE_LOG', handleStartLog)
+    return () => {
+      window.removeEventListener('CLAW_START_SSE_LOG', handleStartLog)
+      if (abortRef.current) abortRef.current.abort()
+    }
   }, [])
 
   useEffect(() => {
@@ -1445,17 +1717,17 @@ function OutputConsole() {
   }, [logs])
 
   return (
-    <div ref={containerRef} style={{color:'#D0D0D0', fontSize:'11px', fontFamily:'Consolas, monospace', padding:'4px', overflowY:'auto', height:'100%', lineHeight:'1.6'}}>
-      <div style={{color:'#FF9900', marginBottom:'8px'}}>--- Agent Output Log (Auto-refresh: 5s) ---</div>
-      {loading && <div style={{color:'#666'}}>Loading...</div>}
+    <div ref={containerRef} style={{color:'#D0D0D0', fontSize:'11px', fontFamily:'Consolas, monospace', padding:'4px', overflowY:'auto', height:'100%', lineHeight:'1.4', whiteSpace:'pre-wrap'}}>
+      <div style={{color:'#FF9900', marginBottom:'8px'}}>--- 作战控制台输出 (Operation Output) ---</div>
+      {!activeJob && <div style={{color:'#666'}}>等待执行作战指令... (在「OP 作战」面板点击执行模块)</div>}
       {logs.map((l, i) => (
-        <div key={i} style={{borderBottom:'1px solid #111', padding:'2px 0'}}>
-          <span style={{color:'#666'}}>[{l.time || ''}]</span>
-          <span style={{color: l.level === 'ERROR' ? '#FF3B30' : l.level === 'WARN' ? '#FF9900' : '#30D158', marginLeft:'4px'}}>{l.level || 'LOG'}</span>
-          <span style={{marginLeft:'8px', color:'#D0D0D0'}}>{l.msg || JSON.stringify(l)}</span>
+        <div key={i} style={{marginBottom:'2px'}}>
+           <span style={{color: l.level === 'SYS' ? '#00FFFF' : l.level === 'ERR' ? '#FF3B30' : '#666', marginRight:'8px'}}>
+             {l.level === 'OUT' ? '' : `[${l.level}]`}
+           </span>
+           <span style={{color: l.level === 'ERR' ? '#FF3B30' : l.level === 'SYS' ? '#00FFFF' : '#D0D0D0'}}>{l.msg}</span>
         </div>
       ))}
-      {!loading && logs.length === 0 && <div style={{color:'#666'}}>暂无输出记录。当 Agent 执行工具调用时，输出会自动显示在此。</div>}
     </div>
   )
 }
@@ -1550,6 +1822,13 @@ function App() {
 
   useEffect(() => {
     refreshAssets()
+
+    const handleSwitchConsole = (e) => {
+      setTerminalOpen(true)
+      setConsoleTab(e.detail)
+    }
+    window.addEventListener('CLAW_SWITCH_CONSOLE_TAB', handleSwitchConsole)
+    return () => window.removeEventListener('CLAW_SWITCH_CONSOLE_TAB', handleSwitchConsole)
   }, [])
 
   return (
@@ -1563,7 +1842,7 @@ function App() {
           {/* Top section */}
           <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
             <div className="activity-bar">
-              {[['RC','侦察'],['AT','资产'],['AM','武库'],['C2','远控'],['VS','全域']].map(([k,label]) => (
+              {[['RC','侦察'],['AT','资产'],['AM','武库'],['OP','作战'],['C2','远控'],['VS','全域']].map(([k,label]) => (
                 <div key={k} className={`activity-icon ${view===k?'active':''}`} onClick={() => setView(k)}>{label}</div>
               ))}
             </div>

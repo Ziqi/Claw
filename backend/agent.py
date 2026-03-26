@@ -527,7 +527,18 @@ def react_loop_stream(user_input: str, campaign_id: str = "default"):
     while step < max_steps:
         step += 1
         yield sse("thinking", {"status": f"Lynx 正在调用 Gemini API (步骤 {step})... 请稍候"})
-        result = api_call(payload)
+        # Use threaded API call with keepalive heartbeat to prevent SSE timeout
+        import queue
+        result_q = queue.Queue()
+        def _api_worker():
+            result_q.put(api_call(payload))
+        api_thread = threading.Thread(target=_api_worker, daemon=True)
+        api_thread.start()
+        while api_thread.is_alive():
+            api_thread.join(timeout=8)
+            if api_thread.is_alive():
+                yield ": keepalive\n\n"  # SSE comment to prevent timeout
+        result = result_q.get()
 
         if "error" in result:
             yield sse("error", {"message": result["error"]})

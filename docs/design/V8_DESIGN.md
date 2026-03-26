@@ -1,9 +1,9 @@
-# Project CLAW V8.0.1 — 全栈作战平台设计规范
+# Project CLAW V8.2 — 全栈作战平台设计规范
 
-**Project CLAW · V8.0.1 / A2.1**  
-**版本：** 1.1 (综合 D8/D9/D10 全部导师批复 + V8.0.1 交互重构)  
+**Project CLAW · V8.2 / A2.1**  
+**版本：** 1.2 (新增作战流程流水线与动态输出引擎)  
 **日期：** 2026-03-27  
-**状态：** ✅ 执行中, Sprint 4 交互重构已完成
+**状态：** ✅ 执行中, Sprint 2 作战台已完成
 
 ---
 
@@ -12,6 +12,7 @@
 ```
 CLAW V7.0:  工具集 → 框架 (已跨越: 有编排+数据层+Agent)
 CLAW V8.0:  框架 → 作战平台 (GUI + 态势感知 + 审计 + AI 赋能)
+CLAW V8.2:  工作空间隔离 + 标准化流式流程引擎 (Operation Pipeline)
 核心差异化: 市面唯一内置 LLM Agent 的红队作战平台
 ```
 
@@ -28,6 +29,7 @@ CLAW V8.0:  框架 → 作战平台 (GUI + 态势感知 + 审计 + AI 赋能)
 |---|---|---|
 | **前端** | React + Vite + Tailwind | Bloomberg Terminal UI (纯黑 #000 / 琥珀金 #FF9900 / 青色 #00FFFF) |
 | **后端** | FastAPI (Python) | REST API + SSE 流式推送 |
+| **流水线** | `subprocess.Popen` + 异步生成器 | `ops/run` 异步执行，`ops/log` SSE 日志追踪 |
 | **AI 引擎** | Gemini 3 Interactions API | 服务端状态管理 + Thought Signatures 自动处理 |
 | **数据库** | SQLite (claw.db) → PostgreSQL (长期) | 扩展 conversations/messages/agent_audit/pending_actions 表 |
 | **SSE 前端** | `@microsoft/fetch-event-source` | 支持 POST + JWT Header + 断线重连 |
@@ -87,16 +89,18 @@ Agent 每步输出必须符合 Pydantic JSON Schema：
 
 ## 四、UI/UX 设计规范
 
-### 4.1 四栏布局 (确认不变)
+### 4.1 四栏布局 (重构后)
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                    HUD 态势状态栏                          │
+│                    HUD 战区切换与状态栏                    │
 ├────┬──────────┬───────────────────────┬──────────────────┤
 │ RC │ Sidebar  │      WorkArea         │  AI Copilot      │
-│ AT │ (威胁大盘│ (侦察/资产/端口/拓扑/  │  (对话/思维链/    │
-│ AG │  /资产/  │  执行轨道/审计树)      │   审批/Chips)    │
-│    │  C2)    │                       │                  │
+│ AT │ (威胁大盘│ (侦察/资产/端口/拓扑)    │  (对话/思维链/    │
+│ AM │  /资产/  │ (OP: 5阶段作战流水线)   │   审批/Chips)    │
+│ OP │  C2)    │ (下放式 Console 控制台) │                  │
+│ C2 │          │                       │                  │
+│ VS │          │                       │                  │
 ├────┴──────────┴───────────────────────┴──────────────────┤
 │                  永远不做移动端适配                         │
 └──────────────────────────────────────────────────────────┘
