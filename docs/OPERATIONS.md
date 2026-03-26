@@ -2,7 +2,44 @@
 
 本手册按**实战场景**组织，告诉你什么时候该跑什么命令。
 
-> **V8.0 新增**: Web Dashboard 启动方式见 [§Web 作战指挥台](#-web-作战指挥台)
+> **V8.0 新增**: Web Dashboard 启动方式见 [§Web 作战指挥台](#-web-作战指挥台-v80-新增)
+
+---
+
+## 🖥️ Web 作战指挥台 (V8.0 新增)
+
+### 启动服务
+
+```bash
+# 后端 (FastAPI) — 端口 8000
+cd ~/CatTeam && uvicorn backend.main:app --reload --port 8000
+
+# 前端 (React) — 端口 5173
+cd ~/CatTeam/frontend && npx vite --port 5173
+```
+
+浏览器打开 `http://localhost:5173` 即可进入 Bloomberg Terminal 风格作战指挥台。
+
+### 界面布局
+
+| 区域 | 功能 |
+|---|---|
+| **HUD 状态栏** | 存活主机/开放端口/漏洞数/扫描次数/实时时钟 |
+| **Activity Bar** (RC/AT/AG) | 侦察态势 / 攻击面 / Agent 控制 |
+| **Sidebar** | 威胁大盘 / 资产清单 / C2 节点 |
+| **WorkArea** | 侦察概览 / 全局资产库 / 端口矩阵 / 网络拓扑 |
+| **AI Copilot** | 自然语言对话 / 模型选择 / 快捷 Chips / 流式输出 |
+
+### Phase 2 即将到来 (D10 批准)
+
+| 特性 | 状态 |
+|---|---|
+| SSE 流式 Agent 对话 (`@microsoft/fetch-event-source`) | 🚧 开发中 |
+| HITL Web 审批 (Action Token + Challenge 质询) | 🚧 开发中 |
+| 对话持久化 (新建/历史/Campaign ID) | 🚧 开发中 |
+| 思维链折叠树 (Structured Output 可视化) | 🚧 开发中 |
+| ATT&CK 热力矩阵 | 🚧 开发中 |
+| `Cmd+K` 全局搜索 | 🚧 开发中 |
 
 ---
 

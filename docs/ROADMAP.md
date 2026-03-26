@@ -140,15 +140,47 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 **设计规范:**
 - 纯黑 #000 / 零圆角 / 琥珀金 #FF9900 + 青色 #00FFFF / Consolas 等宽
 
-### 🚧 Phase 2: Agent 接入 (计划中)
-- WebSocket 实时 Agent 对话 (替代模拟流式)
-- Web 端 HITL 审批界面 (RED 级操作在浏览器确认)
-- Agent 审计日志实时推送
+### 🚧 Phase 2: 核爆行动 (72h 冲刺, D10 批准)
 
-### 🚧 Phase 3: C2 集成 (计划中)
+**Sprint 1: 重构中枢 — Interactions API 全面迁移**
+- 抛弃 `generateContent`，全面接入 Gemini 3 Interactions API
+- SQLite 存储 `previous_interaction_id`，服务端自动管理 1M 上下文
+- Thought Signatures 由 Google 服务端自动累积，清除技术债
+- 底层脚本用 `asyncio.create_subprocess_exec` 包装为 Worker Task
+
+**Sprint 2: 结构化枷锁 — Pydantic Schema 强制 JSON 决策树**
+- 强制 Agent 输出 `{thought, action_tool, mitre_ttp, justification, risk_level}` JSON
+- 实现 Risk-Aware Dynamic Cognitive Routing (thinking_level 联动 HITL)
+- RED 级操作触发 `thinking_level="high"` 自我反思
+
+**Sprint 3: SSE 桥梁 — @microsoft/fetch-event-source**
+- FastAPI `/api/agent/stream` SSE 端点
+- 前端 `@microsoft/fetch-event-source` 替代原生 EventSource（支持 POST + JWT）
+- 思维链折叠树 (React Tree) 实时渲染
+
+### 🚧 Phase 3: 全域作战 (D10 批准)
+
+**对话持久化:**
+- SQLite conversations/messages 表 + Campaign ID
+- Copilot 顶部 `[+新建对话]` + `[📜历史]`
+- 配合 Interactions API 服务端状态继承
+
+**交互增强:**
+- `Cmd+K` 全局 Spotlight 搜索
+- Context-Aware Chips (点击不同资产动态变化)
+- Action Token Challenge 质询 (输入 IP 最后一段确认)
+
+**可视化:**
+- P0: Agent 思维链折叠树 (React Tree)
+- P0: ATT&CK 热力矩阵 (CSS Grid)
+- P1: 力导向图网络拓扑 (Vis.js)
+
+### 🚧 Phase 4: C2 集成与情报 (计划中)
 - Sliver C2 gRPC API 接入 + Session 管理
 - Ligolo-ng 隧道管理界面
-- MITRE ATT&CK 矩阵热力图
+- Deep Research Agent (异步 OSINT Delegation)
+- Eavesdropping Shell (xterm.js 人机共驾)
+- 渗透报告一键生成 (PTES/OWASP)
 
 ### 待用户操作的环境依赖项
 
@@ -241,3 +273,6 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 | 03-26 凌晨 | V8.0-alpha Phase 1 全栈作战平台上线 (FastAPI+React) |
 | 03-26 凌晨 | Bloomberg Terminal UI 落地 (HUD/Activity Bar/AI Copilot) |
 | 03-26 凌晨 | AI 面板: 拖拽缩放/模型选择器/流式打字效果 |
+| 03-26 AM | D10 提交 (Q14-Q26: Gemini 3 能力+竞品+UI+代码审查) |
+| 03-26 PM | D10 导师批复: TUI 冻结 / Interactions API P0 / 三板斧论文创新点 |
+| 03-26 PM | docs 重构 (advisor 归档/design 分离/.gitignore) + V8_DESIGN.md |
