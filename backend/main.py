@@ -635,18 +635,24 @@ def env_delete(req: EnvDeleteRequest):
     return {"status": "ok", "message": f"战区 {req.name} 已删除/清空"}
 
 
-# ============================================================
-# OPERATION PIPELINE (Sprint 2 - 流程引擎与流式输出)
-# ============================================================
-
 import uuid
 import subprocess
+import os
+import signal
 
-ACTIVE_JOBS = {}  # job_id -> Popen object
-
-class OpsRunRequest(BaseModel):
-    command: str
-    theater: str = "default"
+def background_waiter(job_id: str, proc: subprocess.Popen, log_fh):
+    """后台监控子进程结束，确保释放文件句柄并清理内存"""
+    try:
+        proc.wait()  # Blocking wait (safe inside FastAPI background thread)
+    except Exception:
+        pass
+    finally:
+        try:
+            log_fh.close()
+        except Exception:
+            pass
+        if job_id in ACTIVE_JOBS:
+            del ACTIVE_JOBS[job_id]
 
 @app.post("/api/v1/ops/run")
 def ops_run(req: OpsRunRequest, background_tasks: BackgroundTasks):
@@ -668,9 +674,14 @@ def ops_run(req: OpsRunRequest, background_tasks: BackgroundTasks):
         cwd=BASE_DIR,
         stdout=log_fh,
         stderr=subprocess.STDOUT,
-        text=True
+        text=True,
+        preexec_fn=os.setsid
     )
     ACTIVE_JOBS[job_id] = {"proc": proc, "log_fh": log_fh}
+    
+    # 安全的后台清理任务
+    background_tasks.add_task(background_waiter, job_id, proc, log_fh)
+    
     return {"status": "ok", "job_id": job_id, "command": req.command, "log_file": log_file}
 
 @app.post("/api/v1/ops/stop/{job_id}")
@@ -679,8 +690,9 @@ def ops_stop(job_id: str):
     if not job:
         return {"error": "Job not found or already completed"}
     try:
-        job["proc"].terminate()
-        job["log_fh"].close()
+        # Kill the entire process group, not just the shell (prevents nmap/nuclei orphans)
+        os.killpg(os.getpgid(job["proc"].pid), signal.SIGTERM)
+        # file close and memory cleanup is now handled safely by background_waiter!
         return {"status": "ok", "message": f"Job {job_id} terminated."}
     except Exception as e:
         return {"error": str(e)}

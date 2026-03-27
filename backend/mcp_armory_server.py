@@ -138,17 +138,27 @@ def claw_list_assets(thought: str, justification: str, env: str = "default", mit
             conn.close()
             return json.dumps({"error": f"环境 '{env}' 无扫描记录"})
         scan_id = row[0]
+        
+        true_total_assets = conn.execute("SELECT COUNT(ip) FROM assets WHERE scan_id=?", (scan_id,)).fetchone()[0]
+        
         assets = {}
         for r in conn.execute(
-            "SELECT a.ip, a.os, p.port, p.service, p.product, p.version "
-            "FROM assets a LEFT JOIN ports p ON a.ip=p.ip AND a.scan_id=p.scan_id "
-            "WHERE a.scan_id=?", (scan_id,)
+            """
+            SELECT a.ip, a.os, p.port, p.service, p.product, p.version 
+            FROM (SELECT ip, os FROM assets WHERE scan_id=? ORDER BY ip LIMIT 50) a 
+            LEFT JOIN ports p ON a.ip=p.ip AND p.scan_id=?
+            """, (scan_id, scan_id)
         ):
             ip = r[0]
             if ip not in assets: assets[ip] = {"os": r[1], "ports": []}
             if r[2]: assets[ip]["ports"].append({"port": r[2], "service": r[3], "product": r[4] or "", "version": r[5] or ""})
         conn.close()
-        return json.dumps({"env": env, "scan_id": scan_id, "total_assets": len(assets), "assets": assets}, ensure_ascii=False, default=str)
+        
+        res = {"env": env, "scan_id": scan_id, "total_assets": true_total_assets, "returned_assets": len(assets), "assets": assets}
+        if true_total_assets > 50:
+            res["warning"] = f"Environment contains {true_total_assets} assets. Output truncated to 50 to prevent AI Context Explosion. Use `claw_query_db` to run targeted SQL analyses."
+            
+        return json.dumps(res, ensure_ascii=False, default=str)
     except Exception as e:
         return json.dumps({"error": f"查询失败: {str(e)}"})
 

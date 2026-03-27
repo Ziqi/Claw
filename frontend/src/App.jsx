@@ -554,7 +554,7 @@ function WorkArea({ assets, selectedIp, view, onExecCommand }) {
         ))}
       </div>
       <div className="tab-content-area">
-        {view === 'RC' && tab === 0 && <ReconOverview assets={assets} asset={asset} />}
+        {view === 'RC' && tab === 0 && <ReconOverview stats={stats} assets={assets} asset={asset} />}
 
         {view === 'AT' && tab === 0 && <AssetTable assets={assets} onExecCommand={onExecCommand} selectedIp={selectedIp} />}
 
@@ -573,7 +573,7 @@ function WorkArea({ assets, selectedIp, view, onExecCommand }) {
   )
 }
 
-function ReconOverview({ assets, asset }) {
+function ReconOverview({ stats, assets, asset }) {
   return (
     <>
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
@@ -584,8 +584,8 @@ function ReconOverview({ assets, asset }) {
           <div className="indicator-grid">
             <div className="ind-card" style={{ borderTop: '2px solid #00FFFF' }}>
               <div className="ind-card-title" style={{ color: '#00FFFF' }}>扫描面统计</div>
-              <div className="m-row"><span className="lbl">IP总数:</span><span className="val">{assets.length}</span></div>
-              <div className="m-row"><span className="lbl">端口总数:</span><span className="val">{assets.reduce((s, a) => s + a.port_count, 0)}</span></div>
+              <div className="m-row"><span className="lbl">IP总数:</span><span className="val">{stats?.hosts || assets.length}</span></div>
+              <div className="m-row"><span className="lbl">端口总数:</span><span className="val">{stats?.ports || assets.reduce((s, a) => s + a.port_count, 0)}</span></div>
               <div className="m-row"><span className="lbl">扫描引擎:</span><span className="val c-up">NMAP / HTTPX</span></div>
             </div>
             <div className="ind-card">
@@ -714,6 +714,15 @@ function OperationPipeline({ theater = 'default', onRefreshAssets }) {
     { name: '⑤ 报告 (Report)', icon: <BarChart size={24} />, steps: [{ id: 'report', label: '生成渗透战报', cmd: './catteam.sh 11' }, { id: 'diff', label: '资产变化检测', cmd: './catteam.sh 12' }] }
   ]
 
+  useEffect(() => {
+    const handleFinished = () => {
+      setRunningJob(null)
+      if (onRefreshAssets) onRefreshAssets()
+    }
+    window.addEventListener('CLAW_OP_FINISHED', handleFinished)
+    return () => window.removeEventListener('CLAW_OP_FINISHED', handleFinished)
+  }, [onRefreshAssets])
+
   const executeStep = async (step) => {
     try {
       // 切换 Console 到 OUTPUT Tab
@@ -730,8 +739,6 @@ function OperationPipeline({ theater = 'default', onRefreshAssets }) {
         setRunningJob(data.job_id)
         const logEvt = new CustomEvent('CLAW_START_SSE_LOG', { detail: { job_id: data.job_id, theater } })
         window.dispatchEvent(logEvt)
-        // 30 秒后自动刷新资产（等扫描结果落库）
-        setTimeout(() => { if (onRefreshAssets) onRefreshAssets() }, 30000)
       }
     } catch (err) {
       console.error(err)
@@ -1934,11 +1941,14 @@ function OutputConsole() {
             }
             if (data.done) {
               ctrl.abort()
+              // 发送完成信号，由面板捕获并刷新资产
+              window.dispatchEvent(new CustomEvent('CLAW_OP_FINISHED'))
             }
           },
           onerror(err) {
             console.error('Ops log SSE error:', err)
             setLogs(prev => [...prev.slice(-499), { time: new Date().toLocaleTimeString(), level: 'ERR', msg: '[CLAW] 日志流连接中断' }])
+            window.dispatchEvent(new CustomEvent('CLAW_OP_FINISHED')) // 防止卡死在运行中状态
             throw err // auto retry unless we abort
           }
         })
@@ -2078,7 +2088,7 @@ function App() {
 
   const refreshAssets = () => {
     fetch(`${API}/stats`).then(r => r.json()).then(setStats).catch(console.error)
-    fetch(`${API}/assets`).then(r => r.json()).then(d => setAssets(d.assets || [])).catch(console.error)
+    fetch(`${API}/assets?size=200`).then(r => r.json()).then(d => setAssets(d.assets || [])).catch(console.error)
   }
 
   // Expose refreshAssets globally for OP Pipeline
