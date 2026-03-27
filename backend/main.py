@@ -4,7 +4,7 @@
 将 claw.db 数据通过 REST API 暴露给 Web Dashboard。
 """
 
-import os, sqlite3, json
+import os, sqlite3, json, re
 from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db_engine import get_current_env, set_current_env, list_envs as db_list_envs
 
 # Agent 模块
-from backend.agent import react_loop_stream, API_KEY as AGENT_API_KEY
+from backend.agent_mcp import react_loop_stream
+from backend.agent import API_KEY as AGENT_API_KEY
 
 # === 配置 ===
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,8 +28,8 @@ AUDIT_LOG = os.path.join(BASE_DIR, "CatTeam_Loot", "agent_audit.log")
 
 app = FastAPI(
     title="CLAW API",
-    description="Project CLAW V8.0 — AI 驱动的安全验证平台",
-    version="8.0.0-alpha",
+    description="Project CLAW V8.2 — AI 驱动的安全验证平台",
+    version="8.2.0",
 )
 
 # CORS — 允许前端开发服务器
@@ -58,14 +59,33 @@ def get_db():
 
 @app.get("/api/v1/stats")
 def get_stats():
-    """仪表盘统计概览"""
+    """仪表盘统计概览 (已修复：按战区/env 隔离数据)"""
     with get_db() as conn:
-        hosts = conn.execute("SELECT COUNT(DISTINCT ip) as c FROM assets").fetchone()["c"]
-        ports = conn.execute("SELECT COUNT(*) as c FROM ports").fetchone()["c"]
-        vulns = conn.execute("SELECT COUNT(*) as c FROM vulns").fetchone()["c"]
-        scans = conn.execute("SELECT COUNT(*) as c FROM scans").fetchone()["c"]
+        env = get_current_env()
+        
+        hosts = conn.execute(
+            "SELECT COUNT(DISTINCT a.ip) as c FROM assets a JOIN scans s ON a.scan_id = s.scan_id WHERE s.env = ?", 
+            (env,)
+        ).fetchone()["c"]
+        
+        ports = conn.execute(
+            "SELECT COUNT(*) as c FROM ports p JOIN scans s ON p.scan_id = s.scan_id WHERE s.env = ?", 
+            (env,)
+        ).fetchone()["c"]
+        
+        vulns = conn.execute(
+            "SELECT COUNT(*) as c FROM vulns v JOIN scans s ON v.scan_id = s.scan_id WHERE s.env = ?", 
+            (env,)
+        ).fetchone()["c"]
+        
+        scans = conn.execute(
+            "SELECT COUNT(*) as c FROM scans WHERE env = ?", 
+            (env,)
+        ).fetchone()["c"]
+        
         latest = conn.execute(
-            "SELECT timestamp, env FROM scans ORDER BY timestamp DESC LIMIT 1"
+            "SELECT timestamp, env FROM scans WHERE env = ? ORDER BY timestamp DESC LIMIT 1",
+            (env,)
         ).fetchone()
 
         return {
@@ -90,9 +110,6 @@ def list_assets(
         if not scan_id:
             env = get_current_env()
             row = conn.execute("SELECT scan_id FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
-            if not row:
-                # Fallback: try any env
-                row = conn.execute("SELECT scan_id FROM scans ORDER BY timestamp DESC LIMIT 1").fetchone()
             if not row:
                 return {"assets": [], "total": 0, "env": env}
             scan_id = row["scan_id"]
@@ -129,12 +146,18 @@ def list_assets(
 
 @app.get("/api/v1/assets/{ip}")
 def get_asset_detail(ip: str):
-    """单个资产详情"""
+    """单个资产详情 (已修复脱离战区限制的错误关联)"""
     with get_db() as conn:
-        asset = conn.execute("SELECT * FROM assets WHERE ip=? ORDER BY scan_id DESC LIMIT 1", (ip,)).fetchone()
+        env = get_current_env()
+        asset = conn.execute(
+            "SELECT a.*, s.timestamp FROM assets a JOIN scans s ON a.scan_id = s.scan_id "
+            "WHERE a.ip=? AND s.env=? ORDER BY s.timestamp DESC LIMIT 1", 
+            (ip, env)
+        ).fetchone()
         if not asset:
-            raise HTTPException(status_code=404, detail=f"资产 {ip} 未找到")
+            raise HTTPException(status_code=404, detail=f"资产 {ip} 在当前战区 {env} 未找到")
 
+        scan_id = asset["scan_id"]
         ports = conn.execute(
             "SELECT port, service, product, version FROM ports WHERE ip=? AND scan_id=?",
             (ip, asset["scan_id"])
@@ -227,11 +250,12 @@ def start_osint_research(req: OsintTarget, background_tasks: BackgroundTasks):
 # === REPORTING & EGRESS APIs ===
 @app.get("/api/v1/report/generate")
 def generate_report():
-    """一键生成 Markdown 格式的渗透测试报告 (Sprint 3)"""
+    """一键生成 Markdown 格式的渗透测试报告 (已修复脱离战区限制的跨域泄露问题)"""
     with get_db() as conn:
-        row = conn.execute("SELECT scan_id, timestamp FROM scans ORDER BY timestamp DESC LIMIT 1").fetchone()
+        env = get_current_env()
+        row = conn.execute("SELECT scan_id, timestamp FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
         if not row:
-            return {"report": "# Project CLAW V8.0\n\nNo scan data available in the database."}
+            return {"report": f"# Project CLAW V8.0 ({env})\n\nNo scan data available in the current theater."}
         
         scan_id = row['scan_id']
         ts = row['timestamp']
@@ -243,7 +267,8 @@ def generate_report():
         assets = conn.execute("SELECT ip, os FROM assets WHERE scan_id=?", (scan_id,)).fetchall()
         ports = conn.execute("SELECT ip, port, service, version FROM ports WHERE scan_id=?", (scan_id,)).fetchall()
         try:
-            vulns = conn.execute("SELECT ip, vulnid, description, severity FROM vulns").fetchall()
+            # ONLY grab vulns for this specific scan_id!
+            vulns = conn.execute("SELECT ip, vulnid, description, severity FROM vulns WHERE scan_id=?", (scan_id,)).fetchall()
         except sqlite3.OperationalError:
             vulns = []
 
@@ -360,7 +385,6 @@ def get_attack_matrix():
     if os.path.exists(AUDIT_LOG):
         with open(AUDIT_LOG, "r") as f:
             for line in f:
-                import re
                 matches = re.findall(r'(T\d{4}(?:\.\d{3})?)', line)
                 active_ttps.update(matches)
                 
@@ -373,19 +397,25 @@ def get_attack_matrix():
 class ChatRequest(BaseModel):
     query: str
     campaign_id: str = "default"
+    model: str = "flash"
 
 
 @app.get("/api/agent/stream")
 async def agent_stream_get(
+    request: Request,
     query: str = Query(..., description="用户消息"),
-    campaign_id: str = Query("default", description="会话标识")
+    campaign_id: str = Query("default", description="会话标识"),
+    model: str = Query("flash", description="模型选择")
 ):
     """SSE 流式 Agent 对话 (GET — 兼容 EventSource)"""
     if not AGENT_API_KEY:
         raise HTTPException(status_code=503, detail="未配置 Gemini API Key")
 
-    def event_generator():
-        for event in react_loop_stream(query, campaign_id):
+    async def event_generator():
+        async for event in react_loop_stream(query, campaign_id, model_key=model):
+            if await request.is_disconnected():
+                print(f"[SSE] Client disconnected, aborting agent loop ({campaign_id})")
+                break
             yield event
 
     return StreamingResponse(
@@ -400,13 +430,16 @@ async def agent_stream_get(
 
 
 @app.post("/api/agent/stream")
-async def agent_stream_post(req: ChatRequest):
+async def agent_stream_post(request: Request, req: ChatRequest):
     """SSE 流式 Agent 对话 (POST — 支持 @microsoft/fetch-event-source)"""
     if not AGENT_API_KEY:
         raise HTTPException(status_code=503, detail="未配置 Gemini API Key")
 
-    def event_generator():
-        for event in react_loop_stream(req.query, req.campaign_id):
+    async def event_generator():
+        async for event in react_loop_stream(req.query, req.campaign_id, model_key=req.model):
+            if await request.is_disconnected():
+                print(f"[SSE] Client disconnected, aborting agent loop ({req.campaign_id})")
+                break
             yield event
 
     return StreamingResponse(
@@ -507,25 +540,36 @@ def docker_control(action: str, container_name: str):
 
 @app.get("/api/v1/env/list")
 def env_list():
-    """返回所有战区及其资产统计"""
+    """返回所有战区及其资产统计 (已修复 SQL 聚合错误)"""
     current = get_current_env()
     with get_db() as conn:
         envs = []
-        rows = conn.execute(
-            "SELECT s.env, COUNT(DISTINCT a.ip) as asset_count, MAX(s.timestamp) as last_scan "
-            "FROM scans s LEFT JOIN assets a ON s.scan_id = a.scan_id "
-            "GROUP BY s.env ORDER BY last_scan DESC"
+        # Get list of unique envs and their latest scan
+        env_rows = conn.execute(
+            "SELECT env, MAX(timestamp) as last_scan FROM scans GROUP BY env ORDER BY last_scan DESC"
         ).fetchall()
-        for r in rows:
+        
+        for r in env_rows:
+            env_name = r["env"]
+            last_scan = r["last_scan"]
+            
+            # Get latest scan_id for this env
+            scan_row = conn.execute("SELECT scan_id FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env_name,)).fetchone()
+            asset_count = 0
+            if scan_row:
+                asset_count = conn.execute("SELECT COUNT(DISTINCT ip) as c FROM assets WHERE scan_id=?", (scan_row["scan_id"],)).fetchone()["c"]
+                
             envs.append({
-                "name": r["env"],
-                "asset_count": r["asset_count"] or 0,
-                "last_scan": r["last_scan"],
-                "active": r["env"] == current
+                "name": env_name,
+                "asset_count": asset_count,
+                "last_scan": last_scan,
+                "active": env_name == current
             })
-        # If current env not in list, add it
+            
+        # If current env not in list (e.g. brand new), add it
         if not any(e["name"] == current for e in envs):
             envs.insert(0, {"name": current, "asset_count": 0, "last_scan": None, "active": True})
+            
     return {"current": current, "theaters": envs}
 
 
@@ -559,6 +603,38 @@ def env_create(req: EnvCreateRequest):
             f.write(req.targets.strip() + "\n")
     return {"status": "ok", "theater": name, "type": req.env_type, "targets": req.targets.strip()}
 
+class EnvRenameRequest(BaseModel):
+    old_name: str
+    new_name: str
+
+@app.post("/api/v1/env/rename")
+def env_rename(req: EnvRenameRequest):
+    if not req.old_name or not req.new_name:
+        raise HTTPException(status_code=400, detail="名称不能为空")
+    with get_db() as conn:
+        conn.execute("UPDATE scans SET env=? WHERE env=?", (req.new_name, req.old_name))
+        conn.commit()
+    if get_current_env() == req.old_name:
+        set_current_env(req.new_name)
+    return {"status": "ok", "message": f"战区 {req.old_name} 已重命名为 {req.new_name}"}
+
+class EnvDeleteRequest(BaseModel):
+    name: str
+
+@app.post("/api/v1/env/delete")
+def env_delete(req: EnvDeleteRequest):
+    if not req.name:
+        raise HTTPException(status_code=400, detail="名称不能为空")
+    if req.name == "default":
+        raise HTTPException(status_code=400, detail="系统默认战区无法删除")
+    with get_db() as conn:
+        conn.execute("DELETE FROM scans WHERE env=?", (req.name,))
+        conn.commit()
+    if get_current_env() == req.name:
+        set_current_env("default")
+    return {"status": "ok", "message": f"战区 {req.name} 已删除/清空"}
+
+
 # ============================================================
 # OPERATION PIPELINE (Sprint 2 - 流程引擎与流式输出)
 # ============================================================
@@ -584,20 +660,32 @@ def ops_run(req: OpsRunRequest, background_tasks: BackgroundTasks):
     with open(log_file, "w") as f:
         f.write(f"--- [Project CLAW V8.2] Task Started: {req.command} ---\n\n")
     
-    # We use shlex to safely parse or just pass through shell=True for complex piplines
-    # Since these are internal ops commands, shell=True is accepted for 'make' or chained commands
+    # Open log file for subprocess stdout — store handle so it can be closed later
+    log_fh = open(log_file, "a")
     proc = subprocess.Popen(
         req.command,
         shell=True,
         cwd=BASE_DIR,
-        stdout=open(log_file, "a"),
+        stdout=log_fh,
         stderr=subprocess.STDOUT,
         text=True
     )
-    ACTIVE_JOBS[job_id] = proc
+    ACTIVE_JOBS[job_id] = {"proc": proc, "log_fh": log_fh}
     return {"status": "ok", "job_id": job_id, "command": req.command, "log_file": log_file}
 
-import asyncio
+@app.post("/api/v1/ops/stop/{job_id}")
+def ops_stop(job_id: str):
+    job = ACTIVE_JOBS.get(job_id)
+    if not job:
+        return {"error": "Job not found or already completed"}
+    try:
+        job["proc"].terminate()
+        job["log_fh"].close()
+        return {"status": "ok", "message": f"Job {job_id} terminated."}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 
 @app.get("/api/v1/ops/log/{job_id}")
 async def ops_log(job_id: str, theater: str = "default"):
@@ -620,15 +708,19 @@ async def ops_log(job_id: str, theater: str = "default"):
                         yield "data: {}\n\n".format(json.dumps({'text': line + '\n'}, ensure_ascii=False))
             
             # Tail the file
-            proc = ACTIVE_JOBS.get(job_id)
+            job = ACTIVE_JOBS.get(job_id)
+            proc = job["proc"] if job else None
             while True:
                 line = f.readline()
                 if line:
                     yield f"data: {json.dumps({'text': line}, ensure_ascii=False)}\n\n"
                 else:
                     if proc and proc.poll() is not None:
-                        # Process finished and no more lines
-                        finished_msg = f"\\n--- [Task Finished with code {proc.returncode}] ---\\n"
+                        # Process finished and no more lines — close file handle
+                        if job and job.get("log_fh"):
+                            try: job["log_fh"].close()
+                            except: pass
+                        finished_msg = f"\n--- [Task Finished with code {proc.returncode}] ---\n"
                         yield f"data: {json.dumps({'text': finished_msg, 'done': True}, ensure_ascii=False)}\n\n"
                         break
                     await asyncio.sleep(0.5)
@@ -648,6 +740,7 @@ async def ops_log(job_id: str, theater: str = "default"):
 class ProbeRequest(BaseModel):
     target: str
     profile: str = "default"
+    env_mode: str = "current"
 
 @app.post("/api/v1/probe")
 def probe_target(req: ProbeRequest, background_tasks: BackgroundTasks):
@@ -683,7 +776,8 @@ def probe_target(req: ProbeRequest, background_tasks: BackgroundTasks):
             root = tree.getroot()
 
             with get_db() as conn:
-                conn.execute("INSERT OR REPLACE INTO scans (scan_id, timestamp, mode, env) VALUES (?, CURRENT_TIMESTAMP, 'probe', 'probe')", (scan_id,))
+                target_env = get_current_env() if req.env_mode == "current" else f"probe"
+                conn.execute("INSERT OR REPLACE INTO scans (scan_id, timestamp, mode, env) VALUES (?, CURRENT_TIMESTAMP, 'probe', ?)", (scan_id, target_env))
                 for host in root.findall(".//host"):
                     addr = host.find("address")
                     if addr is None:
@@ -713,7 +807,7 @@ def probe_target(req: ProbeRequest, background_tasks: BackgroundTasks):
 def root():
     return {
         "name": "CLAW API",
-        "version": "8.0.0-alpha",
+        "version": "8.2.0",
         "docs": "/docs",
         "status": "operational",
         "agent": "ready" if AGENT_API_KEY else "no_api_key",

@@ -2,8 +2,8 @@
 
 ```
      /\_/\  
-    ( o.o )  Project CLAW V8.0-alpha
-     > ^ <   CatTeam Lateral Arsenal Weapon
+    ( o.o )  Project CLAW V8.2
+     > ^ <   CatTeam Lateral Arsenal Weapon V8.2
     /|   |\  
    (_|   |_) Codename: Lynx · Bloomberg Terminal
 ```
@@ -14,8 +14,8 @@
 
 AI-Native 红队全栈作战平台 · Bloomberg Terminal UI · FastAPI + React · Gemini 3 Agentic AI
 
-[![Version](https://img.shields.io/badge/V8.0--alpha-blue)]()
-[![Agent](https://img.shields.io/badge/Agent-A2.0-green)]()
+[![Version](https://img.shields.io/badge/V8.2-blue)]()
+[![Agent](https://img.shields.io/badge/Agent-A2.1-green)]()
 [![Dashboard](https://img.shields.io/badge/Dashboard-Bloomberg-black)]()
 [![AI](https://img.shields.io/badge/AI-Gemini%203%20Flash-orange)]()
 [![License](https://img.shields.io/badge/license-Private-red)]()
@@ -35,8 +35,8 @@ cp config.sh.example config.sh   # 编辑填入你的 Gemini API Key
 vim scope.txt                     # 填入授权网段 (CIDR)
 
 # 启动 Web Dashboard (推荐)
-cd backend && uvicorn main:app --reload --port 8000 &
-cd frontend && npm run dev
+cd ~/CatTeam && uvicorn backend.main:app --reload --port 8000 &
+cd ~/CatTeam/frontend && npm install && npm run dev
 # 打开 http://localhost:5173
 
 # 或 CLI 模式
@@ -54,19 +54,19 @@ python3 claw-agent.py # AI 智能体
                            │ claw.db + live_assets.json
                 ┌──────────┼──────────┐
                 ↓          ↓          ↓
-           03 Web指纹   05 Nuclei   🧠 CLAW Agent
+           03 Web指纹   Nuclei      🧠 CLAW Agent (MCP)
            纯Python     漏洞扫描     Gemini 3 ReAct
                                      HITL 三级分权
 ┌─ 攻击链 ──────────────────────────────────────────────┐
-│  06 投毒陷阱  → 07 算力破解  → 08 横向移动               │
+│  04 投毒陷阱  → 05 算力破解  → 06 横向移动               │
 │  Responder      Hashcat GPU    Impacket SMB            │
 │  09 后渗透提取 → 10 AD域Kerberoast                      │
 └────────────────────────────────────────────────────────┘
 ```
 
-## 🧠 CLAW Agent (V7.0 核心)
+## 🧠 CLAW Agent (V8.2 / MCP 架构)
 
-基于 **Gemini 3 Interactions API** 的自主红队智能体，支持 ReAct 自动循环：
+基于 **Gemini 3 Interactions API** 的自主红队智能体，V8.2 已迁移至 MCP 架构 (动态工具发现 + 缓存式 schema)：
 
 | 模式 | 工具 | 安全机制 |
 |---|---|---|
@@ -149,8 +149,8 @@ python3 claw-agent.py --readonly # M1 只读模式
 
 ```
 V1.0 (基础链) → V2.0 (工程化) → V3.0 (攻击链) → V4.0 (合规/AD)
-     → V5.0 (SQLite+AI) → V7.0 (Agentic AI 智能体) ← 当前
-     → V8.0 (Web Dashboard + C2) [计划中]
+     → V5.0 (SQLite+AI) → V7.0 (Agentic AI) → V8.0 (Web Dashboard)
+     → V8.2 (MCP + 流式流水线) ← 当前版本
 ```
 
 ## 📚 文档索引
@@ -159,7 +159,7 @@ V1.0 (基础链) → V2.0 (工程化) → V3.0 (攻击链) → V4.0 (合规/AD)
 |---|---|
 | [架构设计](docs/ARCHITECTURE.md) | 系统架构、数据流、模块矩阵 |
 | [作战手册](docs/OPERATIONS.md) | 实战操作场景详解 |
-| [开发路线](docs/ROADMAP.md) | V1.0 → V7.0 演进记录 |
+| [开发路线](docs/ROADMAP.md) | V1.0 → V8.2 演进记录 |
 | [技术标准](docs/CONVENTIONS.md) | 版本号 / 命名 / 编码规范 |
 | [更新日志](CHANGELOG.md) | 每个版本的详细变更 |
 

@@ -14,7 +14,7 @@ SSE 事件类型:
   error       — 错误
 """
 
-import os, json, urllib.request, urllib.error, ssl, sqlite3, glob, subprocess, threading
+import os, json, urllib.request, urllib.error, ssl, sqlite3, glob, subprocess, threading, queue
 from datetime import datetime
 
 # === 路径 ===
@@ -240,8 +240,8 @@ TOOLS = [
 
 def tool_query_db(sql: str) -> str:
     sql_upper = sql.strip().upper()
-    if not sql_upper.startswith("SELECT"):
-        return json.dumps({"error": "安全拦截: 只允许 SELECT 查询"})
+    if not sql_upper.startswith("SELECT") and not sql_upper.startswith("PRAGMA"):
+        return json.dumps({"error": "安全拦截: 只允许 SELECT 或 PRAGMA 查询"})
     for forbidden in ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "ATTACH"]:
         if forbidden in sql_upper:
             return json.dumps({"error": f"安全拦截: 禁止 {forbidden}"})
@@ -341,6 +341,11 @@ def tool_list_assets(env: str = None) -> str:
 
 def tool_execute_shell(command: str, reason: str = "") -> str:
     """执行 shell 命令 — Web 模式下 YELLOW/RED 会转为 pending approval"""
+    cmd_lower = command.lower().strip()
+    for block_cmd in ["msfconsole", "python -", "top", "vim", "nano", "nc -l"]:
+        if cmd_lower.startswith(block_cmd) or f" {block_cmd} " in f" {cmd_lower} ":
+            return json.dumps({"error": f"安全拦截: 禁止执行交互式命令 {block_cmd} (会阻塞 Agent 线程)。请使用 API 或非交互模式（如 msfconsole -x）。"})
+
     level = classify_command(command)
 
     # Web 模式: YELLOW 和 RED 需要前端审批 (暂时自动通过 GREEN, 拦截其他)
@@ -528,7 +533,6 @@ def react_loop_stream(user_input: str, campaign_id: str = "default"):
         step += 1
         yield sse("thinking", {"status": f"Lynx 正在调用 Gemini API (步骤 {step})... 请稍候"})
         # Use threaded API call with keepalive heartbeat to prevent SSE timeout
-        import queue
         result_q = queue.Queue()
         def _api_worker():
             result_q.put(api_call(payload))

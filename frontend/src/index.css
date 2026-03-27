@@ -47,6 +47,7 @@ body {
   padding: 0 16px;
   gap: 16px;
   flex-shrink: 0;
+  overflow-x: auto;
 }
 
 .hud-brand {
@@ -220,13 +221,18 @@ body {
 /* Indicator grid */
 .indicator-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 10px;
 }
 .ind-card {
   padding: 10px;
   border: 1px solid var(--border-hl);
   background: #050505;
+  min-width: 0;
+  overflow: hidden;
+}
+.ind-card .m-row {
+  flex-wrap: wrap;
 }
 .ind-card-title {
   font-size: 10px;
@@ -559,3 +565,13 @@ body {
   animation: blink 1s step-end infinite;
   vertical-align: text-bottom;
 }
+
+/* Refresh spin animation */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+
+/* OP Sidebar helper rows */
+.m-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #222; }
+.m-row .lbl { color: #666; }
+.m-row .val { font-weight: bold; }
+.c-gold { color: #FF9900; }

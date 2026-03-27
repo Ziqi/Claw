@@ -1,15 +1,26 @@
 # 🐱 CatTeam 开发路线图 (Roadmap)
 
-**最后更新：** 2026-03-26 V8.0-alpha / A2.0  
+**最后更新：** 2026-03-27 V8.2 / A2.1  
 
 ---
 
 ## 版本演进全景
 
 ```
-V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  ━━  V5.0 (03-25)  ━━  V7.0 (03-25)  ━━  V8.0-α (03-26)  ━━  V8.2 (03-27) ← HERE
-  基础链           工程化           攻击链           合规/AD/TUI       SQLite+AI       Agentic AI       Web Dashboard     流式工作台
+V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  ━━  V5.0 (03-25)  ━━  V7.0 (03-25)  ━━  V8.0-α (03-26)  ━━  V8.2 (03-27)  ━━  V9.0 (Planned)
+  基础链           工程化           攻击链           合规/AD/TUI       SQLite+AI       Agentic AI       Web Dashboard     流式工作台        多智能体+图谱
 ```
+
+---
+
+## 🔮 未来计划 (Planned)
+
+### 🌟 V9.0 — 多智能体协同作战台 (AI-Driven Multiplayer Command Center)
+> **彻底重构底层架构，由表驱动转为图驱动，接入边缘 Agent，实现复杂战场调度。**
+- **攻击面图谱 (Attack Graph)** 放弃 SQLite，启用 Neo4j 构建关系网。
+- **态势感知时间线 (Event Bus)** 引入 WebSocket 微秒级高频作战时序事件流。
+- **C2 融合** gRPC 挂载 Sliver C2，让 Agent 在反弹信标内部自由下发执行。
+- **多端 Agent 并发** Gemini Flash 负责扫描清洗，Gemini Pro 负责高危命令调度。
 
 ---
 
@@ -52,7 +63,7 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 - 08-diff.py (资产变化检测)
 - OPSEC: 06 禁止命令行密码、04 僵尸进程清理
 
-### v4.0 — 合规/侦察升维/AD 域链 (03-25) ← 当前版本
+### v4.0 — 合规/侦察升维/AD 域链 (03-25)
 
 **Sprint 1: 合规与基建**
 - `scope.txt` ROE 白名单 (多 CIDR)
@@ -106,7 +117,7 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 
 ---
 
-## ⭐ V7.0 — Agentic AI 智能体 (03-25) ← 当前版本
+## ⭐ V7.0 — Agentic AI 智能体 (03-25)
 
 > **这是 Project CLAW 从 Copilot 升级为 Agentic AI 的里程碑。**
 
@@ -127,7 +138,7 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 
 ---
 
-## ⭐ V8.0.1 — 交互重构 + 实弹就绪 (03-27) ← 当前版本
+## ⭐ V8.0.1 — 交互重构 + 实弹就绪 (03-27)
 
 > **将看板型 UI 升级为交互式作战平台。全面消除 UX 冗余，武器库扩充至 36 模块。**
 
@@ -222,22 +233,21 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 
 ### P1: 隧道穿透 (导师批准)
 - **Ligolo-ng** / Chisel (TUN 虚拟网卡, 不用 Proxychains)
-- ‘route add’ 级别的全流量代理
+- 'route add' 级别的全流量代理
 
 ### P2: AI + BloodHound (方案 C)
 - 不装 Neo4j——直接喂 Gemini 1M 上下文做图论推理
-- “从当前用户到 Domain Admin 的最短路径”
+- "从当前用户到 Domain Admin 的最短路径"
 
-### P3: Webhook 告警
-- `11-webhook.py` + cron 定时扫描
-- AI 分析结果推送钉钉/飞书
+### ~~P3: Webhook 告警~~ ✅ 已在 V5.0 实现
+- ~~`11-webhook.py` + cron 定时扫描~~
+- ~~AI 分析结果推送钉钉/飞书~~
 
-### P4: make toolbox
-- Nikto / Hydra / Sqlmap 子菜单
+### P4: make toolbox ✅ 已在 V5.0.1 实现
 
-### P5: Nuclei 深度集成
-- 从 live_assets.json 自动生成目标清单
-- 扫描结果 → vulns 表 → 07-report
+### ~~P5: Nuclei 深度集成~~ ✅ 已在 V5.0.1 实现
+- ~~从 live_assets.json 自动生成目标清单~~
+- ~~扫描结果 → vulns 表 → 07-report~~
 
 ### P6: Sliver C2
 - 开源, Go, mTLS/WireGuard
@@ -287,9 +297,8 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 | 03-25 PM | v3.0 攻击链 (投毒/破解/横移) |
 | 03-25 PM | 导师 v3.0 Code Review → OPSEC 修复 |
 | 03-25 PM | v3.1 情报层 (报告+变化检测) |
-| 03-25 PM | V4.0 提案 → 导师 10 方向评审 → AI 4 点反馈 |
 | 03-25 Night | v4.0 三个 Sprint 全部落地 |
-| 03-25 AM | TUI 控制台 + Docker v3 (Nuclei) 升级 |
+| 03-26 AM | TUI 控制台 + Docker v3 (Nuclei) 升级 |
 | 03-25 PM | v5.0 Phase 1: SQLite 双写架构 |
 | 03-25 PM | v5.0 Phase 2: AI 副官 (Gemini Flash) 集成 |
 | 03-25 PM | v5.0.1 TUI 修复 + 实战渗透 (TP-Link/HP/AirTunes) |

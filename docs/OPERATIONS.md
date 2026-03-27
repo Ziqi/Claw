@@ -1,8 +1,8 @@
-# 🐱 CatTeam 作战手册 V8.0-alpha
+# 🐱 CatTeam 作战手册 V8.2
 
 本手册按**实战场景**组织，告诉你什么时候该跑什么命令。
 
-> **V8.0 新增**: Web Dashboard 启动方式见 [§Web 作战指挥台](#-web-作战指挥台-v80-新增)
+> **V8.2 新增**: OP 作战流水线 + MCP 架构。Web Dashboard 启动方式见 [§Web 作战指挥台](#-web-作战指挥台-v80-新增)
 
 ---
 
@@ -30,15 +30,17 @@ cd ~/CatTeam/frontend && npx vite --port 5173
 | **WorkArea** | 侦察概览 / 全局资产库 / 端口矩阵 / 网络拓扑 |
 | **AI Copilot** | 自然语言对话 / 模型选择 / 快捷 Chips / 流式输出 |
 
-### Phase 2 即将到来 (D10 批准)
+### Phase 2 已部分完成 (D10 批准)
 
 | 特性 | 状态 |
 |---|---|
+| SSE 流式 OP 作战流水线 (`ops/run` + `ops/log`) | ✅ 已完成 |
+| MCP 架构 (Agent 动态工具发现) | ✅ 已完成 |
 | SSE 流式 Agent 对话 (`@microsoft/fetch-event-source`) | 🚧 开发中 |
 | HITL Web 审批 (Action Token + Challenge 质询) | 🚧 开发中 |
 | 对话持久化 (新建/历史/Campaign ID) | 🚧 开发中 |
 | 思维链折叠树 (Structured Output 可视化) | 🚧 开发中 |
-| ATT&CK 热力矩阵 | 🚧 开发中 |
+| ATT&CK 热力矩阵 | ✅ 已完成 |
 | `Cmd+K` 全局搜索 | 🚧 开发中 |
 
 ---
@@ -308,6 +310,10 @@ docker exec -it kali_arsenal /bin/bash         # 进入战车
 | `17-ask-lynx` | 无 (可选 claw.db) | Python3, curl, Gemini API Key |
 | `18-ai-bloodhound` | BloodHound JSON/ZIP (`10-kerberoast` 生成) | Python3, Gemini API Key |
 | `23-hp-proxy-unlocker` | 目标 IP | Python3 |
+| **Web Dashboard (后端)** | 无 | Python3, uvicorn, FastAPI |
+| **Web Dashboard (前端)** | 后端运行中 | Node.js, npm |
+| `agent_mcp.py` | claw.db + Gemini API Key | Python3, MCP Server |
+| `mcp_armory_server.py` | claw.db | Python3 |
 | `make toolbox` | Docker 容器运行中 | Docker + Kali 镜像 V4 |
 | `make firmware` | 固件 .bin 文件 | Python3 |
 

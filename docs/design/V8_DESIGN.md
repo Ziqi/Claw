@@ -27,7 +27,7 @@ CLAW V8.2:  工作空间隔离 + 标准化流式流程引擎 (Operation Pipeline
 
 | 层 | 技术选型 | 备注 |
 |---|---|---|
-| **前端** | React + Vite + Tailwind | Bloomberg Terminal UI (纯黑 #000 / 琥珀金 #FF9900 / 青色 #00FFFF) |
+| **前端** | React + Vite | Bloomberg Terminal UI (纯黑 #000 / 琥珀金 #FF9900 / 青色 #00FFFF) |
 | **后端** | FastAPI (Python) | REST API + SSE 流式推送 |
 | **流水线** | `subprocess.Popen` + 异步生成器 | `ops/run` 异步执行，`ops/log` SSE 日志追踪 |
 | **AI 引擎** | Gemini 3 Interactions API | 服务端状态管理 + Thought Signatures 自动处理 |

@@ -2,6 +2,35 @@
 
 ---
 
+## [V8.2 / A2.1] — 2026-03-27 ⭐ MCP 架构 + UI 全面审计 (Sprint 3)
+
+### 🔌 MCP (Model Context Protocol) 架构落地
+- **`backend/mcp_armory_server.py`**: 武器/工具封装为标准 MCP Tools，Agent 通过 stdio 协议动态发现与挂载
+- **`backend/agent_mcp.py`**: 重写为缓存式架构：MCP 工具 schema 首次发现后缓存在内存，后续消息 **零子进程开销**
+- **废弃硬编码**: 旧版 `agent.py` 中的 `tool_execute_shell` 等 6 个直连函数降级为 fallback
+
+### 🎨 UI/UX 与核心架构全面审计 (12 项修复)
+- **P0 战区隔离与越权防漏 (Theater Isolation)**: 修复了 `main.py` 中的 SQLite 查询漏洞。废弃跨域的 `ORDER BY scan_id DESC`，全面接入 `JOIN scans WHERE s.env=?`，根绝了 A 战区资产与高危漏洞串流至 B 战区的历史技术债，涵盖所有报表与查询接口。
+- **P0 AI 熔断**: 修复 SSE 断线重连时引发无主进程滥刷 Token 漏洞 (`await request.is_disconnected()`)。
+- **P0 数据安全**: OP Pipeline `theater` 参数从硬编码 `default` 改为当前战区动态注入。
+- **P1 交互优化**: OP Tab 新增侧边栏 (战区上下文 + 快速跳转)，移除空壳 Agent 审计日志 Tab。
+- **P2 功能补全**: C2 面板 + 拓扑图新增刷新按钮，Debug Console 改为系统连接状态面板。
+- **P3 代码整洁**: 消除 `window.__claw_filters` 全局变量，改为 React Props 传递。
+- **实时日志**: 时间戳从静态 "10 分钟前" 改为动态 HH:MM:SS (当前时钟 - 偏移量)。
+- **HUD 防溢出**: 增加 `overflow-x: auto` 防窄屏内容裁剪。
+
+### 🖼️ Emoji → SVG 图标迁移
+- **全面去 Emoji**: 武器按钮、探测按钮、OP 流水线、C2、AI 面板等 25+ 处 emoji 替换为 lucide-react SVG
+- **22 个图标**: `Search` `Globe` `Bug` `Lock` `ClipboardList` `KeyRound` `Monitor` `Skull` `Crosshair` `Loader2` `Rocket` `Zap` `Building` `FlaskConical` `Copy` `X` `Info` `RefreshCw` 等
+- **符合设计规范**: 对齐 CONVENTIONS.md Bloomberg Terminal 视觉标准（无 Emoji、纯 SVG）
+
+### ⚡ AI 性能优化
+- **MCP 工具缓存**: 每条消息不再启动 MCP 子进程做工具发现，首次 3s → 后续 < 0.5s
+- **数据同步**: OP 执行完成 30s 自动刷新全局资产，战区切换立即同步 `currentTheater`
+- **AI 上下文**: Agent 通过 MCP `claw_query_db` 直查 SQLite，始终获取最新数据
+
+---
+
 ## [V8.2 / A2.1] — 2026-03-27 ⭐ 流式作战流水线 (Sprint 2)
 
 ### ⚡ 标准化作战流程 (Operation Pipeline)

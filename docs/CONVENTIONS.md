@@ -1,6 +1,6 @@
 # 🐱 CatTeam/CLAW 技术标准文档 (Conventions & Standards)
 
-**版本：** 2.2  
+**版本：** 2.3  
 **最后更新：** 2026-03-27
 
 ---
@@ -9,7 +9,7 @@
 
 ### 1.1 CLAW 平台版本 (V 前缀)
 
-**当前版本：V8.0-alpha**
+**当前版本：V8.2 / A2.1**
 
 ```
 格式: V{X}.{Y}.{Z}
@@ -33,6 +33,7 @@
 | **V7.0** | **Agentic AI 智能体 (M1+M2)** |
 | **V8.0-alpha** | **全栈作战平台 (FastAPI+React Bloomberg UI)** |
 | **V8.0.1** | **交互重构 + Docker 实弹 + 武器库 36 模块 + Agent 工具修复** |
+| **V8.2** | **MCP 架构 + OP 流式流水线 + UI 全面审计 + Emoji→SVG**|
 
 ### 1.2 Agent 版本 (A 前缀)
 
@@ -172,7 +173,9 @@ CatTeam/
 
 ### 4.3 Web 端架构规范 (V8.0 新增)
 - **前端 (React/Vite)**: 纯静态分离，禁止在组件内写带副作用的死循环，UI 使用 Bloomberg 视觉标准（极黑背景无圆角）。
-- **后端 (FastAPI)**: 标准化返回 JSON，长耗时任务必须异步（Celery/后台任务），绝不阻塞主线程。
+- **图标规范**: 禁止在 UI 中使用 Emoji (🔍🌐💀 等)，统一使用 lucide-react SVG 图标库。保留 ASCII 符号 (✧▶▸▾) 作为终端风格装饰。
+- **后端 (FastAPI)**: 标准化返回 JSON，长耗时任务必须异步（`subprocess.Popen` + SSE），绝不阻塞主线程。
+- **MCP (V8.2 新增)**: Agent 工具通过 MCP Server (`mcp_armory_server.py`) 标准化暴露，Agent 核心通过 stdio 协议动态发现与挂载工具。
 
 ### 4.4 配置管理
 - Shell 自动化层的所有可配置项集中在 `config.sh`
@@ -232,4 +235,4 @@ emoji:
 
 ---
 
-*本文档是 Project CLAW 的工程治理基线。CONVENTIONS.md v2.0 — 2026-03-25*
+*本文档是 Project CLAW 的工程治理基线。CONVENTIONS.md v2.3 — 2026-03-27*

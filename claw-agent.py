@@ -291,8 +291,8 @@ def tool_query_db(sql: str) -> str:
     """执行只读 SQL 查询"""
     # 安全检查: 只允许 SELECT
     sql_upper = sql.strip().upper()
-    if not sql_upper.startswith("SELECT"):
-        return json.dumps({"error": "安全拦截: 只允许 SELECT 查询"})
+    if not sql_upper.startswith("SELECT") and not sql_upper.startswith("PRAGMA"):
+        return json.dumps({"error": "安全拦截: 只允许 SELECT 或 PRAGMA 查询"})
 
     for forbidden in ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "CREATE", "ATTACH"]:
         if forbidden in sql_upper:
@@ -421,6 +421,11 @@ def tool_execute_shell(command: str, reason: str = "") -> str:
     """执行 shell 命令 (受 HITL 控制)"""
     if READONLY_MODE:
         return json.dumps({"error": "只读模式: 不允许执行命令。请去掉 --readonly 参数"})
+
+    cmd_lower = command.lower().strip()
+    for block_cmd in ["msfconsole", "python -", "top", "vim", "nano", "nc -l"]:
+        if cmd_lower.startswith(block_cmd) or f" {block_cmd} " in f" {cmd_lower} ":
+            return json.dumps({"error": f"安全拦截: 禁止执行交互式命令 {block_cmd} (会阻塞 Agent 线程)。请使用 API 或非交互模式（如 msfconsole -x）。"})
 
     level = classify_command(command)
     print(f"  {DIM}  理由: {reason}{NC}")
