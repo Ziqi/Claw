@@ -1,47 +1,44 @@
-# 🐱 CatTeam 作战手册 V8.2
+# 🐱 CatTeam 作战手册 (V9.0 G.I. Era)
 
 本手册按**实战场景**组织，告诉你什么时候该跑什么命令。
 
-> **V8.2 新增**: OP 作战流水线 + MCP 架构。Web Dashboard 启动方式见 [§Web 作战指挥台](#-web-作战指挥台-v80-新增)
+> **V9.0 全栈智能大屏同步注释**: 本文档已经过 V9 真实代码基线审计。功能项将标记为 `[✅对齐设计]`, `[➕超纲新增]`, `[🔄偏离重构]`, `[❌已删除/未开发]`。
 
 ---
 
-## 🖥️ Web 作战指挥台 (V8.0 新增)
+## 🖥️ Web 作战指挥台 (V9.0 Commander's HUD)
 
 ### 启动服务
 
 ```bash
-# 后端 (FastAPI) — 端口 8000
+# 后端 (FastAPI MCP 桥接层) — 端口 8000
 cd ~/CatTeam && uvicorn backend.main:app --reload --port 8000
 
-# 前端 (React) — 端口 5173
+# 前端 (React G.I. 大屏) — 端口 5173
 cd ~/CatTeam/frontend && npx vite --port 5173
 ```
 
-浏览器打开 `http://localhost:5173` 即可进入 Bloomberg Terminal 风格作战指挥台。
+浏览器打开 `http://localhost:5173` 即可进入单兵全维度指挥大屏。
 
-### 界面布局
+### [🔄偏离重构] V9.0 界面布局 (The "HUD" Layout)
 
-| 区域 | 功能 |
-|---|---|
-| **HUD 状态栏** | 存活主机/开放端口/漏洞数/扫描次数/实时时钟 |
-| **Activity Bar** (RC/AT/AG) | 侦察态势 / 攻击面 / Agent 控制 |
-| **Sidebar** | 威胁大盘 / 资产清单 / C2 节点 |
-| **WorkArea** | 侦察概览 / 全局资产库 / 端口矩阵 / 网络拓扑 |
-| **AI Copilot** | 自然语言对话 / 模型选择 / 快捷 Chips / 流式输出 |
+左侧的 `Activity Bar` 导航条**并未被删除，而是被深度重构为 V9 核心中枢**。旧版的 `AG` (Agent日志) 等无效锚点被替换，当前系统完全服从上、中、右的三段军事化布局：
 
-### Phase 2 已部分完成 (D10 批准)
+| 区域 | 真实模块 | 审计状态 |
+|---|---|---|
+| **领航域 (Top Header)** | 全局战役管线 (CampaignPipeline) 进度发光条 | `[✅对齐 D14 设计]` |
+| **情境沙盒 (Center Pane)**| 【资产大表 AssetTable】与【战役看板 TheaterKanban】 | `[✅对齐 D14 设计]` |
+| **火控挂架 (Center Top)** | 规划中：全局多选准星 (Global Multi-Select Reticle) | `[❌严重欠债待补]` |
+| **隔离武库 (Left Tab)**   | 独立的弹药陈列室 (ArmoryViewTab) | `[✅对齐原始设计]` |
+| **C2 远控桥 (Left Tab)**  | Sliver GRPC / Web 控制台 (SliverViewTab) | `[➕原生未规划的超纲新增]` |
+| **副官参谋 (Right Pane)** | 原生闪电大模型终端支持 (Interactions State Machine) | `[🔄基于 chats.create 缝合妥协]` |
 
-| 特性 | 状态 |
-|---|---|
-| SSE 流式 OP 作战流水线 (`ops/run` + `ops/log`) | ✅ 已完成 |
-| MCP 架构 (Agent 动态工具发现) | ✅ 已完成 |
-| SSE 流式 Agent 对话 (`@microsoft/fetch-event-source`) | 🚧 开发中 |
-| HITL Web 审批 (Action Token + Challenge 质询) | 🚧 开发中 |
-| 对话持久化 (新建/历史/Campaign ID) | 🚧 开发中 |
-| 思维链折叠树 (Structured Output 可视化) | 🚧 开发中 |
-| ATT&CK 热力矩阵 | ✅ 已完成 |
-| `Cmd+K` 全局搜索 | 🚧 开发中 |
+### [➕超纲新增] V9.0 环境壁垒 (Theater Manager)
+在启动 Web 面板后，**强烈建议第一步在顶部 Header 选择/新建 `战区 (Theater)`**。
+所有扫描仪、资产入库、AI 对话上下文，**均被 SQLite 物理隔离在您选定的战区内**，横跨星巴克与内网时绝不会出现数据串流污染！
+
+### [✅对齐设计] A2UI 零日武器生成
+在主面板触发 `拦截 Beacon` 后，AI 副官会实时推送 `A2UIForgeModal` (零日钓鱼锻造仓)。您可以点击【生成并落盘持久化】，钓鱼源码会直接写入 `CatTeam_Loot/payloads/`！
 
 ---
 

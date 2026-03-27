@@ -1,6 +1,6 @@
 # 🐱 CatTeam 开发路线图 (Roadmap)
 
-**最后更新：** 2026-03-27 V8.2 / A2.1  
+**最后更新：** 2026-03-28 V9.1 / A2.2  
 
 ---
 
@@ -15,24 +15,59 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 
 ## 🔮 未来计划 (Planned)
 
-### 🌟 V9.0 — 全栈智能体指挥中心 (Agent-Driven Monolithic Workstation) & D14 学术定调
-> **聚焦单兵作战环境下的全维自主渗透。依托极简硬件 (单本+Alfa网卡)，将大屏彻底升级为 G.I. (Generative Interface) 时代的智控终端，砍弃机械的 OP 遥控面板。**
+### 🌟 V10-alpha — 多智能体分布式渗透 (Planned)
+> 预留占位区。
 
-**【D14 军令状：底层引擎彻底革命】**
-- **原生 Interactions API (长程记忆)**：抛除无状态的本地拼接历史模式，全量接入云端托管的 `client.interactions.create`，维持高强度的长程战役上下文与思想签名（thoughtSignature）。
-- **云端免杀代码沙箱 (CodeExecution)**：官方混编开启 `types.Tool(code_execution=...)`，赋予 Gemini 3 现场手写并执行 Python 脚本清洗巨量 XML 的能力，彻底终结幻觉。
-- **ReAct 引擎防熔断 (State Continuum)**：修复 15 步轮回后暴力剥夺工具导致的 API 拒绝服务故障。
+### ⭐ V9.0 — 全栈智能大屏 (Generative Interface Era) & D14/D15 架构落地
+> **聚焦单兵作战环境下的全维自主渗透。依托极简硬件 (单本+Alfa网卡)，将大屏彻底升级为 G.I. (Generative Interface) 时代的智控终端，建立【领航域】+【情境沙盒】+【AI 参谋部】三段式指挥范式。**
 
-**【三大降维打击战斧 (学术级演进)】**
-- **A2UI ✖️ 视觉自我博弈 (Self-Correction)**：无头浏览器生成钓鱼网页前台截图，Multimodal 喂回给大模型进行外观校验与源码自纠错，无缝流入看板挂载。
-- **Deep Research ✖️ 语义密码图谱**：后台异步挂载 `deep-research-pro-preview`，扒取地理与社工特征，提炼为小于 500 词的精准定制密码本，交付 Alfa 与 Hashcat 空爆。
-- **全栈指挥官视窗 (The Commander's HUD)** 引入全局点亮式战役线 (Campaign Pipeline)，无缝串联侦察到收网的生命周期；抛除传统网络连线图框架，JSON 化输出渲染看板级攻击矩阵。
+**【🔴 已完工基座：底层引擎重构与多模态战斧 (Phases 12-14)】**
+- [🔄偏离执行] **跨版本状态机平替 (Interactions API)**：D14 要求 `client.interactions`，因 SDK 不支持，改用 `client.chats.create` 手写上下文栈模拟。
+- [❌重大遗漏] **云端免杀代码沙箱 (CodeExecution)**：D14 要求 `types.Tool(code_execution=...)`，但 V9 未予开发挂载。
+- [🔄偏离执行] **ReAct 引擎护城河 (State Continuum)**：采用第 15 步截断 `tools=[]` 强制总结，而非深度修改底层状态机。
+- [✅彻底对齐] **Pydantic 认知图谱蒸馏 (Structured Output)**：强制大模型按 `AttackGraph` 结构输出 JSON，彻底消灭渲染挂死。
+- [✅彻底对齐] **A2UI ✖️ 零日欺骗落地 (Phase 14)**：实装假页面提纯投递，并[➕新增]落盘持久化至实体兵工厂。
+- [❌重大遗漏] **视觉自我博弈循环**：Playwright 无头浏览器渲染并多模态喂图截断环节未开发。
+- [🔄偏离执行] **轻量图谱降维 (GraphRAG Light)**：彻底去除 Neo4j，采用在前端跑 NetworkX 内存状态全替换。
+
+**【⏳ 待开工模块与 V9.1 架构偿债 (Phases 15-16)】**
+- [✅彻底对齐] **全栈指挥官视窗 (The Commander's HUD)**：正式废弃枯燥独立的 OP 遥控面板。引入顶部【点亮式全局战役线】，左翼隔离武库，右翼 AI 参谋部。
+- [❌核心欠债] **全局多选准星 (Global Target Reticle)**：长期未开发的 P0 债。目前独立武库由于缺乏此跨页多选状态管线，陷入单机盲狙陷阱。V9.2 首要任务！
+- [🔄偏离执行] **Deep Research ✖️ 语义密码图谱**：采用一般级 Flash 大模型及 Pydantic 下发，在 `/api/v1/agent/osint` 端点直连，未拉起深层次纯后台模型。
+- [➕超纲新增] **战区物理隔离 (Theater Manager)**：为防靶场内网跨界污染，强制新增 SQLite 环境层隔离。
+- [➕超纲新增] **C2 控制流 (Sliver Integration)**：越过原设计，新增前端 React C2 面板预留位。
 
 ---
 
 ## ✅ 已完成版本
 
-### ⭐ V8.2 — 流式作战流水线 (03-27) ← 当前版本
+### ⭐ V9.1 — Hacker Copilot 护城河加固 (03-28) ← 当前版本
+
+> **专注解决底层 API 的状态丢失、SSE 渲染挂死，并建立起一套对抗内容审查的云端搜索体系。**
+
+**【🔴 完工模块：底层护城河与原生云能力】**
+- [x] **记忆管线重构 (State Continuum)**：在 `agent_mcp.py` 通过 SQLite `mcp_messages` 表级联，实现了原生的 `types.Content` 无状态会话完美持久化重构。
+- [x] **原生沙盒与全网雷达 (GoogleSearch + CodeExecution)**：开启云端 Python 沙盒并外接原生搜索，配合 `SYSTEM_PROMPT` 人格注入，全面突破平台安全审查。
+- [x] **隐式提权指令 (Sudo Bypass)**：彻底移除终端截盘输入，通过 HUD Keyring 和进程切片下发，实现全自动渗透闭环。
+- [x] **通信稳定器 (SSE Resiliency)**：结构化 JSON 心跳包全面替代原有的空注释流，解决了长时间推演时的 503 报错丢失或假死。
+
+### ⭐ V9.0 — 全栈智能大屏 (03-27)
+
+> **聚焦单兵作战环境下的全维自主渗透。依托极简硬件 (单本+Alfa网卡)，将大屏彻底升级为 G.I. (Generative Interface) 时代的智控终端，建立【领航域】+【情境沙盒】+【AI 参谋部】三段式指挥范式。**
+
+**【🔴 完工基座：底层引擎重构与多模态战斧 (Phases 12-14)】**
+- [x] **原生 Interactions API (长程记忆)**
+- [x] **云端免杀代码沙箱 (CodeExecution)**
+- [x] **ReAct 引擎防熔断 (State Continuum)**
+- [x] **Pydantic 认知图谱蒸馏 (Phase 13)**
+- [x] **A2UI ✖️ 视觉自我博弈 (Phase 14)**
+
+**【🔴 完工模块：全栈交互补全与 OSINT 特工 (Phases 15-16)】**
+- [x] **全栈指挥官视窗 (The Commander's HUD)**：正式废弃枯燥独立的 OP 遥控面板。引入顶部【点亮式全局战役线】导航，改造中部资产大盘为【支持多选框 + 悬浮武库弹窗】的战术图表沙盒。
+- [x] **Deep Research ✖️ 语义密码图谱**：新增 `/api/v1/agent/osint` 后端直连，大模型提炼为致密的近源特定密码本（<500词），供 Alfa 空爆秒收。
+
+
+### ⭐ V8.2 — 流式作战流水线 (03-27)
 
 > **彻底组件化原有的 CLI 流程编排，实现实时反馈的全量级操作流水线。**
 

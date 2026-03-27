@@ -2,8 +2,8 @@
 
 ```
      /\_/\  
-    ( o.o )  Project CLAW V8.2
-     > ^ <   CatTeam Lateral Arsenal Weapon V8.2
+    ( o.o )  Project CLAW V9.0
+     > ^ <   CatTeam Lateral Arsenal Weapon V9.0
     /|   |\  
    (_|   |_) Codename: Lynx · Bloomberg Terminal
 ```
@@ -14,10 +14,10 @@
 
 AI-Native 红队全栈作战平台 · Bloomberg Terminal UI · FastAPI + React · Gemini 3 Agentic AI
 
-[![Version](https://img.shields.io/badge/V8.2-blue)]()
+[![Version](https://img.shields.io/badge/V9.0-blue)]()
 [![Agent](https://img.shields.io/badge/Agent-A2.1-green)]()
 [![Dashboard](https://img.shields.io/badge/Dashboard-Bloomberg-black)]()
-[![AI](https://img.shields.io/badge/AI-Gemini%203%20Flash-orange)]()
+[![AI](https://img.shields.io/badge/AI-Gemini%203.1%20Pro-orange)]()
 [![License](https://img.shields.io/badge/license-Private-red)]()
 
 </div>
@@ -150,7 +150,7 @@ python3 claw-agent.py --readonly # M1 只读模式
 ```
 V1.0 (基础链) → V2.0 (工程化) → V3.0 (攻击链) → V4.0 (合规/AD)
      → V5.0 (SQLite+AI) → V7.0 (Agentic AI) → V8.0 (Web Dashboard)
-     → V8.2 (MCP + 流式流水线) ← 当前版本
+     → V8.2 (MCP + 流式流水线) \n     → V9.0 (全栈智能指挥大盘) ← 当前版本
 ```
 
 ## 📚 文档索引

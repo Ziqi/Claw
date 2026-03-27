@@ -42,13 +42,32 @@ app.add_middleware(
 )
 
 
+_DB_INITIALIZED = False
+
 # === 数据库连接 ===
 @contextmanager
 def get_db():
-    if not os.path.exists(DB_PATH):
-        raise HTTPException(status_code=503, detail="claw.db 不存在。请先运行 make fast")
-    conn = sqlite3.connect(DB_PATH)
+    global _DB_INITIALIZED
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
+    
+    if not _DB_INITIALIZED:
+        from db_engine import SCHEMA
+        is_new = not os.path.exists(DB_PATH)
+        if is_new:
+            os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        try:
+            conn.executescript(SCHEMA)
+            conn.execute("INSERT OR IGNORE INTO environments (name) VALUES ('default')")
+            try:
+                conn.execute("INSERT OR IGNORE INTO environments (name) SELECT DISTINCT env FROM scans")
+            except Exception:
+                pass
+            conn.commit()
+            _DB_INITIALIZED = True
+        except sqlite3.OperationalError as e:
+            print(f"Schema init delay: {e}")
+            
     try:
         yield conn
     finally:
@@ -236,6 +255,185 @@ def interact_sliver(cmd: SliverCommand):
     }
 
 
+# === STRUCTURED OUTPUT: COGNITIVE GRAPH DISTILLATION ===
+from pydantic import Field
+class KillChainNode(BaseModel):
+    source_ip: str = Field(description="攻击发起方IP，如 'Alfa网卡'")
+    target_ip: str = Field(description="攻击目标IP")
+    technique: str = Field(description="使用的杀伤链技术，如 'SMB 爆破'")
+    severity: str = Field(description="危险等级: High, Medium, Low")
+    description: str = Field(description="该攻击节点的原理及目标说明")
+
+class AttackGraph(BaseModel):
+    nodes: list[KillChainNode] = Field(description="杀伤链攻击图谱节点列表")
+
+@app.get("/api/v1/agent/graph")
+def generate_attack_graph(target_ip: str):
+    """(Phase 13) 认知图谱蒸馏：利用 Structured Output 强制返回 JSON 杀伤链"""
+    if not AGENT_API_KEY:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+        
+    with get_db() as conn:
+        env = get_current_env()
+        scan = conn.execute("SELECT scan_id FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
+        if not scan:
+            return {"nodes": []}
+        scan_id = scan["scan_id"]
+        
+        ports = conn.execute("SELECT port, service, product FROM ports WHERE ip=? AND scan_id=?", (target_ip, scan_id)).fetchall()
+        try:
+            vulns = conn.execute("SELECT vulnid, description, severity FROM vulns WHERE ip=? AND scan_id=?", (target_ip, scan_id)).fetchall()
+        except sqlite3.OperationalError:
+            vulns = []
+            
+    context_data = {
+        "target_ip": target_ip,
+        "ports": [dict(p) for p in ports],
+        "vulns": [dict(v) for v in vulns]
+    }
+    
+    prompt = f"""
+    我们正在为 Project CLAW V9 构建全域指挥官看板。
+    以下是目标主机 {target_ip} 的侦察情报：
+    {json.dumps(context_data, ensure_ascii=False)}
+    
+    请严格按照给定的 Pydantic JSON Schema 输出一条理论上的最快攻击链路（最多进行 2 次横向推演）。
+    第一步的 source_ip 必须是系统内置的攻击设备，例如 'Alfa无线监听网卡' 或 'CLAW 主战平台'。
+    如果没有任何已知洞，请推演一个最有可能成功的战术（例如针对 Web 端口的密码爆破）。
+    """
+    
+    try:
+        from google import genai
+        from google.genai import types
+        # Note: Depending on the active version, 3-flash or 3.1-pro might be required
+        client = genai.Client(api_key=AGENT_API_KEY)
+        response = client.models.generate_content(
+            model="gemini-3.1-pro-preview", 
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=AttackGraph,
+                temperature=0.1
+            )
+        )
+        # response.text is guaranteed to be JSON matching AttackGraph
+        return json.loads(response.text)
+    except Exception as e:
+        print(f"[GRAPH DISTILLATION ERROR] {e}")
+        return {"nodes": []}
+
+
+# === A2UI GENERATIVE PAYLOAD FORGE (Multimodal Self-Correction) ===
+import base64
+from playwright.async_api import async_playwright
+
+class ForgeRequest(BaseModel):
+    target_ip: str
+    target_info: dict
+    concept: str = "企业内网登录凭据截获 Portal"
+
+class ForgeResponse(BaseModel):
+    html: str
+    screenshot: str
+
+HTML_PROMPT = """你是一个顶级前端渗透逆向工程师。
+请为目标 ({target_ip}, OS: {os}, 开放端口：{ports}, 意图方案：{concept})
+编写一个【极度逼真】的、不留安全瑕疵的 HTML 页面源码。
+要求：
+1. 必须包含内联的 TailwindCSS (<script src="https://cdn.tailwindcss.com"></script>)。
+2. 背景、Logo 占位符、渐变色必须符合目标身份。
+3. 表单结构必须极为合理（如用户名、密码、MFA 输入框），必须有一个醒目的登录按钮。
+4. 页面需要有微妙的动效（如 hover 阴影）。
+5. 必须返回纯粹且完整的 HTML 代码，不包含多余的代码块标记。
+"""
+
+CORRECTION_PROMPT = """这是一个多模态自我视觉审核过程。这是你刚才生成的页面的浏览器真实截图。
+你必须以专业 UI/UX 设计师和红队代码审查者的身份，找出所有破绽：
+1. 排版是否错位或内容溢出？
+2. 留白是否生硬？
+3. 颜色、边框或按钮是不是显得很“假”？
+如果存在视觉破绽，请直接输出修复这些问题的 **极其完美的、纯粹的 HTML 源码**（绝不带 markdown 块或冗杂说明）。
+但如果你认为当前的页面具有完美的欺骗性，或者没有任何严重的排版错误，请直接仅回复：<NO_ISSUES>
+"""
+
+@app.post("/api/v1/agent/forge", response_model=ForgeResponse)
+async def forge_payload(req: ForgeRequest):
+    if not AGENT_API_KEY:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+        
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=AGENT_API_KEY)
+    
+    ports_desc = ", ".join([f"{p.get('port')}/{p.get('service')}" for p in req.target_info.get("ports", [])])
+    prompt = HTML_PROMPT.format(target_ip=req.target_ip, os=req.target_info.get("os", "未知系统"), ports=ports_desc, concept=req.concept)
+    
+    # 1. Text-to-Code 初稿生成
+    try:
+        resp = client.models.generate_content(
+            model="gemini-3.1-pro-preview",
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.3)
+        )
+        first_draft_html = resp.text.strip()
+        if first_draft_html.startswith("```html"):
+            first_draft_html = first_draft_html.removeprefix("```html").removesuffix("```").strip()
+        elif first_draft_html.startswith("```"):
+            first_draft_html = first_draft_html.removeprefix("```").removesuffix("```").strip()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Generation fail: {e}")
+
+    # 2. Playwright 无头拍照
+    screenshot_b64 = ""
+    screenshot_bytes = b""
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page(viewport={"width": 1280, "height": 800})
+            await page.set_content(first_draft_html)
+            await asyncio.sleep(1) # wait for tailwind CDN and fonts
+            screenshot_bytes = await page.screenshot(type="jpeg", quality=80)
+            screenshot_b64 = base64.b64encode(screenshot_bytes).decode("utf-8")
+            await browser.close()
+    except Exception as e:
+        print(f"[PLAYWRIGHT] Error: {e}")
+        return ForgeResponse(html=first_draft_html, screenshot="")
+
+    # 3. 多模态视觉自我博弈
+    try:
+        image_part = types.Part.from_bytes(data=screenshot_bytes, mime_type="image/jpeg")
+        correction_resp = client.models.generate_content(
+            model="gemini-3.1-pro-preview", 
+            contents=[image_part, CORRECTION_PROMPT],
+            config=types.GenerateContentConfig(temperature=0.1)
+        )
+        correction_result = correction_resp.text.strip()
+        
+        if "<NO_ISSUES>" not in correction_result.upper():
+            final_html = correction_result
+            if final_html.startswith("```html"):
+                final_html = final_html.removeprefix("```html").removesuffix("```").strip()
+            elif final_html.startswith("```"):
+                final_html = final_html.removeprefix("```").removesuffix("```").strip()
+            
+            # 再拍一次以展示成果
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page(viewport={"width": 1280, "height": 800})
+                await page.set_content(final_html)
+                await asyncio.sleep(1)
+                screenshot_bytes2 = await page.screenshot(type="jpeg", quality=80)
+                screenshot_b64 = base64.b64encode(screenshot_bytes2).decode("utf-8")
+                await browser.close()
+        else:
+            final_html = first_draft_html
+    except Exception as e:
+        print(f"[MULTIMODAL] Error: {e}")
+        final_html = first_draft_html
+        
+    return ForgeResponse(html=final_html, screenshot=f"data:image/jpeg;base64,{screenshot_b64}")
+
+
 # === OSINT DEEP RESEARCH APIs ===
 class OsintTarget(BaseModel):
     target: str
@@ -404,6 +602,9 @@ class ChatRequest(BaseModel):
     query: str
     campaign_id: str = "default"
     model: str = "flash"
+    theater: str = "default"
+    agent_mode: bool = True
+    sudo_pass: str | None = None
 
 
 @app.get("/api/agent/stream")
@@ -411,18 +612,45 @@ async def agent_stream_get(
     request: Request,
     query: str = Query(..., description="用户消息"),
     campaign_id: str = Query("default", description="会话标识"),
-    model: str = Query("flash", description="模型选择")
+    model: str = Query("flash", description="模型选择"),
+    theater: str = Query("default", description="作战战区"),
+    agent_mode: bool = Query(True, description="Agent 模式控制开关"),
+    sudo_pass: str | None = Query(None, description="SUDO 密码")
 ):
     """SSE 流式 Agent 对话 (GET — 兼容 EventSource)"""
     if not AGENT_API_KEY:
         raise HTTPException(status_code=503, detail="未配置 Gemini API Key")
 
     async def event_generator():
-        async for event in react_loop_stream(query, campaign_id, model_key=model):
+        q = asyncio.Queue()
+        
+        async def producer():
+            try:
+                async for event in react_loop_stream(query, campaign_id, model_key=model, theater=theater, agent_mode=agent_mode, sudo_pass=sudo_pass):
+                    await q.put(event)
+                await q.put(None)
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                import json
+                err_data = {"message": f"后台队列异常: {str(e)}"}
+                await q.put(f"event: error\ndata: {json.dumps(err_data, ensure_ascii=False)}\n\n")
+                await q.put(None)
+
+        prod_task = asyncio.create_task(producer())
+        
+        while True:
             if await request.is_disconnected():
-                print(f"[SSE] Client disconnected, aborting agent loop ({campaign_id})")
+                prod_task.cancel()
                 break
-            yield event
+            
+            try:
+                event = await asyncio.wait_for(q.get(), timeout=3.0)
+                if event is None:
+                    break
+                yield event
+            except asyncio.TimeoutError:
+                yield ": keepalive\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -442,11 +670,35 @@ async def agent_stream_post(request: Request, req: ChatRequest):
         raise HTTPException(status_code=503, detail="未配置 Gemini API Key")
 
     async def event_generator():
-        async for event in react_loop_stream(req.query, req.campaign_id, model_key=req.model):
+        q = asyncio.Queue()
+        
+        async def producer():
+            try:
+                async for event in react_loop_stream(req.query, req.campaign_id, model_key=req.model, theater=req.theater, agent_mode=req.agent_mode, sudo_pass=req.sudo_pass):
+                    await q.put(event)
+                await q.put(None) # Sentinel for EOF
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                await q.put(f"event: error\ndata: {{\"message\": \"后台队列异常: {str(e)}\"}}\n\n")
+                await q.put(None)
+
+        prod_task = asyncio.create_task(producer())
+        
+        while True:
             if await request.is_disconnected():
-                print(f"[SSE] Client disconnected, aborting agent loop ({req.campaign_id})")
+                prod_task.cancel()
                 break
-            yield event
+            
+            try:
+                # Wait for next event or pulse a heartbeat every 3 seconds to cheat VPN/Proxies idle timeouts
+                event = await asyncio.wait_for(q.get(), timeout=3.0)
+                if event is None:
+                    break
+                yield event
+            except asyncio.TimeoutError:
+                # Yield a safe JSON ping event to keep connection alive
+                yield "event: ping\ndata: {\"status\": \"keepalive\"}\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -539,6 +791,25 @@ def docker_control(action: str, container_name: str):
         return {"status": "ok", "output": r.stdout.strip(), "error": r.stderr.strip() if r.returncode != 0 else None}
     except Exception as e:
         return {"error": str(e)}
+
+class ForgeSaveRequest(BaseModel):
+    html: str
+    target_ip: str
+    theater: str = "default"
+
+@app.post("/api/v1/agent/forge/save")
+def forge_save_payload(req: ForgeSaveRequest):
+    """(Phase 23) 永久固化 A2UI 钓鱼靶面板至本地兵工厂载荷目录"""
+    theater_dir = os.path.join(BASE_DIR, "CatTeam_Loot", req.theater) if req.theater != "default" else os.path.join(BASE_DIR, "CatTeam_Loot")
+    payload_dir = os.path.join(theater_dir, "payloads")
+    os.makedirs(payload_dir, exist_ok=True)
+    
+    filename = f"{req.target_ip}_a2ui_phishing.html"
+    file_path = os.path.join(payload_dir, filename)
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(req.html)
+        
+    return {"status": "ok", "message": "Saved successfully", "path": file_path}
 
 # ============================================================
 #  ENVIRONMENT / THEATER MANAGEMENT
@@ -674,18 +945,35 @@ async def background_waiter(job_id: str, proc: subprocess.Popen, log_fh):
             pass
         if job_id in ACTIVE_JOBS:
             del ACTIVE_JOBS[job_id]
+class OpsRunRequest(BaseModel):
+    command: str
+    theater: str = "default"
+    sudo_pass: Optional[str] = None
+    target_ips: Optional[List[str]] = []
 
 @app.post("/api/v1/ops/run")
 def ops_run(req: OpsRunRequest, background_tasks: BackgroundTasks):
     """异步执行作战命令，返回 job_id"""
     job_id = f"job_{uuid.uuid4().hex[:8]}"
-    log_dir = os.path.join(BASE_DIR, "CatTeam_Loot", req.theater, "logs")
+    
+    # Ensure theater dir exists (which should be CatTeam_Loot/theater_name, except default is CatTeam_Loot)
+    theater_dir = os.path.join(BASE_DIR, "CatTeam_Loot", req.theater) if req.theater != "default" else os.path.join(BASE_DIR, "CatTeam_Loot")
+    log_dir = os.path.join(theater_dir, "logs")
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, f"{job_id}.log")
 
+    if req.target_ips and len(req.target_ips) > 0:
+        targets_file = os.path.join(theater_dir, "targets.txt")
+        with open(targets_file, "w") as f:
+            for ip in req.target_ips:
+                f.write(f"{ip}\n")
+
     # Start process in background
     with open(log_file, "w") as f:
-        f.write(f"--- [Project CLAW V8.2] Task Started: {req.command} ---\n\n")
+        f.write(f"--- [Project CLAW V8.2] Task Started: {req.command} ---\n")
+        if req.target_ips and len(req.target_ips) > 0:
+            f.write(f"--- [Target Scope Override] Locked on {len(req.target_ips)} critical host(s) ---\n")
+        f.write("\n")
     
     # Open log file for subprocess stdout — store handle so it can be closed later
     log_fh = open(log_file, "a")
@@ -853,6 +1141,39 @@ def probe_target(req: ProbeRequest, background_tasks: BackgroundTasks):
     background_tasks.add_task(run_probe)
     return {"status": "started", "target": target, "scan_id": scan_id, "profile": req.profile, "message": f"Nmap 实弹扫描已对 {target} 发起 (模板: {req.profile})"}
 
+import google.genai as genai
+
+class OsintRequest(BaseModel):
+    targets: List[str]
+
+class OsintDictionary(BaseModel):
+    dictionary: List[str]
+
+@app.post("/api/v1/agent/osint")
+def generate_osint_dict(req: OsintRequest):
+    """
+     Phase 16: OSINT 语义特工 (Semantic Credential Profiling)
+    """
+    if not AGENT_API_KEY:
+        # Fallback to a mocked dictionary if no key is provided just for UX completion
+        return {"dictionary": ["Admin@2026", "admin123", "root", "Server_123!", "QWERTY", "Password@1", "123456", "Cisco123", "system"]}
+    try:
+        client = genai.Client(api_key=AGENT_API_KEY)
+        prompt = f"你是一名为攻防演练提供弹药的顶尖 OSINT 情报特工。这里有几台高危设备目标 (可能包含开了 445/3389 的机器，或路由网关): {req.targets}。请推断出 15 个极其精准的弱口令和定制化密码 (包含常见的默认密码和年份组合)，为后续字典降维攻击做准备。无多余废话，直接返回 JSON 数组。"
+        response = client.models.generate_content(
+            model='gemini-2.5-pro',
+            contents=prompt,
+            config={
+                'response_mime_type': 'application/json',
+                'response_schema': OsintDictionary
+            }
+        )
+        data = json.loads(response.text)
+        return {"dictionary": data.get("dictionary", [])}
+    except Exception as e:
+        print(f"[OSINT ERROR] {e}")
+        # Graceful fallback to prevent frontend crash
+        return {"dictionary": ["Admin@2026", "root", "123456", "server123!"], "error": str(e)}
 
 @app.get("/")
 def root():

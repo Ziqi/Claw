@@ -9,7 +9,7 @@
 
 ### 1.1 CLAW 平台版本 (V 前缀)
 
-**当前版本：V8.2 / A2.1**
+**当前版本：V9.0 / A2.1**
 
 ```
 格式: V{X}.{Y}.{Z}
@@ -34,6 +34,7 @@
 | **V8.0-alpha** | **全栈作战平台 (FastAPI+React Bloomberg UI)** |
 | **V8.0.1** | **交互重构 + Docker 实弹 + 武器库 36 模块 + Agent 工具修复** |
 | **V8.2** | **MCP 架构 + OP 流式流水线 + UI 全面审计 + Emoji→SVG**|
+| **V9.0** | **The Commander's HUD + OSINT 语义特工 + TUI 武库融合**|
 
 ### 1.2 Agent 版本 (A 前缀)
 
@@ -235,4 +236,15 @@ emoji:
 
 ---
 
-*本文档是 Project CLAW 的工程治理基线。CONVENTIONS.md v2.3 — 2026-03-27*
+## 6. Hacker Copilot 核心开发纪律 (Rules of Engagement)
+
+作为极高复杂度的 Agentic 渗透攻防体系，为防止代码雪崩与架构偏移，所有参与方（包括大语言模型本身）**必须绝对服从**以下的 **[强制研发流：Plan-Review-Execute]**：
+
+1. **先计划，后执行 (Stop and Wait)**：在编写或修改任何关键代码、文档之前，必须先通过中文书写详细的 `implementation_plan.md`，明确说明理解、风险与文件范围。
+2. **最高指令授权 (Commander's Approval)**：计划提交后，**必须强制停机等待**。只有在指挥官（人类）明确回复 `Approve` 后，才可允许调用文件写入及终端指令开始最终的破坏或重构。
+3. **P0 文档对齐 (Document Alignment)**：任何新增功能必须实时对齐 `CHANGELOG.md` 与 `ROADMAP.md`。凡涉及架构改变的，必须同步复盘并修正 `ARCHITECTURE.md` 与设计的 `DESIGN.md`。文档不对齐直接视为重大研发事故。
+4. **防御性编程**：偏好极简、小范围可逆的改动。严格禁止为了绕过测试而强行屏蔽底层校验逻辑。
+
+---
+
+*本文档是 Project CLAW 的工程治理基线。CONVENTIONS.md v3.0 — 2026-03-28*

@@ -86,31 +86,40 @@ body {
    Activity Bar (左侧图标栏)
    ========================================= */
 .activity-bar {
-  width: 48px;
+  width: 64px;
   background: var(--bg-base);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   align-items: center;
   padding-top: 12px;
-  gap: 8px;
+  gap: 12px;
   flex-shrink: 0;
 }
 
 .activity-icon {
-  width: 36px;
-  height: 36px;
+  width: 100%;
+  height: 56px;
   color: var(--term-muted);
   font-size: 10px;
   font-weight: bold;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border: 1px solid transparent;
+  border-left: 3px solid transparent;
+  transition: all 0.2s;
 }
-.activity-icon.active { color: var(--term-gold); border-color: var(--term-gold); background: rgba(255,153,0,0.05); }
-.activity-icon:hover:not(.active) { color: var(--term-text); border-color: var(--border-hl); }
+.activity-icon.active { 
+  color: var(--term-gold); 
+  border-left-color: var(--term-gold); 
+  background: rgba(255,153,0,0.05); 
+}
+.activity-icon:hover:not(.active) { 
+  color: var(--term-text); 
+  background: rgba(255,255,255,0.03);
+}
 
 /* =========================================
    Sidebar (资产面板)

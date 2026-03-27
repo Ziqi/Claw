@@ -3,7 +3,7 @@ import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { Network } from 'vis-network'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { Radar, AlertTriangle, Crown, Signal, Search, ClipboardList, Swords, BarChart, Settings, RefreshCw, Globe, Crosshair, Loader2, Rocket, Zap, Building, FlaskConical, Skull, KeyRound, Monitor, ShieldAlert, Copy, X, Info, Bug, Lock } from 'lucide-react'
+import { Radar, AlertTriangle, Crown, Signal, Search, ClipboardList, Swords, BarChart, Settings, RefreshCw, Globe, Crosshair, Loader2, Rocket, Zap, Building, Flame, FlaskConical, Skull, KeyRound, Monitor, ShieldAlert, Copy, X, Info, Bug, Lock, Target, Radio, FileText, Wrench, Maximize2, Minimize2, Square, PanelBottom, ArrowUpRight, Terminal as TerminalIcon, Archive, Bot, MessageSquare } from 'lucide-react'
 import useStore from './store'
 import 'xterm/css/xterm.css'
 import './index.css'
@@ -43,6 +43,9 @@ function HudBar({ stats, onToggleTerminal, onRefreshAssets }) {
   const [showTheaterMenu, setShowTheaterMenu] = useState(false)
   const [showCreateTheater, setShowCreateTheater] = useState(false)
   const [showTheaterConfig, setShowTheaterConfig] = useState(false)
+  const sudoPassword = useStore(s => s.sudoPassword)
+  const setSudoPassword = useStore(s => s.setSudoPassword)
+  
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString('zh-CN', { hour12: false }))
     tick()
@@ -92,10 +95,21 @@ function HudBar({ stats, onToggleTerminal, onRefreshAssets }) {
 
   return (
     <div className="hud-bar">
-      <div className="hud-brand" style={{ position: 'relative', cursor: 'pointer' }} onMouseOver={e => { const tip = e.currentTarget.querySelector('.cat-tip'); if (tip) tip.style.display = 'block' }} onMouseOut={e => { const tip = e.currentTarget.querySelector('.cat-tip'); if (tip) tip.style.display = 'none' }}>
-        <span style={{ fontFamily: 'Consolas, monospace', color: '#FF9900', marginRight: '6px', fontSize: '13px' }}>{'/\\_/\\'}</span>
+      <div className="hud-brand" style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+        <span style={{ fontFamily: 'Consolas, monospace', color: '#FF9900', marginRight: '6px', fontSize: '13px' }} onMouseOver={e => { const tip = e.currentTarget.parentElement.querySelector('.cat-tip'); if (tip) tip.style.display = 'block' }} onMouseOut={e => { const tip = e.currentTarget.parentElement.querySelector('.cat-tip'); if (tip) tip.style.display = 'none' }}>{'/\\_/\\'}</span>
         <span style={{ fontFamily: 'Consolas, monospace', color: '#00FFFF', marginRight: '6px', fontSize: '13px' }}>{'( o.o )'}</span>
-        CLAW V8.2
+        CLAW V9.1
+        
+        <div style={{ marginLeft: '12px', padding: '2px 6px', background: sudoPassword ? 'rgba(48,209,88,0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${sudoPassword ? '#30D158' : '#444'}`, borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+             onClick={() => {
+               const pwd = window.prompt("⚠️ 配置全局 Root (Sudo) 提权密码\n用于底层模块与 AI 渗透模块的自动化提权调用:", sudoPassword || "")
+               if (pwd !== null) setSudoPassword(pwd)
+             }}
+             title="全局提权钥匙环">
+          <KeyRound size={12} color={sudoPassword ? '#30D158' : '#888'} /> 
+          <span style={{ fontSize: '11px', color: sudoPassword ? '#30D158' : '#888' }}>{sudoPassword ? 'ROOT: ON' : 'ROOT: OFF'}</span>
+        </div>
+
         <div className="cat-tip" style={{ display: 'none', position: 'absolute', top: '100%', left: 0, marginTop: '8px', background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '16px 20px', zIndex: 9999, whiteSpace: 'pre', fontFamily: 'Consolas, monospace', fontSize: '13px', lineHeight: '1.4', boxShadow: '0 8px 24px rgba(0,0,0,0.8)', minWidth: '340px' }}>
           <span style={{ color: '#00FFFF' }}>{"         /\\_/\\\n"}</span>
           <span style={{ color: '#00FFFF' }}>{"        ( o.o ) "}</span><span style={{ color: '#FFF', fontWeight: 'bold' }}>Project CLAW</span> <span style={{ color: '#30D158' }}>V8.2</span>{"\n"}
@@ -343,9 +357,14 @@ function Sidebar({ assets, onSelect, selected, view, onNavigate, onRefreshAssets
   const portFilter = useStore(state => state.portFilter)
   const setPortFilter = useStore(state => state.setPortFilter)
 
+  const globalTargets = useStore(state => state.globalTargets || [])
+  const toggleGlobalTarget = useStore(state => state.toggleGlobalTarget)
+
   const critCount = assets.filter(a => a.ports.some(p => [445, 3389, 21].includes(p.port))).length
 
-  if (view === 'RC') {
+  const mappedView = view === 'HQ' || view === 'VS' ? 'RC' : view === 'DP' ? 'AT' : view;
+
+  if (mappedView === 'RC') {
     const isCritical = (a) => a.ports.some(p => [445, 3389, 21].includes(p.port))
     return (
       <div className="sidebar-panel">
@@ -380,16 +399,40 @@ function Sidebar({ assets, onSelect, selected, view, onNavigate, onRefreshAssets
           <div className="p-head">[ 资产节点 ({assets.length}) ]</div>
           <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
             {assets.length === 0 && <div style={{ fontSize: '10px', color: '#666', padding: '8px' }}>暂无资产数据</div>}
-            {assets.map(a => {
+            {[...assets].sort((a, b) => {
+              const critA = isCritical(a) ? 1000 : 0
+              const critB = isCritical(b) ? 1000 : 0
+              if (critA !== critB) return critB - critA
+              
+              // Safe IP parsing to avoid React unmount crashes on malformed assets
+              const parseIp = (ipStr) => {
+                if (!ipStr || typeof ipStr !== 'string') return 0;
+                const parts = ipStr.split('.');
+                if (parts.length !== 4) return 0;
+                return parts.reduce((acc, oct) => (acc << 8) + (parseInt(oct, 10) || 0), 0);
+              }
+              
+              return parseIp(a.ip) - parseIp(b.ip)
+            }).map(a => {
               const crit = isCritical(a)
               const isActive = selected === a.ip
+              const isTargeted = globalTargets.includes(a.ip)
               return (
                 <div key={a.ip} className={`asset-row ${isActive ? 'active-row' : ''}`} onClick={() => onSelect(isActive ? null : a.ip)} style={{ borderLeft: crit ? '2px solid #FF3B30' : isActive ? '2px solid #00FFFF' : '2px solid transparent' }}>
-                  <div>
-                    <span className="asset-ip">{a.ip}</span>
-                    {crit && <span style={{ color: '#FF3B30', fontSize: '9px', marginLeft: '4px', fontWeight: 'bold' }}>RED</span>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); toggleGlobalTarget(a.ip); }} 
+                      style={{ cursor: 'pointer', width: '12px', height: '12px', border: `1px solid ${isTargeted ? '#FF3B30' : '#444'}`, background: isTargeted ? '#FF3B30' : 'transparent', borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                      title="加入锁定目标"
+                    >
+                      {isTargeted && <X size={10} color="#000" style={{ fontWeight: 'bold' }} />}
+                    </div>
+                    <span>
+                      <span className="asset-ip">{a.ip}</span>
+                      {crit && <span style={{ color: '#FF3B30', fontSize: '9px', marginLeft: '4px', fontWeight: 'bold' }}>RED</span>}
+                    </span>
                   </div>
-                  <span className="asset-ports">{a.port_count}p</span>
+                  <span className="asset-ports" style={{ flexShrink: 0 }}>{a.port_count}p</span>
                 </div>
               )
             })}
@@ -428,7 +471,7 @@ function Sidebar({ assets, onSelect, selected, view, onNavigate, onRefreshAssets
     )
   }
 
-  if (view === 'AT') {
+  if (mappedView === 'AT') {
 
     return (
       <div className="sidebar-panel">
@@ -507,7 +550,7 @@ function Sidebar({ assets, onSelect, selected, view, onNavigate, onRefreshAssets
   }
 
   // OP: 轻量作战侧边栏
-  if (view === 'OP') {
+  if (mappedView === 'OP') {
     return (
       <div className="sidebar-panel">
         <div className="p-head">[ 作战上下文 ]</div>
@@ -541,8 +584,178 @@ const VIEW_TABS = {
   VS: ['星图拓扑 (Network)', 'ATT&CK 杀伤链'],
 }
 
+function CampaignPipeline({ stats }) {
+  const [openDropdown, setOpenDropdown] = useState(null)
+  
+  const steps = [
+    { icon: <Target size={16} />, label: '战区锚定', actions: ['探测全段存活主机 (Nmap)', '枚举 C 段网段分布', '生成子域结构树'] },
+    { icon: <Radio size={16} />, label: '射频嗅探', actions: ['扫描所有高危端口', '识别 HTTP/Web指纹', '提取服务端证书参数'] },
+    { icon: <Search size={16} />, label: '脆弱性指纹', actions: ['全自动化 Nuclei 猎潜', '执行 MSF 漏扫', '针对 SSH/RDP/SMB 弱口令爆破'] },
+    { icon: <Swords size={16} />, label: 'Alfa 注入', actions: ['部署 Sliver 远控节点', '下发生存免杀 Shellcode', '挂载代理隧道打入内网'] },
+    { icon: <FileText size={16} />, label: '战报生成', actions: ['导出资产 Markdown', '一键生成 PTES 攻防审计战报'] }
+  ]
+  
+  // Dynamically compute the active stage based on current stats
+  let active = 1
+  if (stats) {
+    if ((stats.hosts || 0) > 0) active = 2
+    if ((stats.ports || 0) > 0) active = 3
+    if ((stats.vulns || 0) > 0) active = 4
+  }
+
+  // Handle outside clicks
+  useEffect(() => {
+    const handleOutsideClick = () => setOpenDropdown(null);
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  return (
+    <div style={{ background: '#050505', borderBottom: '1px solid #222', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0', width: '100%', maxWidth: '800px' }}>
+        {steps.map((st, i) => (
+          <React.Fragment key={i}>
+            <div 
+              style={{
+                position: 'relative',
+                display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer',
+                color: i < active ? '#30D158' : i === active ? '#00FFFF' : '#666',
+                fontWeight: i <= active ? 'bold' : 'normal',
+                textShadow: i === active ? '0 0 10px rgba(0,255,255,0.4)' : 'none',
+                opacity: i > active ? 0.4 : 1,
+                transition: 'all 0.3s'
+              }}
+              onClick={(e) => { e.stopPropagation(); setOpenDropdown(openDropdown === i ? null : i) }}
+            >
+              <div style={{ 
+                width: '32px', height: '32px', borderRadius: '50%', background: i === active ? 'rgba(0,255,255,0.1)' : '#111', 
+                border: `2px solid ${i < active ? '#30D158' : i === active ? '#00FFFF' : '#333'}`, 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px',
+                boxShadow: i === active ? '0 0 12px rgba(0,255,255,0.2)' : 'none'
+              }}>
+                {i < active ? '✓' : st.icon}
+              </div>
+              <span style={{ fontSize: '13px' }}>{st.label} ▾</span>
+
+              {openDropdown === i && (
+                <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: '12px', background: 'rgba(10,10,10,0.95)', border: `1px solid ${i < active ? '#30D158' : '#00FFFF'}`, borderRadius: '6px', zIndex: 9999, width: '220px', boxShadow: '0 8px 32px rgba(0,0,0,0.9)', padding: '6px 0', textShadow: 'none', fontWeight: 'normal', color: '#D0D0D0', backdropFilter: 'blur(10px)' }} onClick={e => e.stopPropagation()}>
+                  <div style={{ padding: '6px 14px', fontSize: '10px', color: '#666', marginBottom: '4px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px' }}><Crosshair size={10} /> 智能体战术推演菜单</div>
+                  {st.actions.map((act, j) => (
+                    <div key={j} style={{ padding: '10px 14px', fontSize: '12px', cursor: 'pointer', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(0,255,255,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'} onClick={() => {
+                        window.dispatchEvent(new CustomEvent('claw-exec-cmd', { detail: `请求对当前锁定资产启动: ${act}` }));
+                        setOpenDropdown(null);
+                    }}>
+                      <span style={{ color: '#FF9900' }}>▸</span> {act}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {i < steps.length - 1 && (
+              <div style={{ flex: 1, height: '2px', background: i < active ? '#30D158' : '#222', margin: '0 16px', position: 'relative' }}>
+                {i === active - 1 && <div style={{ position: 'absolute', right: 0, top: '-2px', width: '6px', height: '6px', borderRadius: '50%', background: '#00FFFF', boxShadow: '0 0 8px #00FFFF' }}></div>}
+              </div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function AlfaRadarView() {
+  const rfTargets = useStore(s => s.rfTargets || [])
+  const toggleRfTarget = useStore(s => s.toggleRfTarget)
+  const clearRfTargets = useStore(s => s.clearRfTargets)
+  
+  // Dummy BSSID data for UI prototype
+  const bssids = window.__alfa_targets || [
+    { bssid: '00:11:22:33:44:55', ssid: 'CatTeam_5G', pwr: '-45', ch: '149', enc: 'WPA2' },
+    { bssid: 'AA:BB:CC:DD:EE:FF', ssid: 'Starbucks_WiFi', pwr: '-68', ch: '6', enc: 'OPEN' },
+    { bssid: '66:77:88:99:AA:BB', ssid: 'Guest_Network', pwr: '-82', ch: '1', enc: 'WPA3' },
+  ]
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto', background: '#050505', padding: '16px' }}>
+      <div style={{ paddingBottom: '16px', borderBottom: '1px solid #222', marginBottom: '16px' }}>
+        <div style={{ color: '#BF5AF2', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Radio size={16} /> ALFA 无线射频雷达 (Monitor Mode)
+        </div>
+        <div style={{ fontSize: '11px', color: '#666', marginTop: '6px' }}>
+          网卡: <span style={{ color: '#D0D0D0' }}>wlan1</span> | 型号: <span style={{ color: '#D0D0D0' }}>AWUS036ACM</span> | 状态: <span style={{ color: '#30D158', fontWeight: 'bold' }}>SNIFFING</span>
+        </div>
+      </div>
+
+      {rfTargets.length > 0 && (
+        <div style={{ background: 'rgba(191, 90, 242, 0.1)', borderBottom: '1px solid #BF5AF2', padding: '6px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderRadius: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span style={{ color: '#BF5AF2', fontWeight: 'bold', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Target size={14} /> 锁定的物理源 MAC ({rfTargets.length})
+            </span>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {rfTargets.map(mac => (
+                <span key={mac} style={{ background: 'rgba(191,90,242,0.2)', color: '#BF5AF2', border: '1px solid #BF5AF2', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => toggleRfTarget(mac)}>
+                  {mac} <X size={10} color="#BF5AF2" />
+                </span>
+              ))}
+            </div>
+          </div>
+          <button style={{ background: '#222', color: '#BF5AF2', border: '1px solid #BF5AF2', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={clearRfTargets}>
+            <X size={12} /> 清空队列
+          </button>
+        </div>
+      )}
+
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th style={{ width: '40px', textAlign: 'center' }}><Target size={14} color="#666" /></th>
+            <th>SSID (Network Name)</th>
+            <th>BSSID (MAC Address)</th>
+            <th>PWR (dBm)</th>
+            <th>CHANNEL</th>
+            <th>CRYPTO</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bssids.map(t => {
+            const isSelected = rfTargets.includes(t.bssid)
+            return (
+              <tr key={t.bssid} style={{ cursor: 'pointer', background: isSelected ? 'rgba(191,90,242,0.05)' : 'transparent', borderLeft: isSelected ? '2px solid #BF5AF2' : 'none' }}>
+                <td style={{ textAlign: 'center' }} onClick={e => { e.stopPropagation(); toggleRfTarget(t.bssid); }}>
+                  <div style={{ width: '14px', height: '14px', border: `1px solid ${isSelected ? '#BF5AF2' : '#444'}`, background: isSelected ? '#BF5AF2' : 'transparent', borderRadius: '3px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {isSelected && <X size={10} color="#000" style={{ fontWeight: 'bold' }} />}
+                  </div>
+                </td>
+                <td style={{ color: t.enc === 'OPEN' ? '#FF3B30' : '#00FFFF' }}>{t.ssid}</td>
+                <td style={{ fontFamily: 'monospace', color: '#D0D0D0' }}>{t.bssid}</td>
+                <td style={{ color: parseInt(t.pwr) > -60 ? '#30D158' : '#FF9900' }}>{t.pwr}</td>
+                <td style={{ color: '#FF9900' }}>{t.ch}</td>
+                <td style={{ color: '#666' }}>{t.enc}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      
+      <div style={{ marginTop: '24px', borderTop: '1px solid #222', paddingTop: '16px' }}>
+        <div style={{ color: '#FF9900', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' }}>[ 战利品缓存栈 (Captured Material) ]</div>
+        <div style={{ background: '#111', padding: '12px', borderRadius: '6px', border: '1px solid #333', fontSize: '11px', color: '#999', lineHeight: '1.6' }}>
+          没有任何 EAPOL 或 WPA2 Handshake 被捕获。<br/>
+          请锁定目标热点后，呼叫副驾驶发射 <strong>Deauthentication (干扰/反认证)</strong> 阵列波，强制下属终端断链重连以剥离加密握手包片段。
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function WorkArea({ stats, assets, selectedIp, view, onExecCommand }) {
   const [tab, setTab] = useState(0)
+
+  // Global Multi-Select Hub
+  const globalTargets = useStore(s => s.globalTargets)
+  const toggleGlobalTarget = useStore(s => s.toggleGlobalTarget)
+  const clearGlobalTargets = useStore(s => s.clearGlobalTargets)
 
   // reset tab when view changes
   useEffect(() => { setTab(0) }, [view])
@@ -551,27 +764,53 @@ function WorkArea({ stats, assets, selectedIp, view, onExecCommand }) {
   const tabs = VIEW_TABS[view] || []
 
   return (
-    <div className="activity-main">
-      <div className="terminal-tab-bar">
-        {tabs.map((t, i) => (
-          <button key={t} className={`terminal-tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>
-        ))}
-      </div>
-      <div className="tab-content-area">
-        {view === 'RC' && tab === 0 && <ReconOverview stats={stats} assets={assets} asset={asset} onExecCommand={onExecCommand} />}
+    <div className="activity-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+      {/* 🎯 [NEW] HUD Pipeline is exclusively rendered in HQ mode */}
+      {view === 'HQ' && <CampaignPipeline stats={stats} />}
+      
+      {/* 🎯 [NEW] Persistent Target Pod */}
+      {globalTargets.length > 0 && (
+        <div style={{ background: 'rgba(255, 59, 48, 0.1)', borderBottom: '1px solid #FF3B30', padding: '6px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span style={{ color: '#FF3B30', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Target size={14} /> 高危锁定节点 ({globalTargets.length})
+            </span>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {globalTargets.map(ip => (
+                <span key={ip} style={{ background: 'rgba(255,59,48,0.2)', color: '#FF3B30', border: '1px solid #FF3B30', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => toggleGlobalTarget(ip)}>
+                  {ip} <X size={10} color="#FF3B30" />
+                </span>
+              ))}
+            </div>
+          </div>
+          <button style={{ background: '#222', color: '#FF3B30', border: '1px solid #FF3B30', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={clearGlobalTargets}>
+            <X size={12} /> 清空兵装槽
+          </button>
+        </div>
+      )}
 
-        {view === 'AT' && tab === 0 && <AssetTable assets={assets} onExecCommand={onExecCommand} selectedIp={selectedIp} />}
+      {view !== 'HQ' && (
+        <div className="terminal-tab-bar">
+          {view === 'DP' && ['靶标资产', '战术武库', '云端战车', '远控节点'].map((t, i) => (
+            <button key={t} className={`terminal-tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>
+          ))}
+          {view === 'VS' && ['战区概览', '作战图谱'].map((t, i) => (
+            <button key={t} className={`terminal-tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>
+          ))}
+        </div>
+      )}
+      
+      <div className="tab-content-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+        {view === 'HQ' && <ReconOverview stats={stats} assets={assets} asset={asset} onExecCommand={onExecCommand} />}
 
-        {view === 'OP' && tab === 0 && <OperationPipeline theater={window.__claw_current_theater || 'default'} onRefreshAssets={window.__claw_refresh_assets} />}
+        {view === 'DP' && tab === 0 && <AssetTable assets={assets} onExecCommand={onExecCommand} selectedIp={selectedIp} />}
+        {view === 'DP' && tab === 1 && <ArmoryViewTab assets={assets} selectedIp={selectedIp} onExecCommand={onExecCommand} />}
+        {view === 'DP' && tab === 2 && <DockerPanel />}
+        {view === 'DP' && tab === 3 && <SliverViewTab onExecCommand={onExecCommand} />}
 
         {view === 'VS' && tab === 0 && <TheaterKanban assets={assets} theater={window.__claw_current_theater || 'default'} />}
         {view === 'VS' && tab === 1 && <AttackMatrixView />}
 
-        {view === 'AM' && tab === 0 && <ArmoryViewTab assets={assets} selectedIp={selectedIp} onExecCommand={onExecCommand} />}
-        {view === 'AM' && tab === 1 && <DockerPanel />}
-
-        {view === 'C2' && tab === 0 && <SliverViewTab onExecCommand={onExecCommand} />}
-        {view === 'C2' && tab === 1 && <div style={{ color: '#666', padding: '16px' }}>[SYS] 监听器 (Listeners) 管理模块暂未上线</div>}
       </div>
     </div>
   )
@@ -579,7 +818,7 @@ function WorkArea({ stats, assets, selectedIp, view, onExecCommand }) {
 
 function ReconOverview({ stats, assets, asset, onExecCommand }) {
   return (
-    <div>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto' }}>
       {/* 统一战术标头 (Standard Header Convention) */}
       <div style={{ padding: '16px', borderBottom: '1px solid #222', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -725,103 +964,15 @@ function ReconOverview({ stats, assets, asset, onExecCommand }) {
   )
 }
 
-// ========== OP: OPERATION PIPELINE ==========
-function OperationPipeline({ theater = 'default', onRefreshAssets }) {
-  const [activeStage, setActiveStage] = useState(0)
-  const [runningJob, setRunningJob] = useState(null)
-  const sudoPassword = useStore(state => state.sudoPassword)
-  const setSudoPassword = useStore(state => state.setSudoPassword)
 
-  const stages = [
-    { name: '① 侦察 (Recon)', icon: <Radar size={24} />, steps: [{ id: 'passive', label: '被动嗅探 (tcpdump)', cmd: './catteam.sh 1' }, { id: 'active', label: '主动探活 (nmap -sn)', cmd: './catteam.sh 2' }] },
-    { name: '② 扫描 (Scan)', icon: <Search size={24} />, steps: [{ id: 'port', label: '全端口发现 (make probe)', cmd: './catteam.sh 3' }] },
-    { name: '③ 审计 (Audit)', icon: <ClipboardList size={24} />, steps: [{ id: 'web', label: 'Web指纹清扫 (make audit)', cmd: './catteam.sh 4' }, { id: 'nuclei', label: 'Nuclei 深度漏洞扫描', cmd: './catteam.sh 5' }] },
-    { name: '④ 攻击 (Exploit)', icon: <Swords size={24} />, steps: [{ id: 'poison', label: '投毒陷阱 (Responder)', cmd: './catteam.sh 6' }, { id: 'crack', label: '算力破解 (Hashcat)', cmd: './catteam.sh 7' }, { id: 'lateral', label: '横向移动 (Impacket)', cmd: './catteam.sh 8' }, { id: 'ad', label: 'AD域攻击 (Kerberoast)', cmd: './catteam.sh 10' }] },
-    { name: '⑤ 报告 (Report)', icon: <BarChart size={24} />, steps: [{ id: 'report', label: '生成渗透战报', cmd: './catteam.sh 11' }, { id: 'diff', label: '资产变化检测', cmd: './catteam.sh 12' }] }
-  ]
-
-  useEffect(() => {
-    const handleFinished = () => {
-      setRunningJob(null)
-      if (onRefreshAssets) onRefreshAssets()
-    }
-    window.addEventListener('CLAW_OP_FINISHED', handleFinished)
-    return () => window.removeEventListener('CLAW_OP_FINISHED', handleFinished)
-  }, [onRefreshAssets])
-
-  const executeStep = async (step) => {
-    try {
-      let pwd = sudoPassword
-      if (!pwd) {
-        pwd = window.prompt("⚠️ 此战术底层需操作系统网卡提权 (Root)\n请输入 Mac/Linux 解锁密码:\n(高匿提示：密码仅储存于当前浏览器内存槽中，刷新即自动销毁，绝不上传)")
-        if (!pwd) return // User cancelled
-        setSudoPassword(pwd)
-      }
-
-      // 切换 Console 到 OUTPUT Tab
-      const evt = new CustomEvent('CLAW_SWITCH_CONSOLE_TAB', { detail: 'output' })
-      window.dispatchEvent(evt)
-
-      const res = await fetch(`${API}/ops/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: step.cmd, theater, sudo_pass: pwd })
-      })
-      const data = await res.json()
-      if (data.job_id) {
-        setRunningJob(data.job_id)
-        setTimeout(() => {
-          const logEvt = new CustomEvent('CLAW_START_SSE_LOG', { detail: { job_id: data.job_id, theater } })
-          window.dispatchEvent(logEvt)
-        }, 300)
-      }
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  return (
-    <div style={{ padding: '24px', height: '100%', overflowY: 'auto', color: '#D0D0D0', boxSizing: 'border-box' }}>
-      <div style={{ fontSize: '18px', color: '#FF9900', fontWeight: 'bold', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span><Zap size={18} style={{ verticalAlign: 'middle', marginRight: '6px' }} />标准化作战流程 (Operation Pipeline)</span>
-      </div>
-
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
-        {stages.map((st, idx) => (
-          <div key={idx} onClick={() => setActiveStage(idx)} style={{ flex: 1, cursor: 'pointer', padding: '12px', background: activeStage === idx ? 'rgba(255,153,0,0.1)' : '#111', border: `1px solid ${activeStage === idx ? '#FF9900' : '#333'}`, borderRadius: '6px', textAlign: 'center', transition: 'all 0.2s', position: 'relative' }} onMouseOver={e => { if (activeStage !== idx) e.currentTarget.style.borderColor = '#666' }} onMouseOut={e => { if (activeStage !== idx) e.currentTarget.style.borderColor = '#333' }}>
-            <div style={{ fontSize: '24px', marginBottom: '8px' }}>{st.icon}</div>
-            <div style={{ fontSize: '13px', color: activeStage === idx ? '#FF9900' : '#999', fontWeight: activeStage === idx ? 'bold' : 'normal' }}>{st.name}</div>
-            {idx < stages.length - 1 && <div style={{ position: 'absolute', right: '-16px', top: '50%', transform: 'translateY(-50%)', color: '#333', zIndex: 1, fontSize: '16px' }}>➔</div>}
-          </div>
-        ))}
-      </div>
-
-      <div style={{ background: '#0A0A0A', border: '1px solid #333', borderRadius: '8px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-        <div style={{ fontSize: '15px', color: '#00FFFF', fontWeight: 'bold', marginBottom: '20px' }}>当前阶段工具箱：{stages[activeStage].name}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-          {stages[activeStage].steps.map(s => (
-            <div key={s.id} style={{ background: '#111', border: '1px solid #222', borderRadius: '6px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = '#1a1a1a'} onMouseOut={e => e.currentTarget.style.background = '#111'}>
-              <div>
-                <div style={{ fontSize: '14px', color: '#E0E0E0', fontWeight: 'bold', marginBottom: '6px' }}>{s.label}</div>
-                <div style={{ fontSize: '11px', color: '#666', fontFamily: 'Consolas, monospace' }}>{s.cmd}</div>
-              </div>
-              <button style={{ background: 'rgba(48,209,88,0.1)', color: '#30D158', border: '1px solid #30D158', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', transition: 'all 0.2s' }} onClick={() => executeStep(s)} onMouseOver={e => e.currentTarget.style.background = 'rgba(48,209,88,0.2)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(48,209,88,0.1)'}>▶ 执行</button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 底部保留位置给后续战区管理面板迁移 */}
-      <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px dashed #333' }}>
-        <div style={{ fontSize: '13px', color: '#666', fontFamily: 'Consolas, monospace' }}><Info size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />V8.2 作战流水线: 点击"▶ 执行"按键后，控制台会自动切换至 OUTPUT 标签，并实时回显远端节点的执行输出。</div>
-      </div>
-    </div>
-  )
-}
 
 function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
   const [osintStatus, setOsintStatus] = useState(null)
   const [expandedIp, setExpandedIp] = useState(null)
+
+  // Global Multi-Select Hub
+  const globalTargets = useStore(s => s.globalTargets)
+  const toggleGlobalTarget = useStore(s => s.toggleGlobalTarget)
 
   // Global Sync for Left-Sidebar Filtering
   const search = useStore(s => s.searchFilter)
@@ -864,7 +1015,7 @@ function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
   const expanded = expandedIp ? assets.find(a => a.ip === expandedIp) : null
 
   return (
-    <div>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto' }}>
       <div style={{ padding: '16px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <span style={{ color: '#00FFFF', fontSize: '14px', fontWeight: 'bold' }}>资产台账</span>
@@ -879,12 +1030,29 @@ function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
       </div>
       <table className="data-table">
         <thead>
-          <tr><th>IP 地址</th><th>指纹/OS</th><th>端口数</th><th>服务清单</th><th>杀伤链评级</th><th>快捷操作</th></tr>
+          <tr>
+            <th style={{ width: '40px', textAlign: 'center' }}>
+              <Target size={14} color="#666" />
+            </th>
+            <th>IP 地址</th>
+            <th>指纹/OS</th>
+            <th>端口数</th>
+            <th>服务清单</th>
+            <th>杀伤链评级</th>
+            <th>快捷操作</th>
+          </tr>
         </thead>
         <tbody>
-          {filtered.map(a => (
-            <>
-              <tr key={a.ip} id={`asset-row-${a.ip}`} style={{ cursor: 'pointer', background: expandedIp === a.ip ? 'rgba(0,255,255,0.05)' : 'transparent' }} onClick={() => { setExpandedIp(expandedIp === a.ip ? null : a.ip); if (onSelectAsset) onSelectAsset(a.ip) }}>
+          {filtered.map(a => {
+            const isSelected = globalTargets.includes(a.ip)
+            return (
+            <React.Fragment key={a.ip}>
+              <tr id={`asset-row-${a.ip}`} style={{ cursor: 'pointer', background: expandedIp === a.ip ? 'rgba(0,255,255,0.05)' : (isSelected ? 'rgba(255,59,48,0.05)' : 'transparent'), borderLeft: isSelected ? '2px solid #FF3B30' : 'none' }} onClick={() => { setExpandedIp(expandedIp === a.ip ? null : a.ip); if (onSelectAsset) onSelectAsset(a.ip) }}>
+                <td style={{ textAlign: 'center' }} onClick={e => { e.stopPropagation(); toggleGlobalTarget(a.ip); }}>
+                  <div style={{ width: '14px', height: '14px', border: `1px solid ${isSelected ? '#FF3B30' : '#444'}`, background: isSelected ? '#FF3B30' : 'transparent', borderRadius: '3px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {isSelected && <X size={10} color="#000" style={{ fontWeight: 'bold' }} />}
+                  </div>
+                </td>
                 <td style={{ color: '#00FFFF' }}>{expandedIp === a.ip ? '[-] ' : '[+] '}{a.ip}</td>
                 <td style={{ color: '#666' }}>{a.os || '—'}</td>
                 <td>{a.port_count}</td>
@@ -900,7 +1068,7 @@ function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
               </tr>
               {expandedIp === a.ip && (
                 <tr key={a.ip + '_detail'}>
-                  <td colSpan="6" style={{ padding: 0 }}>
+                  <td colSpan="7" style={{ padding: 0 }}>
                     <div style={{ background: 'rgba(0,255,255,0.03)', padding: '12px 16px', borderTop: '1px dashed #333', borderBottom: '1px dashed #333' }}>
                       <div style={{ display: 'flex', gap: '24px', marginBottom: '12px' }}>
                         <div style={{ flex: 1 }}>
@@ -957,8 +1125,8 @@ function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
                   </td>
                 </tr>
               )}
-            </>
-          ))}
+            </React.Fragment>
+          )})}
         </tbody>
       </table>
     </div>
@@ -1047,6 +1215,9 @@ function XTermConsole() {
 }
 
 function ArmoryViewTab({ assets, selectedIp, onExecCommand }) {
+  // Global Multi-Select Hub
+  const globalTargets = useStore(s => s.globalTargets)
+
   const armoryData = [
     {
       cat: '侦察 (Recon)', color: '#00FFFF', mods: [
@@ -1111,21 +1282,24 @@ function ArmoryViewTab({ assets, selectedIp, onExecCommand }) {
   ]
 
   return (
-    <div style={{ padding: '16px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
+    <div style={{ flex: 1, padding: '16px', overflowY: 'auto', minHeight: 0, boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <span style={{ fontSize: '16px', color: '#00FFFF', fontWeight: 'bold' }}>全域武器库阵列</span>
-        <span style={{ fontSize: '10px', color: '#666' }}>{armoryData.reduce((s, g) => s + g.mods.length, 0)} 模块就绪 · 点击卡片调用 AI 执行 · 目标: {selectedIp || '全局'}</span>
+        <span style={{ fontSize: '10px', color: '#666' }}>
+          {armoryData.reduce((s, g) => s + g.mods.length, 0)} 模块就绪 · 点击卡片调用 AI 执行 · 锁定管线: <span style={{ color: globalTargets.length > 0 ? '#FF3B30' : '#00FFFF' }}>{globalTargets.length > 0 ? `${globalTargets.length} 靶向并发` : (selectedIp || '全局泛扫')}</span>
+        </span>
       </div>
       {armoryData.map(group => (
         <div key={group.cat} style={{ marginBottom: '20px' }}>
           <div style={{ color: group.color, fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', padding: '4px 10px', background: `${group.color}15`, borderRadius: '4px', display: 'inline-block' }}>{group.cat}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
             {group.mods.map(m => (
-              <div key={m.label} style={{ background: '#111', border: '1px solid #222', borderRadius: '4px', padding: '10px', cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => {
-                onExecCommand(`使用 ${m.label} (${m.cmd}) 对 ${selectedIp || '全局资产'} 进行操作`);
+              <div key={m.label} style={{ background: '#111', border: '1px solid #222', borderRadius: '4px', padding: '10px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }} onClick={() => {
+                alert(`⚠️ 指控官约束:【${m.label}】模块已在战备舱注册。\n\n按照 V9.1 Hacker Copilot 规程，如果需要发起实际渗透打击，请返回 [指挥座舱]，交给 Lynx 大模型副官为您装配参数。`);
               }} onMouseOver={e => { e.currentTarget.style.borderColor = group.color; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }} onMouseOut={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.background = '#111' }}>
                 <div style={{ fontSize: '12px', color: group.color, fontWeight: 'bold', marginBottom: '4px' }}>{m.label}</div>
                 <div style={{ fontSize: '10px', color: '#666', lineHeight: '1.4' }}>{m.desc}</div>
+                <div style={{ fontSize: '9px', color: '#00FFFF', marginTop: '10px', paddingTop: '6px', borderTop: '1px dashed #333' }}>+ 参数配置详情 (点击查阅)</div>
               </div>
             ))}
           </div>
@@ -1144,7 +1318,7 @@ function SliverViewTab({ onExecCommand }) {
   }
   useEffect(() => { fetchSessions() }, [])
   return (
-    <div style={{ padding: '24px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
+    <div style={{ flex: 1, padding: '24px', overflowY: 'auto', minHeight: 0, boxSizing: 'border-box' }}>
       <div style={{ fontSize: '18px', color: '#FF3B30', fontWeight: 'bold', borderBottom: '1px solid #333', paddingBottom: '12px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>C2 控制中心 (Sliver Sessions)</span>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -1183,8 +1357,156 @@ function SliverViewTab({ onExecCommand }) {
 }
 
 // ========== VISUALIZATION PANELS ==========
+function A2UIForgeModal({ isOpen, onClose, targetIp, targetOs, targetPorts }) {
+  const [status, setStatus] = useState("idle");
+  const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    if (isOpen && status === "idle") {
+      setStatus("generating");
+      fetch(`http://${window.location.hostname}:8000/api/v1/agent/forge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_ip: targetIp,
+          target_info: { os: targetOs, ports: targetPorts },
+          concept: "企业内部员工身份验证门户"
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        setResult(data);
+        setStatus("done");
+      })
+      .catch(err => {
+        setResult(err.message);
+        setStatus("error");
+      });
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (status === "generating") {
+      const t1 = setTimeout(() => setStatus("screenshotting"), 5000);
+      const t2 = setTimeout(() => setStatus("reflecting"), 12000);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+  }, [status]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#0a0a0a', border: '1px solid #333', width: '90%', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column', borderRadius: 0 }}>
+        <div style={{ padding: '12px 16px', background: '#111', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ color: '#00FFFF', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Monitor size={16} /> A2UI 视觉自我博弈伪造引擎 (Generative Payload Forge)
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', color: '#666', border: 'none', cursor: 'pointer', borderRadius: 0 }}><X size={16}/></button>
+        </div>
+        <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #222', paddingBottom: '20px' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ color: '#999', fontSize: '11px', marginBottom: '8px' }}>[ 当前行动步骤 ]</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ color: status !== "idle" ? '#00FFFF' : '#444', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                   {status === "generating" ? <Loader2 size={12} className="spin" /> : <span>[✓]</span>} 1. Text-to-Code 大模型零日源码撰写
+                </div>
+                <div style={{ color: ["screenshotting", "reflecting", "done"].includes(status) ? '#30D158' : '#444', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                   {status === "screenshotting" ? <Monitor size={12} className="spin" /> : (["reflecting", "done"].includes(status) ? <span>[✓]</span> : <span>[WAIT]</span>)} 2. Playwright 无缝无头截图挂载
+                </div>
+                <div style={{ color: ["reflecting", "done"].includes(status) ? '#FF9900' : '#444', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                   {status === "reflecting" ? <RefreshCw size={12} className="spin" /> : (status === "done" ? <span>[✓]</span> : <span>[WAIT]</span>)} 3. Gemini Multimodal 多模态视觉自纠错
+                </div>
+              </div>
+            </div>
+            <div style={{ flex: 1, borderLeft: '1px solid #222', paddingLeft: '16px' }}>
+              <div style={{ color: '#999', fontSize: '11px', marginBottom: '8px' }}>[ 针对目标属性 ]</div>
+              <div style={{ color: '#ccc', fontSize: '12px' }}>IP: <span style={{ color: '#00FFFF' }}>{targetIp}</span></div>
+              <div style={{ color: '#ccc', fontSize: '12px' }}>OS: {targetOs}</div>
+              <div style={{ color: '#ccc', fontSize: '12px' }}>暴露端口数: {targetPorts?.length || 0}</div>
+            </div>
+          </div>
+
+          {status === "done" && result && result.screenshot && (
+             <div style={{ display: 'flex', gap: '20px', flex: 1, minHeight: '400px' }}>
+               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                 <div style={{ color: '#FF9900', fontSize: '11px', marginBottom: '8px' }}>[ 视觉自纠错快照 (Playwright Vision) ]</div>
+                 <img src={result.screenshot} style={{ width: '100%', objectFit: 'contain', border: '1px solid #333', background: '#000' }} alt="Preview" />
+               </div>
+               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                 <div style={{ color: '#30D158', fontSize: '11px', marginBottom: '8px' }}>[ A2UI 渲染验收靶面 (Interactive HTML) ]</div>
+                 <iframe srcDoc={result.html} style={{ width: '100%', border: '1px solid #333', background: '#fff', minHeight: '400px' }} title="Live Render" sandbox="allow-scripts allow-same-origin"/>
+               </div>
+             </div>
+          )}
+          {status === "error" && (
+             <div style={{ color: '#FF3B30', padding: '20px', border: '1px dashed #FF3B30', background: 'rgba(255,59,48,0.1)' }}>
+               Forge Failed: {result}
+             </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CognitiveGraphRenderer({ targetIp }) {
+  const [nodes, setNodes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    fetch(`http://localhost:5000/api/v1/agent/graph?target_ip=${targetIp}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!active) return;
+        setNodes(d.nodes || []);
+        setLoading(false);
+      })
+      .catch(e => {
+        if (!active) return;
+        setError(e.message);
+        setLoading(false);
+      });
+    return () => { active = false; };
+  }, [targetIp]);
+
+  if (loading) return <div style={{ color: '#00FFFF', fontSize: '10px' }}>Lynx 正在利用 Pydantic 蒸馏杀伤链图谱... ⚡</div>;
+  if (error) return <div style={{ color: '#FF3B30', fontSize: '10px' }}>图谱蒸馏失败: {error}</div>;
+  if (!nodes || nodes.length === 0) return <div style={{ color: '#666', fontSize: '10px' }}>未能推演出有效的杀伤链路径。</div>;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {nodes.map((n, i) => (
+        <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ color: i === 0 ? '#00FFFF' : (i === nodes.length - 1 ? '#FF3B30' : '#FF9900') }}>
+            [{i === 0 ? '起源' : (i === nodes.length - 1 ? '靶标' : '路由')}] {i === 0 ? n.source_ip : n.target_ip}
+          </div>
+          {i < nodes.length && (
+            <div style={{ paddingLeft: '8px', borderLeft: '1px dashed #555', margin: '4px 0', color: '#999', fontSize: '9px' }}>
+              ↓ {n.technique} ({n.severity})<br/>
+              <span style={{ color: '#555' }}>{n.description}</span>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TheaterKanban({ assets, theater }) {
   const [selectedAsset, setSelectedAsset] = useState(null)
+  const [forgeTarget, setForgeTarget] = useState(null)
+  const [armoryOpen, setArmoryOpen] = useState(false)
+  const [osintOpen, setOsintOpen] = useState(false)
+
+  // Global Multi-Select Hub
+  const globalTargets = useStore(s => s.globalTargets)
+  const toggleGlobalTarget = useStore(s => s.toggleGlobalTarget)
+  const clearGlobalTargets = useStore(s => s.clearGlobalTargets)
 
   // Kanban Classification Logic
   // Column 1: Recon (Just IP, no extreme vulns or valuable ports)
@@ -1217,8 +1539,12 @@ function TheaterKanban({ assets, theater }) {
   const renderCard = (a) => {
     const prox = getProximity(a.ip)
     const isSelected = selectedAsset?.ip === a.ip
+    const isMultiSelected = globalTargets.includes(a.ip)
     return (
-      <div key={a.ip || Math.random()} style={{ background: '#050505', border: `1px solid ${isSelected ? '#00FFFF' : '#222'}`, borderRadius: 0, padding: '12px', marginBottom: '8px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }} onClick={() => setSelectedAsset(isSelected ? null : a)}>
+      <div key={a.ip || Math.random()} style={{ background: '#050505', border: `1px solid ${isSelected ? '#00FFFF' : (isMultiSelected ? '#FF9900' : '#222')}`, borderRadius: 0, padding: '12px', paddingLeft: '32px', marginBottom: '8px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }} onClick={() => setSelectedAsset(isSelected ? null : a)}>
+        <div style={{ position: 'absolute', top: '12px', left: '10px' }}>
+           <input type="checkbox" checked={isMultiSelected} onChange={(e) => { e.stopPropagation(); toggleGlobalTarget(a.ip); }} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: '#FF9900' }} title="框选资产" />
+        </div>
         <div style={{ position: 'absolute', top: '8px', right: '8px', color: prox.color, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }} title={`模拟 RF 信号: ${prox.val}`}>
           <Signal size={12} />
         </div>
@@ -1228,15 +1554,18 @@ function TheaterKanban({ assets, theater }) {
         
         {isSelected && (
           <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #333' }}>
-            <div style={{ color: '#FF9900', fontSize: '11px', marginBottom: '8px' }}>[ A2UI 大模型路径推演草图 (Draft) ]</div>
-            <div style={{ background: '#111', padding: '12px', color: '#666', fontSize: '10px', border: '1px solid #222', borderRadius: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ color: '#00FFFF' }}>[起源] 物理近源终端接入</div>
-              <div style={{ paddingLeft: '8px', borderLeft: '1px dashed #555' }}>↓ MITM / T1056</div>
-              <div style={{ color: '#30D158' }}>[路由] 边界 AP 劫持</div>
-              <div style={{ paddingLeft: '8px', borderLeft: '1px dashed #555' }}>↓ 凭据复用横向穿透 / T1021</div>
-              <div style={{ color: '#FF3B30' }}>[靶标] {a.ip}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+               <div style={{ color: '#FF9900', fontSize: '11px' }}>[ A2UI 大模型路径推演 (Powered by Pydantic) ]</div>
+               <button 
+                 onClick={(e) => { e.stopPropagation(); setForgeTarget(a); }}
+                 style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: 0 }}>
+                 <Monitor size={10} /> ▸ 锻造 A2UI 钓鱼靶面
+               </button>
             </div>
-            <div style={{ marginTop: '8px', color: '#444', fontSize: '9px', textAlign: 'right' }}>Powered by Gemini 3</div>
+            <div style={{ background: '#111', padding: '12px', color: '#666', fontSize: '10px', border: '1px solid #222', borderRadius: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <CognitiveGraphRenderer targetIp={a.ip} />
+            </div>
+            <div style={{ marginTop: '8px', color: '#444', fontSize: '9px', textAlign: 'right' }}>Powered by Gemini 3.1 Pro ✖️ Structured Output</div>
           </div>
         )}
       </div>
@@ -1244,52 +1573,257 @@ function TheaterKanban({ assets, theater }) {
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#050505', borderRadius: 0 }}>
-      <div style={{ padding: '16px', borderBottom: '1px solid #222', color: '#00FFFF', fontSize: '14px', fontWeight: 'bold' }}>
+    <>
+      <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', background: '#050505', borderRadius: 0, position: 'relative', minHeight: 0 }}>
+      
+      {globalTargets.length > 0 && (
+        <div style={{ position: 'absolute', top: '16px', right: '16px', background: '#111', border: '1px solid #FF9900', boxShadow: '0 4px 20px rgba(0,0,0,0.8)', padding: '12px 24px', zIndex: 100, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <span style={{ color: '#FF9900', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Crosshair size={14} /> 战役火控授权 ({globalTargets.length} 节点就绪)
+            <X size={14} color="#666" style={{ cursor: 'pointer', marginLeft: 'auto' }} onClick={clearGlobalTargets} />
+          </span>
+          
+          <button onClick={() => setArmoryOpen(true)} style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30', border: '1px solid #FF3B30', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,59,48,0.2)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,59,48,0.1)'}>
+            <Wrench size={14} /> 发射全量渗透矩阵
+          </button>
+
+          <button onClick={() => setOsintOpen(true)} style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Skull size={14} /> 执行近源 OSINT 脱水
+          </button>
+        </div>
+      )}
+
+      <div style={{ padding: '16px', borderBottom: '1px solid #222', color: '#00FFFF', fontSize: '14px', fontWeight: 'bold', flexShrink: 0 }}>
         全域杀伤链看板 (Cyber Kill Chain Kanban) —— 战区: {theater}
       </div>
-      <div style={{ flex: 1, display: 'flex', gap: '0', overflowX: 'auto' }}>
+      <div style={{ flex: 1, display: 'flex', gap: '0', overflowX: 'auto', minHeight: 0 }}>
         
         {/* Col 1 */}
-        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#999', fontSize: '12px', fontWeight: 'bold' }}>
+        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#999', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
             <Radar size={14} /> 刚嗅探到 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[0].length}</span>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a', minHeight: 0 }}>
             {cols[0].map(renderCard)}
           </div>
         </div>
 
         {/* Col 2 */}
-        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#FF9900', fontSize: '12px', fontWeight: 'bold' }}>
+        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#FF9900', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
             <AlertTriangle size={14} /> 高危暴露面 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[1].length}</span>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a', minHeight: 0 }}>
             {cols[1].map(renderCard)}
           </div>
         </div>
 
         {/* Col 3 */}
-        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#FF3B30', fontSize: '12px', fontWeight: 'bold' }}>
+        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#FF3B30', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
             <Skull size={14} /> 已拿下据点 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[2].length}</span>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a', minHeight: 0 }}>
             {cols[2].map(renderCard)}
           </div>
         </div>
 
         {/* Col 4 */}
-        <div style={{ flex: '1 1 250px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#9D00FF', fontSize: '12px', fontWeight: 'bold' }}>
+        <div style={{ flex: '1 1 250px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#9D00FF', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
             <Crown size={14} /> 核心高价值 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[3].length}</span>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a', minHeight: 0 }}>
             {cols[3].map(renderCard)}
           </div>
         </div>
 
+        </div>
+      </div>
+      {forgeTarget && (
+        <A2UIForgeModal 
+          isOpen={!!forgeTarget} 
+          onClose={() => setForgeTarget(null)} 
+          targetIp={forgeTarget.ip} 
+          targetOs={forgeTarget.os || 'Unknown OS'} 
+          targetPorts={forgeTarget.ports || []} 
+        />
+      )}
+      {armoryOpen && (
+        <TacticalArmoryModal 
+          isOpen={armoryOpen} 
+          onClose={() => setArmoryOpen(false)} 
+          targets={Array.from(multiSelected)} 
+          theater={theater} 
+        />
+      )}
+      {osintOpen && (
+        <OsintTerminalModal 
+          isOpen={osintOpen} 
+          onClose={() => setOsintOpen(false)} 
+          targets={Array.from(multiSelected)} 
+        />
+      )}
+    </>
+  )
+}
+
+function OsintTerminalModal({ isOpen, onClose, targets }) {
+  const [log, setLog] = useState([])
+  const [dict, setDict] = useState(null)
+  
+  useEffect(() => {
+    if (!isOpen) return
+    setLog(['[OSINT] 建立安全隧道...', '[OSINT] 劫持目标实体属性指纹...'])
+    
+    setTimeout(() => setLog(l => [...l, '[OSINT] 呼叫 Gemini 3.1 Pro 智能体群集...']), 1000)
+    setTimeout(() => setLog(l => [...l, '[OSINT] 深度检索暗网泄露凭证模式... (推演中)']), 2500)
+    
+    fetch(`${API}/agent/osint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targets })
+    })
+    .then(r => r.json())
+    .then(data => {
+      setLog(l => [...l, '[OSINT] Pydantic 字典蒸馏完成！', '-----------------------------'])
+      if (data.dictionary) {
+        setDict(data.dictionary)
+      } else {
+        setLog(l => [...l, '[ERROR] ' + (data.error || 'Unknown error')])
+      }
+    })
+    .catch(err => setLog(l => [...l, '[ERROR] ' + err.message]))
+  }, [isOpen, targets])
+
+  if (!isOpen) return null
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+      <div style={{ width: '800px', height: '500px', background: '#050505', border: '1px solid #00FFFF', boxShadow: '0 0 30px rgba(0,255,255,0.2)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111' }}>
+          <div style={{ color: '#00FFFF', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Crosshair size={16} /> 语义凭证靶向锻造 (Semantic Dictionary)
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer' }}><X size={16} /></button>
+        </div>
+        <div style={{ flex: 1, padding: '20px', overflowY: 'auto', fontFamily: 'Consolas, monospace', fontSize: '12px', color: '#30D158' }}>
+          {log.map((line, i) => <div key={i} style={{ marginBottom: '6px' }}>{line}</div>)}
+          {dict && (
+            <div style={{ marginTop: '20px', padding: '16px', border: '1px dashed #00FFFF', background: 'rgba(0,255,255,0.05)' }}>
+              <div style={{ color: '#FF9900', marginBottom: '12px', fontWeight: 'bold' }}>// 已生成跨域定制化弱口令 (符合 Pydantic Schema):</div>
+              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#fff' }}>
+                {JSON.stringify(dict, null, 2)}
+              </pre>
+              <div style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
+                <button onClick={() => navigator.clipboard.writeText(dict.join('\\n'))} style={{ background: '#222', border: '1px solid #00FFFF', color: '#00FFFF', padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}><Copy size={14}/> 复制字典 (Copy to Clipboard)</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TacticalArmoryModal({ isOpen, onClose, targets, theater }) {
+  const [activeStage, setActiveStage] = useState(0)
+  const [runningJob, setRunningJob] = useState(null)
+  
+  const sudoPassword = useStore(s => s.sudoPassword)
+  const setSudoPassword = useStore(s => s.setSudoPassword)
+
+  const stages = [
+    { name: '① 侦察 (Recon)', icon: <Radar size={24} />, steps: [{ id: 'passive', label: '被动嗅探 (tcpdump)', cmd: './catteam.sh 1' }, { id: 'active', label: '主动探活 (nmap -sn)', cmd: './catteam.sh 2' }] },
+    { name: '② 扫描 (Scan)', icon: <Search size={24} />, steps: [{ id: 'port', label: '全端口发现 (make probe)', cmd: './catteam.sh 3' }] },
+    { name: '③ 审计 (Audit)', icon: <ClipboardList size={24} />, steps: [{ id: 'web', label: 'Web指纹清扫 (make audit)', cmd: './catteam.sh 4' }, { id: 'nuclei', label: 'Nuclei 深度漏洞扫描', cmd: './catteam.sh 5' }] },
+    { name: '④ 攻击 (Exploit)', icon: <Swords size={24} />, steps: [{ id: 'poison', label: '投毒陷阱 (Responder)', cmd: './catteam.sh 6' }, { id: 'crack', label: '算力破解 (Hashcat)', cmd: './catteam.sh 7' }, { id: 'lateral', label: '横向移动 (Impacket)', cmd: './catteam.sh 8' }, { id: 'ad', label: 'AD域攻击 (Kerberoast)', cmd: './catteam.sh 10' }] },
+    { name: '⑤ 报告 (Report)', icon: <BarChart size={24} />, steps: [{ id: 'report', label: '生成渗透战报', cmd: './catteam.sh 11' }, { id: 'diff', label: '资产变化检测', cmd: './catteam.sh 12' }] }
+  ]
+
+  useEffect(() => {
+    const handleFinished = () => {
+      setRunningJob(null)
+      if (window.__claw_refresh_assets) window.__claw_refresh_assets()
+    }
+    window.addEventListener('CLAW_OP_FINISHED', handleFinished)
+    return () => window.removeEventListener('CLAW_OP_FINISHED', handleFinished)
+  }, [])
+
+  const executeStep = async (step) => {
+    try {
+      let pwd = sudoPassword
+      if (!pwd) {
+        pwd = window.prompt("⚠️ 此战术底层需提权 (Root)\n请解锁授权:")
+        if (!pwd) return
+        setSudoPassword(pwd)
+      }
+      const evt = new CustomEvent('CLAW_SWITCH_CONSOLE_TAB', { detail: 'output' })
+      window.dispatchEvent(evt)
+
+      const res = await fetch(`${API}/ops/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: step.cmd, theater, sudo_pass: pwd, target_ips: targets }) // Passing specifically selected targets
+      })
+      const data = await res.json()
+      if (data.job_id) {
+        setRunningJob(data.job_id)
+        setTimeout(() => {
+          const logEvt = new CustomEvent('CLAW_START_SSE_LOG', { detail: { job_id: data.job_id, theater } })
+          window.dispatchEvent(logEvt)
+        }, 300)
+      }
+      onClose() // Auto-close modal to watch the logs
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, backdropFilter: 'blur(4px)' }}>
+      <div style={{ width: '900px', background: '#050505', border: '1px solid #333', borderRadius: 0, padding: 0, display: 'flex', flexDirection: 'column', boxShadow: '0 10px 40px rgba(0,0,0,0.9)' }}>
+        
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111' }}>
+          <div style={{ color: '#FF3B30', fontSize: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Wrench size={18} /> 情境实体火控中心 (The Tactical Armory)
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer' }}><X size={18} /></button>
+        </div>
+
+        <div style={{ padding: '20px', overflowY: 'auto' }}>
+          <div style={{ color: '#00FFFF', fontSize: '12px', marginBottom: '24px' }}>
+            已锁定 <span style={{ background: '#222', padding: '2px 6px', color: '#FF9900' }}>{targets.length}</span> 个目标主机: {targets.join(', ')}
+          </div>
+
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
+            {stages.map((st, idx) => (
+              <div key={idx} onClick={() => setActiveStage(idx)} style={{ flex: 1, cursor: 'pointer', padding: '12px', background: activeStage === idx ? 'rgba(255,59,48,0.1)' : '#111', border: `1px solid ${activeStage === idx ? '#FF3B30' : '#333'}`, borderRadius: '6px', textAlign: 'center', transition: 'all 0.2s', position: 'relative' }}>
+                <div style={{ fontSize: '24px', marginBottom: '8px', color: activeStage === idx ? '#FF3B30' : '#999' }}>{st.icon}</div>
+                <div style={{ fontSize: '13px', color: activeStage === idx ? '#FF3B30' : '#999', fontWeight: activeStage === idx ? 'bold' : 'normal' }}>{st.name}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ background: '#0A0A0A', border: '1px solid #333', borderRadius: '8px', padding: '24px' }}>
+            <div style={{ fontSize: '15px', color: '#00FFFF', fontWeight: 'bold', marginBottom: '20px' }}>指令集：{stages[activeStage].name}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+              {stages[activeStage].steps.map(s => (
+                <div key={s.id} style={{ background: '#111', border: '1px solid #222', borderRadius: '6px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '14px', color: '#E0E0E0', fontWeight: 'bold', marginBottom: '6px' }}>{s.label}</div>
+                    <div style={{ fontSize: '11px', color: '#666', fontFamily: 'Consolas, monospace' }}>{s.cmd} [针对 {targets.length} 台]</div>
+                  </div>
+                  <button style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30', border: '1px solid #FF3B30', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} onClick={() => executeStep(s)}>
+                    ▶ 发射
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -1300,7 +1834,7 @@ function AttackMatrixView() {
   const [selectedTech, setSelectedTech] = useState(null)
   useEffect(() => { fetch(`${API}/attack_matrix`).then(r => r.json()).then(setData).catch(console.error) }, [])
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto' }}>
       <div style={{ padding: '8px 16px', fontSize: '10px', color: '#666', borderBottom: '1px solid #222' }}>
         MITRE ATT&CK 杀伤链：安全行业标准攻击分类框架。红色高亮 = 当前行动已覆盖的攻击阶段。点击查看技术说明。
       </div>
@@ -1333,13 +1867,17 @@ function AttackMatrixView() {
 
 // ========== AI COPILOT PANEL ==========
 const MODELS = [
-  { key: 'flash', label: 'Flash', color: '#00FFFF', desc: '快速响应' },
+  { key: 'lite', label: 'Flash-Lite', color: '#B0B0B0', desc: '首选: 极速吞吐抗并发' },
+  { key: 'flash', label: 'Flash', color: '#00FFFF', desc: '常规响应' },
   { key: 'think', label: 'Think', color: '#30D158', desc: 'Flash 深度推理' },
   { key: 'pro', label: 'Pro 3.1', color: '#FF9900', desc: '大模型均衡' },
   { key: 'deep', label: 'Deep Think', color: '#FF3B30', desc: '最强推理' },
 ]
 
-function AiPanel({ width, onResize, selectedIp, assets, externalCommand }) {
+function AiPanel({ width, onResize, selectedIp, assets, externalCommand, isHqMode }) {
+  const agentMode = useStore(s => s.agentMode)
+  const toggleAgentMode = useStore(s => s.toggleAgentMode)
+  const sudoPassword = useStore(s => s.sudoPassword)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -1423,12 +1961,19 @@ function AiPanel({ width, onResize, selectedIp, assets, externalCommand }) {
       await fetchEventSource(`http://${window.location.hostname}:8000/api/agent/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: userMsg, campaign_id: campaignId, model: model.key }),
+        body: JSON.stringify({ query: userMsg, campaign_id: campaignId, model: model.key, theater: window.__claw_current_theater || 'default', agent_mode: agentMode, sudo_pass: sudoPassword }),
         signal: ctrl.signal,
         openWhenHidden: true,
 
         onmessage(ev) {
-          const data = JSON.parse(ev.data)
+          if (!ev.data) return; // Safely ignore empty data frames (e.g., SSE heartbeats)
+          let data;
+          try {
+            data = JSON.parse(ev.data)
+          } catch (e) {
+            console.error('[SSE Parse Fault] Raw data:', ev.data);
+            throw new Error('JSON 解析失真(截断): ' + e.message + ' | 头部内容: ' + ev.data.substring(0, 100));
+          }
           switch (ev.event) {
             case 'RUN_STARTED':
               setMessages(prev => {
@@ -1495,13 +2040,29 @@ function AiPanel({ width, onResize, selectedIp, assets, externalCommand }) {
           console.error('SSE error:', err)
           setMessages(prev => {
             const msgs = [...prev]; const last = msgs[msgs.length - 1]
-            if (last?.role === 'ai') { last.text = '[ERR] 连接中断，请重试'; last.thinking = false; last.done = true; last.isError = true }
+            if (last?.role === 'ai') { 
+                const errText = err.message ? err.message : '连接中断，请重试';
+                last.text += `\n\n[ERR] 执行总线异常: ${errText}`; 
+                last.thinking = false; last.done = true; last.isError = true;
+            }
             return msgs
           })
           setStreaming(false)
           throw err
         },
-        onclose() { setStreaming(false) },
+        onclose() {
+          if (!ctrl.signal.aborted && streamingRef.current) {
+            setMessages(prev => {
+              const msgs = [...prev]; const last = msgs[msgs.length - 1]
+              if (last?.role === 'ai' && !last.isError) {
+                last.text += `\n\n[ERR] 连接中断，请重试`
+                last.thinking = false; last.done = true; last.isError = true
+              }
+              return msgs
+            })
+          }
+          setStreaming(false)
+        },
       })
     } catch (e) {
       if (e.name !== 'AbortError') console.error('Agent stream failed:', e)
@@ -1552,8 +2113,8 @@ function AiPanel({ width, onResize, selectedIp, assets, externalCommand }) {
 
   return (
     <>
-      <div className="resizer" onMouseDown={startDrag}></div>
-      <div className="col-right" style={{ width: width + 'px' }}>
+      {!isHqMode && <div className="resizer" onMouseDown={startDrag}></div>}
+      <div className="col-right" style={isHqMode ? { flex: 1, minWidth: 0 } : { width: typeof width === 'number' ? width + 'px' : width }}>
         <div className="ai-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 100 }}>
           <div className="ai-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', flexShrink: 1, overflow: 'hidden' }}>
             <span style={{ flexShrink: 0 }}>✧</span> <span style={{ flexShrink: 0 }}>LYNX AI</span>
@@ -1710,7 +2271,7 @@ function AiPanel({ width, onResize, selectedIp, assets, externalCommand }) {
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); challengeMsg ? handleChallenge() : sendMessage() } }}
             />
             <div className="input-tools">
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div className="model-selector" onClick={() => setMenuOpen(!menuOpen)}>
                   <span style={{ color: model.color }}>●</span>
                   <span style={{ color: '#D0D0D0' }}>{model.label}</span>
@@ -1725,6 +2286,24 @@ function AiPanel({ width, onResize, selectedIp, assets, externalCommand }) {
                     ))}
                   </div>
                 )}
+                
+                <div 
+                  className="agent-toggle" 
+                  onClick={toggleAgentMode}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
+                    padding: '4px 8px', borderRadius: '4px', border: `1px solid ${agentMode ? '#FF9900' : '#333'}`,
+                    background: agentMode ? 'rgba(255,153,0,0.1)' : 'rgba(255,255,255,0.05)',
+                    fontSize: '11px', fontWeight: 'bold', fontFamily: 'Consolas, monospace',
+                    transition: 'all 0.2s', userSelect: 'none'
+                  }}
+                  title={agentMode ? "Autonomous Execution Allowed" : "Read-Only Conversational Mode"}
+                >
+                  {agentMode ? <Bot size={13} color="#FF9900" /> : <MessageSquare size={13} color="#30D158" />}
+                  <span style={{ color: agentMode ? '#FF9900' : '#888' }}>
+                    [ AUTONOMY: {agentMode ? 'ON' : 'OFF'} ]
+                  </span>
+                </div>
               </div>
               {streaming ? (
                 <button className="send-btn" onClick={stopStream} style={{ background: '#FF3B30' }}>
@@ -1940,7 +2519,7 @@ function DockerPanel() {
   if (loading) return <div style={{ color: '#666', padding: '24px' }}>正在查询 Docker 状态...</div>
 
   return (
-    <div style={{ padding: '24px', overflowY: 'auto', height: '100%', boxSizing: 'border-box' }}>
+    <div style={{ flex: 1, padding: '24px', overflowY: 'auto', minHeight: 0, boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
           <span style={{ fontSize: '16px', color: '#FF9900', fontWeight: 'bold' }}>云端战车 (Docker Arsenal)</span>
@@ -2144,6 +2723,137 @@ function Spotlight({ assets, open, onClose, onSelectAsset, onSelectModule }) {
   )
 }
 
+// ========== FLOATING CONSOLE ==========
+function FloatingConsole({ isDocked, setIsDocked }) {
+  const terminalOpen = useStore(state => state.terminalOpen)
+  const setTerminalOpen = useStore(state => state.setTerminalOpen)
+  const consoleTab = useStore(state => state.consoleTab)
+  const setConsoleTab = useStore(state => state.setConsoleTab)
+  const terminalHeight = useStore(state => state.terminalHeight)
+  const setTerminalHeight = useStore(state => state.setTerminalHeight)
+  const stats = useStore(state => state.stats)
+  
+  const [maximized, setMaximized] = useState(false)
+  const [minimized, setMinimized] = useState(false)
+
+  const isTermDragging = useRef(false)
+  const startTerminalDrag = (e) => {
+    e.stopPropagation()
+    isTermDragging.current = true
+    document.body.style.cursor = 'row-resize'
+    document.body.style.userSelect = 'none'
+    const onMove = (ev) => {
+      if (!isTermDragging.current) return
+      const newH = Math.max(100, Math.min(window.innerHeight - ev.clientY, window.innerHeight * 0.8))
+      setTerminalHeight(newH)
+    }
+    const onUp = () => {
+      isTermDragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
+
+  if (!terminalOpen) return null
+
+  if (minimized && !isDocked) {
+    return (
+      <div style={{ position: 'fixed', bottom: 20, right: '400px', zIndex: 9999, background: '#111', border: '1px solid #00FFFF', padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 4px 20px rgba(0,255,255,0.2)', cursor: 'pointer' }} onClick={() => setMinimized(false)}>
+        <span style={{ color: '#00FFFF', fontSize: '13px', fontWeight: 'bold' }}><Zap size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }}/>CLAW Console Active</span>
+        <button style={{ border: 'none', background: 'transparent', color: '#ccc', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={(e) => { e.stopPropagation(); setTerminalOpen(false) }} title="彻底关闭"><X size={14}/></button>
+      </div>
+    )
+  }
+
+  const dockedStyles = {
+    position: 'relative',
+    height: `${Math.max(150, terminalHeight)}px`,
+    width: '100%',
+    background: '#050505',
+    borderTop: '1px solid #333',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden'
+  }
+
+  const floatingWidth = maximized ? '98vw' : '800px'
+  const floatingHeight = maximized ? '96vh' : `${Math.max(300, terminalHeight)}px`
+  const positionStyles = maximized ? 
+    { top: '2vh', left: '1vw' } : 
+    { bottom: 20, right: '400px' } // Keep clear of AiPanel which is ~350px wide
+
+  const floatingStyles = {
+    position: 'fixed',
+    ...positionStyles,
+    width: floatingWidth,
+    height: floatingHeight,
+    background: '#050505',
+    border: '1px solid #00FFFF',
+    borderRadius: '8px',
+    zIndex: 9999,
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 10px 50px rgba(0,0,0,0.8)',
+    overflow: 'hidden',
+    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+  }
+
+  const currentStyles = isDocked ? dockedStyles : floatingStyles
+
+  return (
+    <div style={currentStyles}>
+      {/* Header */}
+      <div 
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 16px', borderBottom: '1px solid #222', backgroundColor: '#111', fontSize: '12px', cursor: isDocked ? 'row-resize' : 'default', userSelect: 'none' }}
+        onMouseDown={isDocked ? startTerminalDrag : undefined}
+      >
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} onMouseDown={e => e.stopPropagation()}>
+          {[['xterm', 'XTERM CONSOLE'], ['output', 'OUTPUT'], ['debug', 'DEBUG CONSOLE']].map(([k, label]) => (
+            <span key={k} data-console-tab={consoleTab === k ? k : undefined} style={{ cursor: 'pointer', padding: '4px 0', color: consoleTab === k ? '#00FFFF' : '#666', fontWeight: consoleTab === k ? 'bold' : 'normal', borderBottom: consoleTab === k ? '2px solid #00FFFF' : '2px solid transparent', transition: 'all 0.2s' }} onClick={() => setConsoleTab(k)}>{label}</span>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }} onMouseDown={e => e.stopPropagation()}>
+          {isDocked ? (
+            <button style={{ background: 'transparent', border: 'none', color: '#999', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => setIsDocked(false)} title="漂浮弹出 (Float)"><ArrowUpRight size={13}/></button>
+          ) : (
+            <>
+              <button style={{ background: 'transparent', border: 'none', color: '#999', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => setIsDocked(true)} title="停靠到底部 (Dock)"><PanelBottom size={13}/></button>
+              <button style={{ background: 'transparent', border: 'none', color: '#999', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => setMinimized(true)} title="最小化"><Minimize2 size={13}/></button>
+              <button style={{ background: 'transparent', border: 'none', color: '#999', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => setMaximized(!maximized)} title="最大化">{maximized ? <Square size={13}/> : <Maximize2 size={13}/>}</button>
+            </>
+          )}
+          <button style={{ background: 'transparent', border: 'none', color: '#FF3B30', cursor: 'pointer', marginLeft: '8px', display: 'flex', alignItems: 'center' }} onClick={() => setTerminalOpen(false)} title="关闭 (Close)"><X size={14}/></button>
+        </div>
+      </div>
+      {/* Body */}
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: '8px' }}>
+        {consoleTab === 'xterm' && <MemoXTerm />}
+        {consoleTab === 'output' && <OutputConsole />}
+        {consoleTab === 'debug' && (
+          <div style={{ color: '#666', fontSize: '12px', fontFamily: 'Consolas, monospace', padding: '8px', overflowY: 'auto', height: '100%' }}>
+            <div style={{ color: '#00FFFF', fontWeight: 'bold', marginBottom: '12px' }}>系统连接状态</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30D158', display: 'inline-block' }}></span><span>后端 API: {API}</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30D158', display: 'inline-block' }}></span><span>Agent: Gemini 3 Flash (MCP)</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FF9900', display: 'inline-block' }}></span><span>HITL: Enabled (RED 操作需审批)</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00FFFF', display: 'inline-block' }}></span><span>WebSocket (PTY): ws://localhost:8000/api/v1/terminal</span></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30D158', display: 'inline-block' }}></span><span>Scope: God Mode (无限制)</span></div>
+            </div>
+            <div style={{ marginTop: '16px', paddingTop: '8px', borderTop: '1px solid #222', color: '#444', fontSize: '10px' }}>
+              当前战区: {window.__claw_current_theater || 'default'} | 资产: {stats?.hosts ?? '?'} 台 | 端口: {stats?.ports ?? '?'} 个
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
 // ========== MAIN APP ==========
 const MemoXTerm = React.memo(XTermConsole)
 
@@ -2167,29 +2877,8 @@ function App() {
   const setTerminalOpen = useStore(state => state.setTerminalOpen)
   const consoleTab = useStore(state => state.consoleTab)
   const setConsoleTab = useStore(state => state.setConsoleTab)
-  const terminalHeight = useStore(state => state.terminalHeight)
-  const setTerminalHeight = useStore(state => state.setTerminalHeight)
-  const isTermDragging = useRef(false)
 
-  const startTerminalDrag = (e) => {
-    isTermDragging.current = true
-    document.body.style.cursor = 'row-resize'
-    document.body.style.userSelect = 'none'
-    const onMove = (ev) => {
-      if (!isTermDragging.current) return
-      const newH = Math.max(100, Math.min(window.innerHeight - ev.clientY, window.innerHeight * 0.8))
-      setTerminalHeight(newH)
-    }
-    const onUp = () => {
-      isTermDragging.current = false
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-    }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-  }
+  const [isDocked, setIsDocked] = useState(true)
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -2233,74 +2922,46 @@ function App() {
 
         {/* Left pane: Activities, Sidebar, Center WorkArea OVER Terminal */}
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-
-          {/* Top section */}
+          
           <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
             <div className="activity-bar">
-              {[['RC', '侦察'], ['AT', '资产'], ['AM', '武库'], ['OP', '作战'], ['C2', '远控'], ['VS', '全域']].map(([k, label]) => (
-                <div key={k} className={`activity-icon ${view === k ? 'active' : ''}`} onClick={() => setView(k)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  {label}
+              {[['HQ', TerminalIcon, '指挥座舱'], ['RF', Radio, '无线电场'], ['DP', Archive, '数字兵站'], ['VS', Globe, '全域透视']].map(([k, Icon, label]) => (
+                <div key={k} className={`activity-icon ${view === k ? 'active' : ''}`} onClick={() => setView(k)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <Icon size={20} strokeWidth={1.5} />
+                  <div style={{ fontSize: '10px' }}>{label}</div>
                 </div>
               ))}
             </div>
-            <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} view={view} onNavigate={setView} onRefreshAssets={refreshAssets} />
-            <WorkArea stats={stats} assets={assets} selectedIp={selectedIp} view={view} onExecCommand={cmd => setExternalCommand({ id: Date.now(), cmd })} />
-          </div>
 
-          {/* Bottom section: TERMINAL PANEL */}
-          <div style={{ display: terminalOpen ? 'flex' : 'none', height: terminalHeight, borderTop: '1px solid #333', flexDirection: 'column', backgroundColor: '#050505', zIndex: 50 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 16px', borderBottom: '1px solid #222', backgroundColor: '#111', fontSize: '11px', color: '#999', cursor: 'row-resize', userSelect: 'none' }}
-              onMouseDown={startTerminalDrag}>
-              <div style={{ display: 'flex', gap: '0' }}>
-                {[['xterm', 'XTERM CONSOLE'], ['output', 'OUTPUT'], ['debug', 'DEBUG CONSOLE']].map(([k, label]) => (
-                  <span key={k} data-console-tab={consoleTab === k ? k : undefined} style={{ cursor: 'pointer', padding: '4px 12px', color: consoleTab === k ? '#00FFFF' : '#999', fontWeight: consoleTab === k ? 'bold' : 'normal', borderBottom: consoleTab === k ? '2px solid #00FFFF' : '2px solid transparent', transition: 'all 0.2s' }} onClick={(e) => { e.stopPropagation(); setConsoleTab(k) }}>{label}</span>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <span style={{ cursor: 'pointer', color: '#ccc', display: 'flex', alignItems: 'center' }} onClick={(e) => { e.stopPropagation(); setTerminalOpen(false) }}><X size={14} /></span>
-              </div>
-            </div>
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: '8px' }}>
-              {consoleTab === 'xterm' && <MemoXTerm />}
-              {consoleTab === 'output' && <OutputConsole />}
-              {consoleTab === 'debug' && (
-                <div style={{ color: '#666', fontSize: '12px', fontFamily: 'Consolas, monospace', padding: '8px', overflowY: 'auto', height: '100%' }}>
-                  <div style={{ color: '#00FFFF', fontWeight: 'bold', marginBottom: '12px' }}>系统连接状态</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30D158', display: 'inline-block' }}></span>
-                      <span>后端 API: {API}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30D158', display: 'inline-block' }}></span>
-                      <span>Agent: Gemini 3 Flash (MCP)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FF9900', display: 'inline-block' }}></span>
-                      <span>HITL: Enabled (RED 操作需审批)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00FFFF', display: 'inline-block' }}></span>
-                      <span>WebSocket (PTY): ws://localhost:8000/api/v1/terminal</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30D158', display: 'inline-block' }}></span>
-                      <span>Scope: God Mode (无限制)</span>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: '16px', paddingTop: '8px', borderTop: '1px solid #222', color: '#444', fontSize: '10px' }}>
-                    当前战区: {window.__claw_current_theater || 'default'} | 资产: {stats?.hosts ?? '?'} 台 | 端口: {stats?.ports ?? '?'} 个
-                  </div>
-                </div>
+            {/* Sidebar conditionally renders based on view mappings; for RF, it renders null to maximize radar width */}
+            <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} view={view} onNavigate={setView} onRefreshAssets={refreshAssets} />
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, borderRight: '1px solid #333' }}>
+              {view === 'RF' ? (
+                <AlfaRadarView />
+              ) : (
+                <WorkArea stats={stats} assets={assets} selectedIp={selectedIp} view={view} onExecCommand={cmd => setExternalCommand({ id: Date.now(), cmd })} />
               )}
+              
+              {/* Terminal renders natively inside flex column when Docked, keeping scroll bars constrained */}
+              {isDocked && <FloatingConsole isDocked={isDocked} setIsDocked={setIsDocked} />}
             </div>
           </div>
         </div>
 
-        {/* Right pane: AI Panel */}
-        <AiPanel width={aiWidth} onResize={setAiWidth} selectedIp={selectedIp} assets={assets} externalCommand={externalCommand} />
+        {/* Right pane: AI Panel - Reverted to native outer block so it spans full height */}
+        <AiPanel 
+          width={aiWidth} 
+          onResize={setAiWidth} 
+          selectedIp={selectedIp} 
+          assets={assets} 
+          externalCommand={externalCommand} 
+          isHqMode={false} // Disable auto-flex override to restore commander's draggability 
+        />
+
       </div>
       <Spotlight assets={assets} open={spotlightOpen} onClose={() => setSpotlightOpen(false)} onSelectAsset={ip => setSelectedIp(ip)} onSelectModule={cmd => setExternalCommand({ id: Date.now(), cmd })} />
+      {!isDocked && <FloatingConsole isDocked={isDocked} setIsDocked={setIsDocked} />}
     </div>
   )
 }

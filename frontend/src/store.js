@@ -10,7 +10,25 @@ const useStore = create((set) => ({
   selectedIp: null,
   setSelectedIp: (ip) => set({ selectedIp: ip }),
 
-  view: 'RC',  // RC (Recon), AT (Assets), OP (Ops), VS (Visual), AM (Armory), C2 (C2/Sliver)
+  globalTargets: [],
+  toggleGlobalTarget: (ip) => set((state) => ({
+    globalTargets: state.globalTargets.includes(ip) 
+      ? state.globalTargets.filter(t => t !== ip)
+      : [...state.globalTargets, ip]
+  })),
+  setGlobalTargets: (targets) => set({ globalTargets: targets }),
+  clearGlobalTargets: () => set({ globalTargets: [] }),
+
+  view: 'HQ',  // ALFA RF MAC Targeting
+  rfTargets: [],
+  toggleRfTarget: (mac) => set(state => ({
+    rfTargets: state.rfTargets.includes(mac)
+      ? state.rfTargets.filter(t => t !== mac)
+      : [...state.rfTargets, mac]
+  })),
+  clearRfTargets: () => set({ rfTargets: [] }),
+
+  // View preferencesd Post), DP (Depot), VS (Visual Theater)
   setView: (view) => set({ view }),
 
   aiWidth: 380,
@@ -33,6 +51,9 @@ const useStore = create((set) => ({
 
   sudoPassword: null,
   setSudoPassword: (pwd) => set({ sudoPassword: pwd }),
+
+  agentMode: true,
+  toggleAgentMode: () => set(state => ({ agentMode: !state.agentMode })),
 
   searchFilter: '',
   setSearchFilter: (s) => set({ searchFilter: s }),

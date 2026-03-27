@@ -53,7 +53,10 @@ async def _discover_mcp_tools():
                 ))
             
             _cached_fn_decls = fn_decls
-            _cached_gemini_tools = [types.Tool(function_declarations=fn_decls)]
+            _cached_gemini_tools = [
+                types.Tool(function_declarations=fn_decls),
+                types.Tool(code_execution=types.ToolCodeExecution())
+            ]
     
     return _cached_gemini_tools
 
@@ -107,7 +110,7 @@ async def _call_mcp_tool(tool_name: str, args: dict) -> str:
         return f"Tool execution failed: {str(e)}"
 
 
-async def react_loop_stream(user_input: str, campaign_id: str = "default", model_key: str = "flash") -> AsyncGenerator[str, None]:
+async def react_loop_stream(user_input: str, campaign_id: str = "default", model_key: str = "flash", theater: str = "default", agent_mode: bool = True, sudo_pass: str = None) -> AsyncGenerator[str, None]:
     def sse(event: str, data: dict) -> str:
         return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -127,6 +130,7 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
     #   Pro       = 3.1-pro  + medium  (big model, balanced)
     #   Deep Think = 3.1-pro + high    (big model, max reasoning)
     MODEL_CONFIG = {
+        "lite":  ("gemini-3.1-flash-lite-preview", "minimal"),
         "flash": ("gemini-3-flash-preview", "low"),
         "think": ("gemini-3-flash-preview", "high"),
         "pro":   ("gemini-3.1-pro-preview", "medium"),
@@ -149,20 +153,66 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
 
     try:
         # Step 1: Get cached tool declarations (fast after first call)
-        gemini_tools = await _get_gemini_tools()
+        base_tools = await _get_gemini_tools()
         
         # Step 2: Create Gemini chat
-        # NOTE: Gemini 3 docs strongly recommend temperature=1.0 (default).
-        #       Lower values cause looping/degraded reasoning.
-        # NOTE: thinking_level must be nested inside ThinkingConfig, not as a top-level kwarg.
+        if not agent_mode:
+            allowed_names = {"claw_list_assets", "claw_query_db", "claw_read_file"}
+            filtered_decls = []
+            for t in base_tools:
+                if t.function_declarations:
+                    for fd in t.function_declarations:
+                        if fd.name in allowed_names:
+                            filtered_decls.append(fd)
+            gemini_tools = [types.Tool(function_declarations=filtered_decls)]
+            include_server_tools = False
+        else:
+            # When agent mode is enabled, we append native Google Search for live Web capability and Code Execution!
+            # Combining built-in tools with custom tools is supported natively in gemini-3.1!
+            gemini_tools = base_tools.copy() if isinstance(base_tools, list) else list(base_tools)
+            gemini_tools.append(types.Tool(google_search=types.GoogleSearch()))
+            include_server_tools = True
+
+        tool_config_obj = types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(mode="AUTO"),
+            include_server_side_tool_invocations=include_server_tools
+        )
+            
+        dynamic_prompt = SYSTEM_PROMPT + f"\n\n[SYSTEM NOTIFICATION]\nThe Commander is currently active in Operation Theater '{theater}'. " \
+                                         f"All tools that accept an 'env' parameter MUST explicitly specify '{theater}' as the environment unless instructed otherwise.\n"
+
+        # Step 1.5: Load Chat History from SQLite
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("CREATE TABLE IF NOT EXISTS mcp_messages (campaign_id TEXT, role TEXT, content TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
+        cursor = conn.execute("SELECT role, content FROM mcp_messages WHERE campaign_id=? ORDER BY timestamp ASC", (campaign_id,))
+        rows = cursor.fetchall()
+        
+        chat_history = []
+        for r_role, r_json in rows:
+            try:
+                # Basic deserialization of stored text/parts into type.Content
+                parts_data = json.loads(r_json)
+                parts = []
+                for p in parts_data:
+                     if "text" in p: parts.append(types.Part.from_text(p["text"]))
+                     elif "function_call" in p: parts.append(types.Part.from_function_call(name=p["function_call"]["name"], args=p["function_call"]["args"]))
+                     elif "function_response" in p: parts.append(types.Part.from_function_response(name=p["function_response"]["name"], response=p["function_response"]["response"]))
+                if parts:
+                     chat_history.append(types.Content(role=r_role, parts=parts))
+            except Exception as e:
+                pass
+        conn.close()
+
         client = genai.Client(api_key=API_KEY)
         chat = client.aio.chats.create(
             model=selected_model,
+            history=chat_history,
             config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_PROMPT,
+                system_instruction=dynamic_prompt,
                 tools=gemini_tools,
                 temperature=1.0,
                 thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
+                tool_config=tool_config_obj
             )
         )
         
@@ -172,17 +222,44 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
         max_steps = 15
         current_input = user_input
         for step in range(max_steps):
-            response_stream = await chat.send_message_stream(current_input)
             tool_calls_batch = []
             
-            async for chunk in response_stream:
-                if chunk.function_calls:
-                    tool_calls_batch.extend(chunk.function_calls)
-                if chunk.text:
-                    yield sse("TEXT_MESSAGE_CONTENT", {"delta": chunk.text})
+            # --- Exponential Backoff Retry Block for 503/429 ---
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    response_stream = await chat.send_message_stream(current_input)
+                    
+                    async for chunk in response_stream:
+                        if chunk.function_calls:
+                            tool_calls_batch.extend(chunk.function_calls)
+                        
+                        # Yield text and cloud sandbox execution chunks
+                        parts = chunk.parts if hasattr(chunk, "parts") and chunk.parts else []
+                        for p in parts:
+                            if hasattr(p, "text") and p.text:
+                                yield sse("TEXT_MESSAGE_CONTENT", {"delta": p.text})
+                            elif hasattr(p, "executable_code") and p.executable_code:
+                                code = getattr(p.executable_code, "code", "")
+                                yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"\n\n```python\n# [AI Cloud Sandbox] Executing native python payload:\n{code}\n```\n"})
+                            elif hasattr(p, "code_execution_result") and p.code_execution_result:
+                                out = getattr(p.code_execution_result, "output", "")
+                                yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"\n\n```text\n# [Sandbox Output]:\n{out}\n```\n"})
+                    break  # Success, exit retry loop
+                    
+                except Exception as api_err:
+                    err_str = str(api_err)
+                    if ("503" in err_str or "Unavailable" in err_str or "429" in err_str or "exhausted" in err_str or "temporary" in err_str.lower()) and attempt < max_retries - 1:
+                        wait_sec = (attempt + 1) * 3
+                        yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"\n\n[LYNX / 通信阻塞] 谷歌原生节点队列涌塞 (API 503/429)... 正在进行第 {attempt+1}/{max_retries} 次网络退避，等待 {wait_sec} 秒后自动重试...\n\n"})
+                        import asyncio
+                        await asyncio.sleep(wait_sec)
+                    else:
+                        raise api_err  # Bubble up if max retries exceeded or unknown error
+            # --- End Retry Block ---
+            
             
             if not tool_calls_batch:
-                yield sse("RUN_FINISHED", {"interaction_id": campaign_id})
                 break
             
             # Handle Tool Calls — only spawn MCP subprocess here
@@ -195,6 +272,16 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                 risk = args_dict.get("risk_level", "GREEN")
                 yield sse("TOOL_CALL_START", {"name": fc.name, "args": args_dict, "risk_level": risk})
                 
+                # Sudo Pipeline Injection
+                if sudo_pass and fc.name == "claw_execute_shell":
+                    cmd_val = args_dict.get("command", "")
+                    if "sudo " in cmd_val:
+                        args_dict["command"] = f"echo '{sudo_pass}' | sudo -S " + cmd_val.replace("sudo ", "", 1)
+                elif sudo_pass and fc.name == "claw_run_module":
+                    cmd_val = args_dict.get("module_cmd", "")
+                    if "sudo " in cmd_val:
+                        args_dict["module_cmd"] = f"echo '{sudo_pass}' | sudo -S " + cmd_val.replace("sudo ", "", 1)
+
                 # Call MCP tool
                 result_text = await _call_mcp_tool(fc.name, args_dict)
                 status = "success" if not result_text.startswith("Tool execution failed") else "failed"
@@ -203,10 +290,20 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                 if len(result_text) > 1000:
                     preview_text += f"\n... [系统截断: 共 {len(result_text)} 字符]"
                 
+                result_part = types.Part.from_function_response(name=fc.name, response={"result": result_text})
+                extra_parts = []
+
                 try:
                     parsed = json.loads(result_text)
                     if isinstance(parsed, dict):
-                        if "exit_code" in parsed:
+                        if "__a2ui_b64__" in parsed:
+                            import base64
+                            b64 = parsed.pop("__a2ui_b64__")
+                            preview_text = f"📸 A2UI 视觉捕捉完成 (渲染引擎: Playwright, 注入 {len(b64)} 字节多模态影像阵列)\n"
+                            result_text = json.dumps(parsed, ensure_ascii=False)
+                            result_part = types.Part.from_function_response(name=fc.name, response={"result": result_text})
+                            extra_parts.append(types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/png"))
+                        elif "exit_code" in parsed:
                             c = parsed.get("exit_code")
                             ico = "✅" if c == 0 else "❌"
                             preview_text = f"{ico} 执行完成 (Exit Code: {c})\n"
@@ -224,9 +321,8 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                 
                 yield sse("TOOL_CALL_RESULT", {"name": fc.name, "status": status, "preview": preview_text})
                 
-                tool_responses.append(types.Part.from_function_response(
-                    name=fc.name, response={"result": result_text}
-                ))
+                tool_responses.append(result_part)
+                tool_responses.extend(extra_parts)
             
             current_input = tool_responses
             # Emit a renewed RUN_STARTED event to wake up the frontend "Lynx 正在思考..." pulse animation
@@ -241,16 +337,51 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             try:
                 yield sse("RUN_STARTED", {"status": "正在将现有情报坍缩并强制提取最终结论..."})
                 final_stream = await chat.send_message_stream(
-                    "⚠️ 系统高优先指令：你已达到允许的工具调用次数硬上限。立即停止一切设想，必须使用纯文本，根据本轮所有的工具返回结果，给出目前最贴近真相的直接回答。严禁返回工具调用。",
-                    config=types.GenerateContentConfig(tools=[])
+                    "⚠️ 系统高优先指令：你已达到允许的工具调用次数硬上限。立即停止一切设想，必须使用纯文本，根据本轮所有的工具返回结果，给出目前最贴近真相的直接回答。严禁返回工具调用。"
                 )
                 async for chunk in final_stream:
                     if chunk.text:
                         yield sse("TEXT_MESSAGE_CONTENT", {"delta": chunk.text})
             except Exception as loop_err:
                  yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"(强制总结失败: {str(loop_err)})"})
-                 
-            yield sse("RUN_FINISHED", {"interaction_id": campaign_id})
+
+        # Step 4: Persist Chat History Delta to SQLite before exiting the interaction
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            # Only save the new additions to avoid duplicating history
+            new_turns = chat._history[len(chat_history):] if chat._history else []
+            for item in new_turns:
+                parts_repr = []
+                for p in item.parts:
+                    if p.text:
+                        parts_repr.append({"text": p.text})
+                    elif p.function_call:
+                        # Extract the inner dictionary mapping from the FunctionCall object
+                        args_dict = {}
+                        if hasattr(p.function_call.args, "items"):
+                            args_dict = dict(p.function_call.args.items())
+                        elif hasattr(p.function_call, "to_dict"):
+                            args_dict = p.function_call.to_dict().get("args", {})
+                        parts_repr.append({"function_call": {"name": p.function_call.name, "args": args_dict}})
+                    elif p.function_response:
+                        resp_dict = {}
+                        if hasattr(p.function_response.response, "items"):
+                            resp_dict = dict(p.function_response.response.items())
+                        elif hasattr(p.function_response, "to_dict"):
+                            resp_dict = p.function_response.to_dict().get("response", {})
+                        parts_repr.append({"function_response": {"name": p.function_response.name, "response": resp_dict}})
+                
+                if parts_repr:
+                    conn.execute(
+                        "INSERT INTO mcp_messages (campaign_id, role, content) VALUES (?, ?, ?)",
+                        (campaign_id, item.role, json.dumps(parts_repr, ensure_ascii=False))
+                    )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            audit_log_write("DB_ERROR_MCP", f"Failed to persist chat history: {e}")
+
+        yield sse("RUN_FINISHED", {"interaction_id": campaign_id})
                 
     except Exception as e:
         yield sse("error", {"message": f"执行总线异常: {str(e)}"})

@@ -243,5 +243,33 @@ def claw_delegate_agent(target_agent: str, task: str, thought: str, justificatio
     except Exception as e:
         return json.dumps({"error": f"A2A 请求失败: {str(e)}"})
 
+@mcp.tool()
+def claw_a2ui_render_screenshot(html_payload: str, viewport_width: int = 1280, viewport_height: int = 800) -> str:
+    """
+    (A2UI M-Vial) Render a raw HTML payload (e.g., a forged phishing page) using headless Playwright and 
+    return a multimodal Base64 image snapshot back to Lynx. Use this to visually review layout and correct hallucinations.
+    """
+    import tempfile, base64, os
+    from playwright.sync_api import sync_playwright
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as f:
+        f.write(html_payload.encode("utf-8"))
+        tmp_path = f.name
+        
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": viewport_width, "height": viewport_height})
+            page.goto(f"file://{tmp_path}")
+            page.wait_for_timeout(500)
+            screenshot_bytes = page.screenshot(full_page=True)
+            b64 = base64.b64encode(screenshot_bytes).decode('utf-8')
+            browser.close()
+        os.remove(tmp_path)
+        return json.dumps({"status": "✅ 页面渲染成功", "__a2ui_b64__": b64})
+    except Exception as e:
+        if os.path.exists(tmp_path): os.remove(tmp_path)
+        return json.dumps({"error": f"Playwright 渲染异常: {str(e)}"})
+
 if __name__ == "__main__":
     mcp.run()
