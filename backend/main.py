@@ -5,12 +5,12 @@
 """
 
 import os, sqlite3, json, re
-from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from contextlib import contextmanager
 from pydantic import BaseModel
-import pty, fcntl, struct, termios, asyncio
+import pty, fcntl, struct, termios, asyncio, aiofiles
 import time
 from typing import Optional, List
 import sys
@@ -217,6 +217,11 @@ def get_sliver_sessions():
     """获取 Sliver C2 当前上线的 Session (Mock)"""
     return {"sessions": MOCK_SLIVER_SESSIONS}
 
+class OpsRunRequest(BaseModel):
+    command: str
+    theater: str = "default"
+    sudo_pass: str | None = None
+
 class SliverCommand(BaseModel):
     session_id: str
     command: str
@@ -351,10 +356,11 @@ def get_audit_log(limit: int = Query(50, ge=1, le=200)):
 @app.get("/api/v1/topology")
 def get_topology(scan_id: str = Query(None)):
     """网络拓扑数据 (供 vis.js 渲染)"""
+    env = get_current_env()
     with get_db() as conn:
         if not scan_id:
-            row = conn.execute("SELECT scan_id FROM scans ORDER BY timestamp DESC LIMIT 1").fetchone()
-            if not row: return {"nodes": [], "edges": []}
+            row = conn.execute("SELECT scan_id FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
+            if not row: return {"nodes": [{"id": "attacker", "label": "CLAW AI\nOpSec Node", "group": "attacker"}], "edges": []}
             scan_id = row["scan_id"]
             
         nodes = [{"id": "attacker", "label": "CLAW AI\nOpSec Node", "group": "attacker"}]
@@ -544,9 +550,9 @@ def env_list():
     current = get_current_env()
     with get_db() as conn:
         envs = []
-        # Get list of unique envs and their latest scan
+        # Pull ALL environments natively, linking any prior scans explicitly 
         env_rows = conn.execute(
-            "SELECT env, MAX(timestamp) as last_scan FROM scans GROUP BY env ORDER BY last_scan DESC"
+            "SELECT e.name as env, MAX(s.timestamp) as last_scan FROM environments e LEFT JOIN scans s ON e.name = s.env GROUP BY e.name ORDER BY last_scan DESC"
         ).fetchall()
         
         for r in env_rows:
@@ -595,6 +601,11 @@ def env_create(req: EnvCreateRequest):
     name = req.name.strip()
     if not name:
         return {"error": "战区名称不能为空"}
+        
+    with get_db() as conn:
+        conn.execute("INSERT OR IGNORE INTO environments (name) VALUES (?)", (name,))
+        conn.commit()
+        
     set_current_env(name)
     # Write targets to scope.txt if provided
     if req.targets.strip():
@@ -613,6 +624,10 @@ def env_rename(req: EnvRenameRequest):
         raise HTTPException(status_code=400, detail="名称不能为空")
     with get_db() as conn:
         conn.execute("UPDATE scans SET env=? WHERE env=?", (req.new_name, req.old_name))
+        try:
+            conn.execute("UPDATE environments SET name=? WHERE name=?", (req.new_name, req.old_name))
+        except Exception:
+            pass
         conn.commit()
     if get_current_env() == req.old_name:
         set_current_env(req.new_name)
@@ -629,6 +644,7 @@ def env_delete(req: EnvDeleteRequest):
         raise HTTPException(status_code=400, detail="系统默认战区无法删除")
     with get_db() as conn:
         conn.execute("DELETE FROM scans WHERE env=?", (req.name,))
+        conn.execute("DELETE FROM environments WHERE name=?", (req.name,))
         conn.commit()
     if get_current_env() == req.name:
         set_current_env("default")
@@ -640,10 +656,15 @@ import subprocess
 import os
 import signal
 
-def background_waiter(job_id: str, proc: subprocess.Popen, log_fh):
+ACTIVE_JOBS = {}
+
+import asyncio
+
+async def background_waiter(job_id: str, proc: subprocess.Popen, log_fh):
     """后台监控子进程结束，确保释放文件句柄并清理内存"""
     try:
-        proc.wait()  # Blocking wait (safe inside FastAPI background thread)
+        while proc.poll() is None:
+            await asyncio.sleep(1)
     except Exception:
         pass
     finally:
@@ -668,15 +689,33 @@ def ops_run(req: OpsRunRequest, background_tasks: BackgroundTasks):
     
     # Open log file for subprocess stdout — store handle so it can be closed later
     log_fh = open(log_file, "a")
-    proc = subprocess.Popen(
-        req.command,
-        shell=True,
-        cwd=BASE_DIR,
-        stdout=log_fh,
-        stderr=subprocess.STDOUT,
-        text=True,
-        preexec_fn=os.setsid
-    )
+    
+    if req.sudo_pass:
+        cmd_wrapper = f"sudo -S -p '' {req.command}"
+        proc = subprocess.Popen(
+            cmd_wrapper,
+            shell=True,
+            cwd=BASE_DIR,
+            stdin=subprocess.PIPE,
+            stdout=log_fh,
+            stderr=subprocess.STDOUT,
+            text=True,
+            preexec_fn=os.setsid
+        )
+        proc.stdin.write(req.sudo_pass + "\n")
+        proc.stdin.flush()
+        proc.stdin.close()
+    else:
+        proc = subprocess.Popen(
+            req.command,
+            shell=True,
+            cwd=BASE_DIR,
+            stdout=log_fh,
+            stderr=subprocess.STDOUT,
+            text=True,
+            preexec_fn=os.setsid
+        )
+
     ACTIVE_JOBS[job_id] = {"proc": proc, "log_fh": log_fh}
     
     # 安全的后台清理任务
@@ -709,9 +748,9 @@ async def ops_log(job_id: str, theater: str = "default"):
             yield f"data: [Error: Log file not found for {job_id}]\n\n"
             return
             
-        with open(log_file, "r") as f:
+        async with aiofiles.open(log_file, "r") as f:
             # Read whatever is already there
-            content = f.read()
+            content = await f.read()
             if content:
                 # Send chunks or line by line
                 lines = content.split('\n')
@@ -723,7 +762,7 @@ async def ops_log(job_id: str, theater: str = "default"):
             job = ACTIVE_JOBS.get(job_id)
             proc = job["proc"] if job else None
             while True:
-                line = f.readline()
+                line = await f.readline()
                 if line:
                     yield f"data: {json.dumps({'text': line}, ensure_ascii=False)}\n\n"
                 else:

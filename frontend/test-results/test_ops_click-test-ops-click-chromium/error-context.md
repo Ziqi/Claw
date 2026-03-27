@@ -1,0 +1,204 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5] [cursor=pointer]: /\_/\( o.o )CLAW V8.2
+      - generic [ref=e7]:
+        - generic [ref=e8] [cursor=pointer]:
+          - generic [ref=e9]: 战区
+          - generic [ref=e10]: GhostTheater
+          - generic [ref=e11]: ▾
+        - button "战区配置" [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+      - generic [ref=e16]:
+        - generic [ref=e17]: 存活主机
+        - generic [ref=e18]: "0"
+      - generic [ref=e19]:
+        - generic [ref=e20]: 高危端口
+        - generic [ref=e21]: "0"
+      - generic [ref=e22]:
+        - generic [ref=e23]: 漏洞告警
+        - generic [ref=e24]: "0"
+      - generic [ref=e25]:
+        - generic [ref=e26]: 扫描任务
+        - generic [ref=e27]: "0"
+      - generic [ref=e28]:
+        - generic [ref=e29]: 副官状态
+        - generic [ref=e30]: 在线监控中
+      - generic [ref=e31]:
+        - generic [ref=e32]: 系统时间
+        - generic [ref=e33]: 17:39:03
+      - button "⚠ 上帝模式 (无限制)" [ref=e35] [cursor=pointer]
+      - button "⭳ 导出报告" [ref=e37] [cursor=pointer]
+      - generic [ref=e38] [cursor=pointer]:
+        - generic [ref=e39]: 控制台
+        - generic [ref=e40]: "[Cmd+J] 切换"
+    - generic [ref=e41]:
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - generic [ref=e45] [cursor=pointer]: 侦察
+            - generic [ref=e46] [cursor=pointer]: 资产
+            - generic [ref=e47] [cursor=pointer]: 武库
+            - generic [ref=e48] [cursor=pointer]: 作战
+            - generic [ref=e49] [cursor=pointer]: 远控
+            - generic [ref=e50] [cursor=pointer]: 全域
+          - generic [ref=e51]:
+            - generic [ref=e52]: "[ 威胁大盘 ]"
+            - generic [ref=e53]:
+              - generic "开放了 SMB(445)/RDP(3389)/FTP(21) 等高危端口的主机" [ref=e54] [cursor=pointer]:
+                - generic [ref=e55]: 极危节点
+                - generic [ref=e56]: "0"
+                - generic [ref=e57]: 含 SMB/RDP/FTP 高危端口
+              - generic "开放了 HTTP/HTTPS 类 Web 端口的主机总数" [ref=e58] [cursor=pointer]:
+                - generic [ref=e59]: Web服务
+                - generic [ref=e60]: "0"
+                - generic [ref=e61]: 含 80/443/8080 端口
+              - generic "本次扫描中发现的所有存活 IP 总数" [ref=e62] [cursor=pointer]:
+                - generic [ref=e63]: 资产总数
+                - generic [ref=e64]: "0"
+                - generic [ref=e65]: 本次扫描存活 IP
+              - generic "每台主机平均开放的端口数量，越高说明攻击面越大" [ref=e66] [cursor=pointer]:
+                - generic [ref=e67]: 平均端口
+                - generic [ref=e68]: "0"
+                - generic [ref=e69]: 平均暴露面指标
+            - generic [ref=e70]:
+              - generic [ref=e71]: "[ 资产节点 (0) ]"
+              - generic [ref=e73]: 暂无资产数据
+            - generic [ref=e74]:
+              - generic [ref=e75]: "[ 目标探测 ]"
+              - generic [ref=e76]: 输入 IP 或 CIDR，发起实弹 Nmap 扫描
+              - 'textbox "例如: 192.168.1.1 或 10.0.0.0/24" [ref=e77]'
+              - generic [ref=e78]:
+                - button "常规 (7口)" [ref=e79] [cursor=pointer]
+                - button "IoT (11口)" [ref=e80] [cursor=pointer]
+                - button "全量 (30口)" [ref=e81] [cursor=pointer]
+              - generic [ref=e82]:
+                - button "并入当前战区" [ref=e83] [cursor=pointer]
+                - button "新建独立沙盒" [ref=e84] [cursor=pointer]
+              - button "发起探测" [disabled] [ref=e85] [cursor=pointer]:
+                - img [ref=e86]
+                - text: 发起探测
+          - generic [ref=e88]:
+            - button "侦察态势" [ref=e90] [cursor=pointer]
+            - generic [ref=e92]:
+              - generic [ref=e93]:
+                - generic [ref=e94]: "[ 量化指标矩阵 ]"
+                - generic [ref=e95]:
+                  - generic [ref=e96]:
+                    - generic [ref=e97]: 扫描面统计
+                    - generic [ref=e98]:
+                      - generic [ref=e99]: "IP总数:"
+                      - generic [ref=e100]: "0"
+                    - generic [ref=e101]:
+                      - generic [ref=e102]: "端口总数:"
+                      - generic [ref=e103]: "0"
+                    - generic [ref=e104]:
+                      - generic [ref=e105]: "扫描引擎:"
+                      - generic [ref=e106]: NMAP / HTTPX
+                  - generic [ref=e107]:
+                    - generic [ref=e108]: 脆弱性风险暴露
+                    - generic [ref=e109]:
+                      - generic [ref=e110]: "SMB(445):"
+                      - generic [ref=e111]: 0 靶标
+                    - generic [ref=e112]:
+                      - generic [ref=e113]: "RDP(3389):"
+                      - generic [ref=e114]: 0 靶标
+                    - generic [ref=e115]:
+                      - generic [ref=e116]: "FTP(21):"
+                      - generic [ref=e117]: 0 靶标
+                  - generic [ref=e118]:
+                    - generic [ref=e119]: 公防网域面
+                    - generic [ref=e120]:
+                      - generic [ref=e121]: "HTTP:"
+                      - generic [ref=e122]: 0 站点
+                    - generic [ref=e123]:
+                      - generic [ref=e124]: "HTTPS:"
+                      - generic [ref=e125]: 0 站点
+                    - generic [ref=e126]:
+                      - generic [ref=e127]: "PROXY:"
+                      - generic [ref=e128]: 0 代理
+                  - generic [ref=e129]:
+                    - generic [ref=e130]: 作战智能体
+                    - generic [ref=e131]:
+                      - generic [ref=e132]: "安全限级:"
+                      - generic [ref=e133]: M2 级指令权
+                    - generic [ref=e134]:
+                      - generic [ref=e135]: "HITL拦截:"
+                      - generic [ref=e136]: 强鉴权启动
+                    - generic [ref=e137]:
+                      - generic [ref=e138]: "算力核心:"
+                      - generic [ref=e139]: Gemini 3 阵列
+                - generic [ref=e140]: "[ 威胁热点 TOP5 (风险排序) ]"
+                - generic [ref=e142]: 暂无资产数据
+                - generic [ref=e143]: "[ OS 分布概览 ]"
+                - generic [ref=e145]: 暂无 OS 识别数据
+              - generic [ref=e146]:
+                - generic [ref=e147]: 实时动态日志
+                - generic [ref=e149]:
+                  - generic [ref=e150]:
+                    - generic [ref=e151]: 17:28:34
+                    - generic [ref=e152]: "[侦察] 新资产发现"
+                    - generic [ref=e153]: 探测到 0 个存活主机节点
+                  - generic [ref=e154]:
+                    - generic [ref=e155]: 17:30:34
+                    - generic [ref=e156]: "[扫描] 网络端口拓扑更新"
+                    - generic [ref=e157]: 扫描完毕，共发现 0 个开放端口
+                  - generic [ref=e158]:
+                    - generic [ref=e159]: 17:33:34
+                    - generic [ref=e160]: "[告警] 高危服务暴露"
+                    - generic [ref=e161]: 发现 0 台主机存在 SMB/RDP 高危暴露
+                  - generic [ref=e162]: "[系统提示] 点击 \"OP 作战\" 面板执行自动漏洞审计"
+        - generic [ref=e163]:
+          - generic [ref=e164]:
+            - generic [ref=e165]:
+              - generic [ref=e166] [cursor=pointer]: XTERM CONSOLE
+              - generic [ref=e167] [cursor=pointer]: OUTPUT
+              - generic [ref=e168] [cursor=pointer]: DEBUG CONSOLE
+            - img [ref=e171] [cursor=pointer]
+          - generic [ref=e178]:
+            - textbox "Terminal input" [ref=e179]
+            - generic [ref=e180]:
+              - generic [ref=e181]:
+                - generic [ref=e182]: ✧
+                - generic [ref=e183]: Eavesdropping Shell / PTY Bridge Connected
+              - generic [ref=e187]: The default interactive shell is now zsh.
+              - generic [ref=e189]: "To update your account to use zsh, please run `chsh -s /bin/zsh`."
+              - generic [ref=e191]: For more details, please visit https://support.apple.com/kb/HT208050.
+              - generic [ref=e193]: Ziqis-MacBook:backend xiaoziqi$
+      - generic [ref=e200]:
+        - generic [ref=e201]:
+          - generic [ref=e202]:
+            - generic [ref=e203]: ✧
+            - generic [ref=e204]: LYNX AI
+            - generic "camp_vmx48o" [ref=e205]
+          - generic [ref=e206]:
+            - generic [ref=e207] [cursor=pointer]: "[+]"
+            - generic [ref=e208] [cursor=pointer]: "[历史]"
+            - generic [ref=e209] [cursor=pointer]: "[武器库]"
+            - generic [ref=e210] [cursor=pointer]: "[-]"
+        - generic [ref=e212]:
+          - generic [ref=e213]: 系统就绪
+          - generic [ref=e214]:
+            - text: 连接 Gemini 3 Interactions API · 实时流式对话
+            - text: "战役通信 ID: camp_vmx48o"
+          - generic [ref=e215]: ── 快捷指令 ──
+          - generic [ref=e216]:
+            - generic [ref=e217] [cursor=pointer]: 列出所有资产
+            - generic [ref=e218] [cursor=pointer]: 分析攻击路径
+            - generic [ref=e219] [cursor=pointer]: 扫描高危端口
+            - generic [ref=e220] [cursor=pointer]: 查看最新漏洞
+            - generic [ref=e221] [cursor=pointer]: 全局攻击面报告
+            - generic [ref=e222] [cursor=pointer]: 查看 Agent 审计日志
+        - generic [ref=e224]:
+          - textbox "输入战术指令..." [ref=e225]
+          - generic [ref=e226]:
+            - generic [ref=e228] [cursor=pointer]:
+              - generic [ref=e229]: ●
+              - generic [ref=e230]: Flash
+            - button [disabled] [ref=e231]:
+              - img [ref=e232]
+  - generic [ref=e234]: $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+```

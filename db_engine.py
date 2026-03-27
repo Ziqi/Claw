@@ -13,6 +13,11 @@ DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "CatT
 ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "CatTeam_Loot", "claw_env.txt")
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS environments (
+    name TEXT PRIMARY KEY,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS scans (
     scan_id   TEXT PRIMARY KEY,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -58,6 +63,12 @@ def get_db(db_path=None):
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    
+    # 向后兼容：兼容旧有孤岛战区数据
+    conn.execute("INSERT OR IGNORE INTO environments (name) VALUES ('default')")
+    conn.execute("INSERT OR IGNORE INTO environments (name) SELECT DISTINCT env FROM scans")
+    conn.commit()
+
     # 自动迁移: 给旧数据加 env 列
     try:
         conn.execute("SELECT env FROM scans LIMIT 1")

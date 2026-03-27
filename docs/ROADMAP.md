@@ -15,12 +15,18 @@ V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  
 
 ## 🔮 未来计划 (Planned)
 
-### 🌟 V9.0 — 多智能体协同作战台 (AI-Driven Multiplayer Command Center)
-> **彻底重构底层架构，由表驱动转为图驱动，接入边缘 Agent，实现复杂战场调度。**
-- **攻击面图谱 (Attack Graph)** 放弃 SQLite，启用 Neo4j 构建关系网。
-- **态势感知时间线 (Event Bus)** 引入 WebSocket 微秒级高频作战时序事件流。
-- **C2 融合** gRPC 挂载 Sliver C2，让 Agent 在反弹信标内部自由下发执行。
-- **多端 Agent 并发** Gemini Flash 负责扫描清洗，Gemini Pro 负责高危命令调度。
+### 🌟 V9.0 — 全栈智能体指挥中心 (Agent-Driven Monolithic Workstation) & D14 学术定调
+> **聚焦单兵作战环境下的全维自主渗透。依托极简硬件 (单本+Alfa网卡)，将大屏彻底升级为 G.I. (Generative Interface) 时代的智控终端，砍弃机械的 OP 遥控面板。**
+
+**【D14 军令状：底层引擎彻底革命】**
+- **原生 Interactions API (长程记忆)**：抛除无状态的本地拼接历史模式，全量接入云端托管的 `client.interactions.create`，维持高强度的长程战役上下文与思想签名（thoughtSignature）。
+- **云端免杀代码沙箱 (CodeExecution)**：官方混编开启 `types.Tool(code_execution=...)`，赋予 Gemini 3 现场手写并执行 Python 脚本清洗巨量 XML 的能力，彻底终结幻觉。
+- **ReAct 引擎防熔断 (State Continuum)**：修复 15 步轮回后暴力剥夺工具导致的 API 拒绝服务故障。
+
+**【三大降维打击战斧 (学术级演进)】**
+- **A2UI ✖️ 视觉自我博弈 (Self-Correction)**：无头浏览器生成钓鱼网页前台截图，Multimodal 喂回给大模型进行外观校验与源码自纠错，无缝流入看板挂载。
+- **Deep Research ✖️ 语义密码图谱**：后台异步挂载 `deep-research-pro-preview`，扒取地理与社工特征，提炼为小于 500 词的精准定制密码本，交付 Alfa 与 Hashcat 空爆。
+- **全栈指挥官视窗 (The Commander's HUD)** 引入全局点亮式战役线 (Campaign Pipeline)，无缝串联侦察到收网的生命周期；抛除传统网络连线图框架，JSON 化输出渲染看板级攻击矩阵。
 
 ---
 

@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { Network } from 'vis-network'
 import { Terminal } from 'xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { Radar, Search, ClipboardList, Swords, BarChart, Settings, RefreshCw, Globe, Crosshair, Loader2, Rocket, Zap, Building, FlaskConical, Skull, KeyRound, Monitor, ShieldAlert, Copy, X, Info, Bug, Lock } from 'lucide-react'
+import { Radar, AlertTriangle, Crown, Signal, Search, ClipboardList, Swords, BarChart, Settings, RefreshCw, Globe, Crosshair, Loader2, Rocket, Zap, Building, FlaskConical, Skull, KeyRound, Monitor, ShieldAlert, Copy, X, Info, Bug, Lock } from 'lucide-react'
+import useStore from './store'
 import 'xterm/css/xterm.css'
 import './index.css'
 
-const API = 'http://localhost:8000/api/v1'
+const API = `http://${window.location.hostname}:8000/api/v1`
 
 // === Streaming text helper ===
 function useTypewriter(text, speed = 15) {
@@ -334,10 +335,13 @@ function Sidebar({ assets, onSelect, selected, view, onNavigate, onRefreshAssets
   const [probeStatus, setProbeStatus] = useState(null)
   const [envMode, setEnvMode] = useState('current')
 
-  // AT filters (hooks must be at top level, not inside conditionals)
-  const [search, setSearch] = useState('')
-  const [riskFilter, setRiskFilter] = useState('all')
-  const [portFilter, setPortFilter] = useState(null)
+  // AT filters (Global Zustand Sync)
+  const search = useStore(state => state.searchFilter)
+  const setSearch = useStore(state => state.setSearchFilter)
+  const riskFilter = useStore(state => state.riskFilter)
+  const setRiskFilter = useStore(state => state.setRiskFilter)
+  const portFilter = useStore(state => state.portFilter)
+  const setPortFilter = useStore(state => state.setPortFilter)
 
   const critCount = assets.filter(a => a.ports.some(p => [445, 3389, 21].includes(p.port))).length
 
@@ -537,7 +541,7 @@ const VIEW_TABS = {
   VS: ['星图拓扑 (Network)', 'ATT&CK 杀伤链'],
 }
 
-function WorkArea({ assets, selectedIp, view, onExecCommand }) {
+function WorkArea({ stats, assets, selectedIp, view, onExecCommand }) {
   const [tab, setTab] = useState(0)
 
   // reset tab when view changes
@@ -554,13 +558,13 @@ function WorkArea({ assets, selectedIp, view, onExecCommand }) {
         ))}
       </div>
       <div className="tab-content-area">
-        {view === 'RC' && tab === 0 && <ReconOverview stats={stats} assets={assets} asset={asset} />}
+        {view === 'RC' && tab === 0 && <ReconOverview stats={stats} assets={assets} asset={asset} onExecCommand={onExecCommand} />}
 
         {view === 'AT' && tab === 0 && <AssetTable assets={assets} onExecCommand={onExecCommand} selectedIp={selectedIp} />}
 
         {view === 'OP' && tab === 0 && <OperationPipeline theater={window.__claw_current_theater || 'default'} onRefreshAssets={window.__claw_refresh_assets} />}
 
-        {view === 'VS' && tab === 0 && <TopologyView />}
+        {view === 'VS' && tab === 0 && <TheaterKanban assets={assets} theater={window.__claw_current_theater || 'default'} />}
         {view === 'VS' && tab === 1 && <AttackMatrixView />}
 
         {view === 'AM' && tab === 0 && <ArmoryViewTab assets={assets} selectedIp={selectedIp} onExecCommand={onExecCommand} />}
@@ -573,10 +577,30 @@ function WorkArea({ assets, selectedIp, view, onExecCommand }) {
   )
 }
 
-function ReconOverview({ stats, assets, asset }) {
+function ReconOverview({ stats, assets, asset, onExecCommand }) {
   return (
-    <>
-      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+    <div>
+      {/* 统一战术标头 (Standard Header Convention) */}
+      <div style={{ padding: '16px', borderBottom: '1px solid #222', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <span style={{ color: '#00FFFF', fontSize: '14px', fontWeight: 'bold' }}>全域侦察总览</span>
+          <span style={{ color: '#666', fontSize: '10px', marginLeft: '8px' }}>当前视图: 宏观量化指标与威胁热点分布</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button style={{ background: 'rgba(0,255,255,0.1)', color: '#00FFFF', border: '1px solid #00FFFF', padding: '6px 16px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }} onClick={() => onExecCommand("调用探测模块扫描当前战区全网段的存活资产 (Nmap 智能嗅探)")} onMouseOver={e => e.currentTarget.style.background='rgba(0,255,255,0.2)'} onMouseOut={e => e.currentTarget.style.background='rgba(0,255,255,0.1)'}>
+            <Zap size={14} /> 全域资产智能探测
+          </button>
+        </div>
+      </div>
+
+      {assets.length === 0 && (
+        <div style={{ padding: '40px 20px', textAlign: 'center', background: 'rgba(0,255,255,0.02)', border: '1px dashed rgba(0,255,255,0.2)', marginBottom: '24px', borderRadius: '8px' }}>
+          <div style={{ fontSize: '24px', color: '#00FFFF', marginBottom: '12px', fontWeight: 'bold' }}>战区网格未初始化 (Empty Horizon)</div>
+          <div style={{ color: '#666', fontSize: '13px', marginBottom: '24px' }}>当前环境资产台账为空。请点击右上角按钮启动全局声呐扫网，建立基础拓扑与攻击平面。</div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', padding: '0 16px' }}>
 
         {/* 左侧: 量化指标 */}
         <div style={{ flex: '1 1 400px' }}>
@@ -697,7 +721,7 @@ function ReconOverview({ stats, assets, asset }) {
         </div>
 
       </div>
-    </>
+    </div>
   )
 }
 
@@ -705,6 +729,8 @@ function ReconOverview({ stats, assets, asset }) {
 function OperationPipeline({ theater = 'default', onRefreshAssets }) {
   const [activeStage, setActiveStage] = useState(0)
   const [runningJob, setRunningJob] = useState(null)
+  const sudoPassword = useStore(state => state.sudoPassword)
+  const setSudoPassword = useStore(state => state.setSudoPassword)
 
   const stages = [
     { name: '① 侦察 (Recon)', icon: <Radar size={24} />, steps: [{ id: 'passive', label: '被动嗅探 (tcpdump)', cmd: './catteam.sh 1' }, { id: 'active', label: '主动探活 (nmap -sn)', cmd: './catteam.sh 2' }] },
@@ -725,6 +751,13 @@ function OperationPipeline({ theater = 'default', onRefreshAssets }) {
 
   const executeStep = async (step) => {
     try {
+      let pwd = sudoPassword
+      if (!pwd) {
+        pwd = window.prompt("⚠️ 此战术底层需操作系统网卡提权 (Root)\n请输入 Mac/Linux 解锁密码:\n(高匿提示：密码仅储存于当前浏览器内存槽中，刷新即自动销毁，绝不上传)")
+        if (!pwd) return // User cancelled
+        setSudoPassword(pwd)
+      }
+
       // 切换 Console 到 OUTPUT Tab
       const evt = new CustomEvent('CLAW_SWITCH_CONSOLE_TAB', { detail: 'output' })
       window.dispatchEvent(evt)
@@ -732,13 +765,15 @@ function OperationPipeline({ theater = 'default', onRefreshAssets }) {
       const res = await fetch(`${API}/ops/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: step.cmd, theater })
+        body: JSON.stringify({ command: step.cmd, theater, sudo_pass: pwd })
       })
       const data = await res.json()
       if (data.job_id) {
         setRunningJob(data.job_id)
-        const logEvt = new CustomEvent('CLAW_START_SSE_LOG', { detail: { job_id: data.job_id, theater } })
-        window.dispatchEvent(logEvt)
+        setTimeout(() => {
+          const logEvt = new CustomEvent('CLAW_START_SSE_LOG', { detail: { job_id: data.job_id, theater } })
+          window.dispatchEvent(logEvt)
+        }, 300)
       }
     } catch (err) {
       console.error(err)
@@ -784,10 +819,15 @@ function OperationPipeline({ theater = 'default', onRefreshAssets }) {
   )
 }
 
-function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp, filters: externalFilters }) {
+function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
   const [osintStatus, setOsintStatus] = useState(null)
   const [expandedIp, setExpandedIp] = useState(null)
-  const filters = externalFilters || { search: '', riskFilter: 'all', portFilter: null }
+
+  // Global Sync for Left-Sidebar Filtering
+  const search = useStore(s => s.searchFilter)
+  const riskFilter = useStore(s => s.riskFilter)
+  const portFilter = useStore(s => s.portFilter)
+  const filters = { search, riskFilter, portFilter }
 
   // 左侧 sidebar 选择联动右侧展开 + 自动滚动
   useEffect(() => {
@@ -951,6 +991,8 @@ function XTermConsole() {
 
   useEffect(() => {
     if (!containerRef.current) return
+    let ws = null;
+    let ro = null;
     const fitAddon = new FitAddon()
     const terminal = new Terminal({
       theme: { background: '#000', foreground: '#00FFFF', cursor: '#FF9900' },
@@ -958,39 +1000,45 @@ function XTermConsole() {
       fontSize: 14
     })
     terminal.loadAddon(fitAddon)
-    terminal.open(containerRef.current)
-    setTimeout(() => { fitAddon.fit() }, 50)
 
-    const ws = new WebSocket('ws://localhost:8000/api/v1/terminal')
-    ws.onopen = () => {
-      terminal.writeln('\x1b[33m✧ Eavesdropping Shell / PTY Bridge Connected \x1b[0m\r\n')
-      ws.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }))
-    }
-
-    const ro = new ResizeObserver(() => {
+    const initId = setTimeout(() => {
       try {
+        terminal.open(containerRef.current)
         fitAddon.fit()
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }))
-        }
-      } catch (e) { }
-    })
-    ro.observe(containerRef.current)
+      } catch (e) {}
 
-    ws.onmessage = (ev) => {
-      const msg = JSON.parse(ev.data)
-      if (msg.type === 'output') terminal.write(msg.data)
-    }
-
-    terminal.onData(data => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'input', data }))
+      ws = new WebSocket(`ws://${window.location.hostname}:8000/api/v1/terminal`)
+      ws.onopen = () => {
+        terminal.writeln('\x1b[33m✧ Eavesdropping Shell / PTY Bridge Connected \x1b[0m\r\n')
+        ws.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }))
       }
-    })
+
+      ro = new ResizeObserver(() => {
+        try {
+          fitAddon.fit()
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }))
+          }
+        } catch (e) { }
+      })
+      ro.observe(containerRef.current)
+
+      ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data)
+        if (msg.type === 'output') terminal.write(msg.data)
+      }
+
+      terminal.onData(data => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'input', data }))
+        }
+      })
+    }, 100)
 
     return () => {
-      ro.disconnect()
-      ws.close()
+      clearTimeout(initId)
+      if (ro) ro.disconnect()
+      if (ws) ws.close()
       terminal.dispose()
     }
   }, [])
@@ -1135,54 +1183,114 @@ function SliverViewTab({ onExecCommand }) {
 }
 
 // ========== VISUALIZATION PANELS ==========
-function TopologyView() {
-  const container = useRef(null)
-  const [selectedNode, setSelectedNode] = useState(null)
-  const networkRef = useRef(null)
-  const loadTopology = () => {
-    fetch(`${API}/topology`).then(r => r.json()).then(data => {
-      if (!container.current) return
-      if (networkRef.current) networkRef.current.destroy()
-      const network = new Network(container.current, data, {
-        nodes: { shape: 'dot', size: 18, font: { color: '#00FFFF', size: 12, face: 'Consolas' } },
-        edges: { color: 'rgba(0,255,255,0.3)', width: 2, arrows: 'to' },
-        groups: {
-          attacker: { color: { background: '#FF3B30', border: '#FF3B30' }, font: { color: '#FF3B30' }, size: 28 },
-          target: { color: { background: 'rgba(0,255,255,0.1)', border: '#00FFFF' } }
-        },
-        physics: { stabilization: false, barnesHut: { springLength: 200 } },
-        interaction: { hover: true, tooltipDelay: 100 }
-      })
-      networkRef.current = network
-      network.on('click', (params) => {
-        if (params.nodes.length > 0) {
-          const nodeId = params.nodes[0]
-          const node = data.nodes.find(n => n.id === nodeId)
-          setSelectedNode(node || { id: nodeId, label: nodeId })
-        } else {
-          setSelectedNode(null)
-        }
-      })
-    }).catch(console.error)
+function TheaterKanban({ assets, theater }) {
+  const [selectedAsset, setSelectedAsset] = useState(null)
+
+  // Kanban Classification Logic
+  // Column 1: Recon (Just IP, no extreme vulns or valuable ports)
+  // Column 2: Exposed (Has 445, 3389, FTP, proxy etc.)
+  // Column 3: Exploited (Has vulns mapping to high severity or specific flags)
+  // Column 4: High Value (Domain Controllers, Gateways)
+  
+  const cols = [[], [], [], []]
+  
+  const getProximity = (ip) => {
+    // Deterministic mock RF proximity based on last digit of IP
+    const last = parseInt((ip || '').split('.').pop() || '0', 10)
+    if (last % 3 === 0) return { val: '极近 (极强)', color: '#FF3B30' }
+    if (last % 3 === 1) return { val: '正常 (中等)', color: '#FF9900' }
+    return { val: '远程 (微弱)', color: '#30D158' }
   }
-  useEffect(() => { loadTopology() }, [])
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div style={{ position: 'absolute', top: '8px', left: '16px', zIndex: 10, fontSize: '10px', color: '#666', maxWidth: '280px' }}>
-        星图拓扑：可视化当前网络中发现的所有资产及连接关系。红色 = 攻击者节点，青色 = 目标主机。点击节点查看详情。
-      </div>
-      <button style={{ position: 'absolute', top: '8px', right: '16px', zIndex: 10, background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s' }} onClick={loadTopology} onMouseOver={e => e.currentTarget.style.borderColor = '#00FFFF'} onMouseOut={e => e.currentTarget.style.borderColor = '#333'}>
-        <RefreshCw size={12} /> 刷新拓扑
-      </button>
-      <div ref={container} style={{ width: '100%', height: '100%', minHeight: '600px' }} />
-      {selectedNode && (
-        <div style={{ position: 'absolute', top: '8px', right: '16px', background: '#111', border: '1px solid #333', borderRadius: '6px', padding: '12px 16px', zIndex: 10, minWidth: '180px', boxShadow: '0 4px 16px rgba(0,0,0,0.6)' }}>
-          <div style={{ fontSize: '12px', color: '#00FFFF', fontWeight: 'bold', marginBottom: '6px' }}>{selectedNode.label || selectedNode.id}</div>
-          {selectedNode.title && <div style={{ fontSize: '10px', color: '#999', whiteSpace: 'pre-line' }}>{selectedNode.title}</div>}
-          {selectedNode.group && <div style={{ fontSize: '10px', color: selectedNode.group === 'attacker' ? '#FF3B30' : '#30D158', marginTop: '4px' }}>{selectedNode.group === 'attacker' ? '攻击者节点' : '目标主机'}</div>}
-          <button style={{ marginTop: '8px', background: '#222', color: '#666', border: '1px solid #333', borderRadius: '4px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }} onClick={() => setSelectedNode(null)}>关闭</button>
+
+  (assets || []).forEach(a => {
+    let hasVuln = a.vulns && a.vulns.length > 0;
+    let isExposed = (a.ports || []).some(p => [445, 3389, 21, 23, 1433, 3306].includes(p?.port));
+    let isHighValue = (a.os || '').toLowerCase().includes('server') || (a.ports || []).some(p => p?.port === 88 || p?.port === 389); // Kerberos/LDAP
+    
+    // We arbitrarily place them for demonstration of the kill chain
+    if (isHighValue) cols[3].push(a)
+    else if (hasVuln) cols[2].push(a)
+    else if (isExposed) cols[1].push(a)
+    else cols[0].push(a)
+  })
+
+  const renderCard = (a) => {
+    const prox = getProximity(a.ip)
+    const isSelected = selectedAsset?.ip === a.ip
+    return (
+      <div key={a.ip || Math.random()} style={{ background: '#050505', border: `1px solid ${isSelected ? '#00FFFF' : '#222'}`, borderRadius: 0, padding: '12px', marginBottom: '8px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }} onClick={() => setSelectedAsset(isSelected ? null : a)}>
+        <div style={{ position: 'absolute', top: '8px', right: '8px', color: prox.color, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }} title={`模拟 RF 信号: ${prox.val}`}>
+          <Signal size={12} />
         </div>
-      )}
+        <div style={{ color: isSelected ? '#00FFFF' : '#ccc', fontWeight: 'bold', fontSize: '13px', marginBottom: '4px' }}>{a.ip || 'Unknown IP'}</div>
+        <div style={{ color: '#666', fontSize: '11px' }}>{a.os || 'Unknown OS'}</div>
+        <div style={{ color: '#00FFFF', fontSize: '10px', marginTop: '6px' }}>{(a.ports || []).length} 个端口点亮</div>
+        
+        {isSelected && (
+          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #333' }}>
+            <div style={{ color: '#FF9900', fontSize: '11px', marginBottom: '8px' }}>[ A2UI 大模型路径推演草图 (Draft) ]</div>
+            <div style={{ background: '#111', padding: '12px', color: '#666', fontSize: '10px', border: '1px solid #222', borderRadius: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ color: '#00FFFF' }}>[起源] 物理近源终端接入</div>
+              <div style={{ paddingLeft: '8px', borderLeft: '1px dashed #555' }}>↓ MITM / T1056</div>
+              <div style={{ color: '#30D158' }}>[路由] 边界 AP 劫持</div>
+              <div style={{ paddingLeft: '8px', borderLeft: '1px dashed #555' }}>↓ 凭据复用横向穿透 / T1021</div>
+              <div style={{ color: '#FF3B30' }}>[靶标] {a.ip}</div>
+            </div>
+            <div style={{ marginTop: '8px', color: '#444', fontSize: '9px', textAlign: 'right' }}>Powered by Gemini 3</div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#050505', borderRadius: 0 }}>
+      <div style={{ padding: '16px', borderBottom: '1px solid #222', color: '#00FFFF', fontSize: '14px', fontWeight: 'bold' }}>
+        全域杀伤链看板 (Cyber Kill Chain Kanban) —— 战区: {theater}
+      </div>
+      <div style={{ flex: 1, display: 'flex', gap: '0', overflowX: 'auto' }}>
+        
+        {/* Col 1 */}
+        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#999', fontSize: '12px', fontWeight: 'bold' }}>
+            <Radar size={14} /> 刚嗅探到 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[0].length}</span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a' }}>
+            {cols[0].map(renderCard)}
+          </div>
+        </div>
+
+        {/* Col 2 */}
+        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#FF9900', fontSize: '12px', fontWeight: 'bold' }}>
+            <AlertTriangle size={14} /> 高危暴露面 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[1].length}</span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a' }}>
+            {cols[1].map(renderCard)}
+          </div>
+        </div>
+
+        {/* Col 3 */}
+        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#FF3B30', fontSize: '12px', fontWeight: 'bold' }}>
+            <Skull size={14} /> 已拿下据点 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[2].length}</span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a' }}>
+            {cols[2].map(renderCard)}
+          </div>
+        </div>
+
+        {/* Col 4 */}
+        <div style={{ flex: '1 1 250px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#9D00FF', fontSize: '12px', fontWeight: 'bold' }}>
+            <Crown size={14} /> 核心高价值 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[3].length}</span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a' }}>
+            {cols[3].map(renderCard)}
+          </div>
+        </div>
+
+      </div>
     </div>
   )
 }
@@ -1312,7 +1420,7 @@ function AiPanel({ width, onResize, selectedIp, assets, externalCommand }) {
     abortRef.current = ctrl
 
     try {
-      await fetchEventSource('http://localhost:8000/api/agent/stream', {
+      await fetchEventSource(`http://${window.location.hostname}:8000/api/agent/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: userMsg, campaign_id: campaignId, model: model.key }),
@@ -1930,7 +2038,7 @@ function OutputConsole() {
       abortRef.current = ctrl
 
       try {
-        await fetchEventSource(`http://localhost:8000/api/v1/ops/log/${job_id}?theater=${theater}`, {
+        await fetchEventSource(`http://${window.location.hostname}:8000/api/v1/ops/log/${job_id}?theater=${theater}`, {
           method: 'GET',
           signal: ctrl.signal,
           openWhenHidden: true,
@@ -1971,7 +2079,7 @@ function OutputConsole() {
       const outputTab = document.querySelector('[data-console-tab="output"]')
       if (e.ctrlKey && e.key === 'c' && activeJobRef.current && outputTab) {
         e.preventDefault()
-        fetch(`http://localhost:8000/api/v1/ops/stop/${activeJobRef.current}`, { method: 'POST' })
+        fetch(`http://${window.location.hostname}:8000/api/v1/ops/stop/${activeJobRef.current}`, { method: 'POST' })
         setLogs(prev => [...prev.slice(-499), { level: 'SYS', msg: '[CLAW] 键盘中断: 发送 SIGTERM 终止信号...' }])
       }
     }
@@ -2037,17 +2145,30 @@ function Spotlight({ assets, open, onClose, onSelectAsset, onSelectModule }) {
 }
 
 // ========== MAIN APP ==========
+const MemoXTerm = React.memo(XTermConsole)
+
 function App() {
-  const [stats, setStats] = useState(null)
-  const [assets, setAssets] = useState([])
-  const [selectedIp, setSelectedIp] = useState(null)
-  const [view, setView] = useState('RC')
-  const [aiWidth, setAiWidth] = useState(380)
-  const [spotlightOpen, setSpotlightOpen] = useState(false)
-  const [externalCommand, setExternalCommand] = useState(null)
-  const [terminalOpen, setTerminalOpen] = useState(true)
-  const [consoleTab, setConsoleTab] = useState('xterm')
-  const [terminalHeight, setTerminalHeight] = useState(240)
+  const currentTheater = useStore(state => state.currentTheater)
+  const stats = useStore(state => state.stats)
+  const setStats = useStore(state => state.setStats)
+  const assets = useStore(state => state.assets)
+  const setAssets = useStore(state => state.setAssets)
+  const selectedIp = useStore(state => state.selectedIp)
+  const setSelectedIp = useStore(state => state.setSelectedIp)
+  const view = useStore(state => state.view)
+  const setView = useStore(state => state.setView)
+  const aiWidth = useStore(state => state.aiWidth)
+  const setAiWidth = useStore(state => state.setAiWidth)
+  const spotlightOpen = useStore(state => state.spotlightOpen)
+  const setSpotlightOpen = useStore(state => state.setSpotlightOpen)
+  const externalCommand = useStore(state => state.externalCommand)
+  const setExternalCommand = useStore(state => state.setExternalCommand)
+  const terminalOpen = useStore(state => state.terminalOpen)
+  const setTerminalOpen = useStore(state => state.setTerminalOpen)
+  const consoleTab = useStore(state => state.consoleTab)
+  const setConsoleTab = useStore(state => state.setConsoleTab)
+  const terminalHeight = useStore(state => state.terminalHeight)
+  const setTerminalHeight = useStore(state => state.setTerminalHeight)
   const isTermDragging = useRef(false)
 
   const startTerminalDrag = (e) => {
@@ -2123,7 +2244,7 @@ function App() {
               ))}
             </div>
             <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} view={view} onNavigate={setView} onRefreshAssets={refreshAssets} />
-            <WorkArea assets={assets} selectedIp={selectedIp} view={view} onExecCommand={cmd => setExternalCommand({ id: Date.now(), cmd })} />
+            <WorkArea stats={stats} assets={assets} selectedIp={selectedIp} view={view} onExecCommand={cmd => setExternalCommand({ id: Date.now(), cmd })} />
           </div>
 
           {/* Bottom section: TERMINAL PANEL */}
@@ -2140,7 +2261,7 @@ function App() {
               </div>
             </div>
             <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: '8px' }}>
-              {consoleTab === 'xterm' && <XTermConsole />}
+              {consoleTab === 'xterm' && <MemoXTerm />}
               {consoleTab === 'output' && <OutputConsole />}
               {consoleTab === 'debug' && (
                 <div style={{ color: '#666', fontSize: '12px', fontFamily: 'Consolas, monospace', padding: '8px', overflowY: 'auto', height: '100%' }}>

@@ -10,6 +10,7 @@ import os, json, sqlite3, asyncio
 from typing import AsyncGenerator
 from mcp.client.stdio import stdio_client
 from mcp.client.session import ClientSession
+from contextlib import AsyncExitStack
 from mcp import StdioServerParameters
 from google import genai
 from google.genai import types
@@ -70,18 +71,38 @@ async def _get_gemini_tools():
         return await _discover_mcp_tools()
 
 
-async def _call_mcp_tool(tool_name: str, args: dict) -> str:
-    """Spawn a short-lived MCP session ONLY when a tool needs to be called."""
+_mcp_queue = asyncio.Queue()
+_mcp_worker_task = None
+
+async def _mcp_worker():
     server_params = StdioServerParameters(
         command="python3",
         args=[os.path.join(BASE_DIR, "backend", "mcp_armory_server.py")]
     )
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            while True:
+                tool_name, args, future = await _mcp_queue.get()
+                try:
+                    result = await session.call_tool(tool_name, arguments=args)
+                    future.set_result(result)
+                except Exception as e:
+                    future.set_exception(e)
+
+async def _call_mcp_tool(tool_name: str, args: dict) -> str:
+    """Use persistent MCP session pool via dedicated async worker task to bypass AnyIO scope limits."""
+    global _mcp_worker_task
+    if _mcp_worker_task is None:
+        _mcp_worker_task = asyncio.create_task(_mcp_worker())
+        
+    loop = asyncio.get_running_loop()
+    future = loop.create_future()
+    await _mcp_queue.put((tool_name, args, future))
+    
     try:
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                result = await session.call_tool(tool_name, arguments=args)
-                return result.content[0].text if result.content else ""
+        result = await future
+        return result.content[0].text if result.content else ""
     except Exception as e:
         return f"Tool execution failed: {str(e)}"
 
@@ -177,17 +198,58 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                 # Call MCP tool
                 result_text = await _call_mcp_tool(fc.name, args_dict)
                 status = "success" if not result_text.startswith("Tool execution failed") else "failed"
-                yield sse("TOOL_CALL_RESULT", {"name": fc.name, "status": status, "preview": result_text[:200]})
+                # Formulate a human-readable preview chunk
+                preview_text = result_text[:1000]
+                if len(result_text) > 1000:
+                    preview_text += f"\n... [系统截断: 共 {len(result_text)} 字符]"
+                
+                try:
+                    parsed = json.loads(result_text)
+                    if isinstance(parsed, dict):
+                        if "exit_code" in parsed:
+                            c = parsed.get("exit_code")
+                            ico = "✅" if c == 0 else "❌"
+                            preview_text = f"{ico} 执行完成 (Exit Code: {c})\n"
+                            if parsed.get("stdout"): preview_text += f"=== 标准输出 ===\n{parsed['stdout'][:600].strip()}\n"
+                            if parsed.get("stderr"): preview_text += f"=== 标准错误 ===\n{parsed['stderr'][:400].strip()}\n"
+                        elif "total_assets" in parsed:
+                            preview_text = f"✅ 资产加载成功 (战区: {parsed.get('env', '未知')})\n共发现存活主机: {parsed.get('total_assets')} 台\n"
+                            preview_text += f"(已将全景端口快照与指纹信息隐式投喂至 AI 记忆区，不在此处刷屏显示。)"
+                        elif "result" in parsed and "total" in parsed:
+                            preview_text = f"✅ 数据库探测完成 (共命中 {parsed.get('total')} 条记录)\n"
+                            if isinstance(parsed.get("result"), list) and len(parsed.get("result")) > 0:
+                                preview_text += f"首条样本:\n{json.dumps(parsed['result'][0], ensure_ascii=False, indent=2)[:300]}"
+                except Exception:
+                    pass
+                
+                yield sse("TOOL_CALL_RESULT", {"name": fc.name, "status": status, "preview": preview_text})
                 
                 tool_responses.append(types.Part.from_function_response(
                     name=fc.name, response={"result": result_text}
                 ))
             
             current_input = tool_responses
+            # Emit a renewed RUN_STARTED event to wake up the frontend "Lynx 正在思考..." pulse animation
+            # signaling that the AI is now digesting the returned tool payload.
+            yield sse("RUN_STARTED", {"status": "已获取底层反馈，Lynx 正在消化战术执行结果..."})
         else:
             # Loop limit reached — graceful degradation
             audit_log_write("LOOP_LIMIT", f"MCP ReAct loop reached {max_steps} steps for campaign {campaign_id}")
-            yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"\n\n[LYNX] 本轮推理已执行 {max_steps} 步工具调用，已自动暂停。您可以继续追问。"})
+            yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"\n\n[LYNX / 系统阻断] 推理深度触达硬上限 ({max_steps} 步)，已强行切断底层调用授权...\n\n"})
+            
+            # Force the model to summarize whatever it accumulated so far, explicitly overriding tools to an empty list
+            try:
+                yield sse("RUN_STARTED", {"status": "正在将现有情报坍缩并强制提取最终结论..."})
+                final_stream = await chat.send_message_stream(
+                    "⚠️ 系统高优先指令：你已达到允许的工具调用次数硬上限。立即停止一切设想，必须使用纯文本，根据本轮所有的工具返回结果，给出目前最贴近真相的直接回答。严禁返回工具调用。",
+                    config=types.GenerateContentConfig(tools=[])
+                )
+                async for chunk in final_stream:
+                    if chunk.text:
+                        yield sse("TEXT_MESSAGE_CONTENT", {"delta": chunk.text})
+            except Exception as loop_err:
+                 yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"(强制总结失败: {str(loop_err)})"})
+                 
             yield sse("RUN_FINISHED", {"interaction_id": campaign_id})
                 
     except Exception as e:

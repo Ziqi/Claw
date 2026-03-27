@@ -1,0 +1,809 @@
+<!DOCTYPE html><html lang="en"><head>
+    <script type="module">import { injectIntoGlobalHook } from "/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;</script>
+
+    <script type="module" src="/@vite/client"></script>
+
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>frontend</title>
+  <style type="text/css" data-vite-dev-id="/Users/xiaoziqi/CatTeam/frontend/src/index.css">/* =========================================
+   CLAW V8.0 — Bloomberg Terminal Style
+   严禁圆角 · 纯黑底 · 等宽字体 · 琥珀/青色系
+   ========================================= */
+:root {
+  --bg-base: #000000;
+  --bg-panel: #050505;
+  --border-color: #222222;
+  --border-hl: #333333;
+  --term-text: #D0D0D0;
+  --term-muted: #666666;
+  --term-gold: #FF9900;
+  --term-cyan: #00FFFF;
+  --term-red: #FF3B30;
+  --term-green: #30D158;
+  --term-purple: #BF5AF2;
+  --ai-accent: #00FFFF;
+}
+
+* { box-sizing: border-box; border-radius: 0 !important; margin: 0; padding: 0; }
+
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-base);
+  color: var(--term-text);
+  font-family: 'Consolas', 'Courier New', monospace;
+  -webkit-font-smoothing: none;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--term-muted); }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+
+/* =========================================
+   HUD Status Bar (顶部)
+   ========================================= */
+.hud-bar {
+  height: 38px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--term-cyan);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.hud-brand {
+  color: var(--term-cyan);
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 1px;
+  padding-right: 16px;
+  border-right: 1px solid var(--border-hl);
+}
+
+.stat-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  border-right: 1px solid var(--border-hl);
+  padding-right: 16px;
+  white-space: nowrap;
+}
+.stat-item:last-child { border-right: none; margin-left: auto; padding-right: 0; }
+.stat-label { font-size: 10px; color: var(--term-muted); text-transform: uppercase; }
+.stat-value { font-size: 13px; font-weight: bold; color: var(--term-text); }
+
+.c-up { color: var(--term-green) !important; }
+.c-down { color: var(--term-red) !important; }
+.c-cyan { color: var(--term-cyan) !important; }
+.c-gold { color: var(--term-gold) !important; }
+
+/* =========================================
+   Main Shell Layout
+   ========================================= */
+.app-container { display: flex; flex-direction: column; width: 100%; height: 100vh; }
+.main-shell { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* =========================================
+   Activity Bar (左侧图标栏)
+   ========================================= */
+.activity-bar {
+  width: 48px;
+  background: var(--bg-base);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.activity-icon {
+  width: 36px;
+  height: 36px;
+  color: var(--term-muted);
+  font-size: 10px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.activity-icon.active { color: var(--term-gold); border-color: var(--term-gold); background: rgba(255,153,0,0.05); }
+.activity-icon:hover:not(.active) { color: var(--term-text); border-color: var(--border-hl); }
+
+/* =========================================
+   Sidebar (资产面板)
+   ========================================= */
+.sidebar-panel {
+  width: 260px;
+  background: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.p-head {
+  font-size: 11px;
+  color: var(--term-gold);
+  border-bottom: 1px solid var(--border-hl);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.asset-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 4px;
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 1px dashed var(--border-color);
+}
+.asset-row:hover, .asset-row.active-row {
+  background: #111;
+  border-left: 2px solid var(--term-cyan);
+  padding-left: 8px;
+}
+.asset-ip { color: var(--term-cyan); }
+.asset-ports { color: var(--term-muted); font-size: 10px; }
+
+/* Threat heatmap */
+.threat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+.threat-cell {
+  padding: 10px 6px;
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.threat-cell:hover { border-color: #fff; filter: brightness(1.2); }
+.threat-cell .tc-label { font-size: 11px; font-weight: bold; color: #fff; margin-bottom: 2px; }
+.threat-cell .tc-value { font-size: 16px; font-weight: bold; }
+
+/* =========================================
+   Work Area (中间主体)
+   ========================================= */
+.activity-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.terminal-tab-bar {
+  height: 36px;
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  background: var(--bg-panel);
+}
+
+.terminal-tab {
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--border-color);
+  color: var(--term-muted);
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: bold;
+  background: transparent;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  font-family: inherit;
+}
+.terminal-tab.active { color: var(--term-cyan); border-top: 2px solid var(--term-cyan); background: var(--bg-base); }
+
+.tab-content-area {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Indicator grid */
+.indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.ind-card {
+  padding: 10px;
+  border: 1px solid var(--border-hl);
+  background: #050505;
+  min-width: 0;
+  overflow: hidden;
+}
+.ind-card .m-row {
+  flex-wrap: wrap;
+}
+.ind-card-title {
+  font-size: 10px;
+  color: var(--term-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 4px;
+}
+.m-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+.m-row .lbl { color: var(--term-cyan); }
+.m-row .val { color: var(--term-text); font-weight: bold; }
+
+/* Data table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-color);
+}
+.data-table th {
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--term-gold);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: bold;
+}
+.data-table td {
+  padding: 6px 10px;
+  border-bottom: 1px dashed var(--border-color);
+  font-size: 12px;
+}
+.data-table tr:hover td { background: #111; }
+
+/* =========================================
+   Resizer
+   ========================================= */
+.resizer {
+  width: 4px;
+  background: var(--border-color);
+  cursor: col-resize;
+  flex-shrink: 0;
+}
+.resizer:hover { background: var(--term-cyan); }
+
+/* =========================================
+   AI Copilot Panel (右侧)
+   ========================================= */
+.col-right {
+  width: 360px;
+  background: var(--bg-base);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-color);
+  min-height: 0;
+  max-height: 100%;
+}
+
+.ai-header {
+  height: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  background: var(--bg-panel);
+}
+.ai-title { font-size: 13px; font-weight: bold; color: var(--term-text); }
+.ai-title span { color: var(--ai-accent); }
+
+.ai-tools { display: flex; gap: 12px; font-size: 11px; font-weight: bold; color: var(--term-muted); }
+.ai-tool-btn { cursor: pointer; padding: 2px 4px; border: 1px solid transparent; }
+.ai-tool-btn:hover { color: var(--term-cyan); border-color: var(--border-hl); }
+
+.ai-chat-area {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.msg-user {
+  align-self: flex-end;
+  background: #050505;
+  border: 1px solid var(--term-cyan);
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 85%;
+  color: #fff;
+}
+
+.msg-ai {
+  align-self: flex-start;
+  padding: 4px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #D0D0D0;
+  width: 100%;
+}
+
+.ai-identity {
+  font-size: 11px;
+  font-weight: bold;
+  color: var(--ai-accent);
+  margin-bottom: 8px;
+  font-family: 'Consolas', monospace;
+}
+
+.ai-data-card {
+  margin: 12px 0;
+  padding: 12px;
+  background: #050505;
+  border: 1px solid var(--border-hl);
+  border-left: 3px solid var(--term-gold);
+  font-family: 'Consolas', monospace;
+  font-size: 12px;
+  color: #fff;
+  line-height: 1.6;
+  opacity: 0;
+  transform: translateY(5px);
+  transition: all 0.3s;
+}
+.ai-data-card.show { opacity: 1; transform: translateY(0); }
+
+/* Quick Chips */
+.chips-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.agent-chip {
+  border: 1px solid var(--border-hl);
+  color: var(--term-text);
+  font-size: 11px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-family: 'Consolas', monospace;
+}
+.agent-chip:hover { border-color: var(--term-cyan); color: var(--term-cyan); background: rgba(0,255,255,0.05); }
+.chip-group-title {
+  font-size: 9px;
+  color: var(--term-muted);
+  margin: 12px 0 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 4px;
+  text-transform: uppercase;
+  font-family: 'Consolas', monospace;
+}
+
+/* Input area */
+.input-wrapper {
+  border-top: 1px solid var(--term-cyan);
+  padding: 12px;
+  background: var(--bg-base);
+  flex-shrink: 0;
+}
+.input-card {
+  background: #050505;
+  border: 1px solid var(--border-hl);
+  display: flex;
+  flex-direction: column;
+}
+.input-card:focus-within { border-color: var(--term-cyan); }
+
+.ai-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  padding: 10px 12px;
+  font-family: inherit;
+  line-height: 1.4;
+}
+.ai-input::placeholder { color: var(--term-muted); }
+
+.input-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.model-selector {
+  font-size: 11px;
+  color: var(--term-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: bold;
+}
+.model-selector:hover { color: var(--term-text); }
+
+.send-btn {
+  background: transparent;
+  color: var(--term-cyan);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+.send-btn:hover { color: var(--term-gold); }
+.send-btn:disabled { color: var(--border-hl); cursor: not-allowed; }
+.send-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+/* Typing cursor */
+.typing-cursor {
+  display: inline-block;
+  width: 6px;
+  height: 13px;
+  background: var(--ai-accent);
+  margin-left: 4px;
+  animation: blink 0.8s infinite;
+  vertical-align: middle;
+}
+
+/* Skeleton */
+.skeleton-line {
+  height: 10px;
+  background: var(--border-hl);
+  margin-bottom: 8px;
+  width: 100%;
+}
+.skeleton-line:last-child { width: 60%; }
+
+/* Topology canvas */
+.topo-wrap {
+  flex: 1;
+  background: #020202;
+  border: 1px solid var(--border-hl);
+  position: relative;
+}
+
+/* Floating AI Input */
+.ai-input-float {
+  flex-shrink: 0;
+  padding: 12px;
+  background: var(--bg-base);
+  border-top: 1px solid var(--term-cyan);
+}
+
+.ai-input-float .input-card { background: #050505; border: 1px solid var(--border-hl); }
+.ai-input-float .input-card:focus-within { border-color: var(--term-cyan); }
+
+.ai-input-float .ai-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  padding: 10px 12px;
+  font-family: inherit;
+  line-height: 1.4;
+  resize: none;
+  max-height: 120px;
+}
+.ai-input-float .ai-input::placeholder { color: var(--term-muted); }
+
+/* Model Dropdown (upward) */
+.model-dropdown {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  background: #000;
+  border: 1px solid var(--border-hl);
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+  width: 160px;
+  box-shadow: 4px -4px 0 rgba(0,255,255,0.08);
+}
+.dd-item {
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--term-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+  font-family: 'Consolas', monospace;
+}
+.dd-item:last-child { border-bottom: none; }
+.dd-item:hover, .dd-item.active {
+  background: #111;
+  color: var(--term-text);
+  border-left: 2px solid var(--term-cyan);
+  padding-left: 10px;
+}
+
+
+
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes popIn { 0% { opacity:0; transform:translateY(5px); } 100% { opacity:1; transform:translateY(0); } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* === Thinking & Streaming === */
+.thinking-indicator {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0; animation: popIn 0.2s ease;
+}
+.thinking-dot {
+  width: 8px; height: 8px; border-radius: 50% !important;
+  background: var(--term-cyan);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.typing-cursor {
+  display: inline-block; width: 7px; height: 14px;
+  background: var(--term-cyan); margin-left: 2px;
+  animation: blink 1s step-end infinite;
+  vertical-align: text-bottom;
+}
+
+/* Refresh spin animation */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+
+/* OP Sidebar helper rows */
+.m-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #222; }
+.m-row .lbl { color: #666; }
+.m-row .val { font-weight: bold; }
+.c-gold { color: #FF9900; }
+</style><style type="text/css" data-vite-dev-id="/Users/xiaoziqi/CatTeam/frontend/node_modules/xterm/css/xterm.css">/**
+ * Copyright (c) 2014 The xterm.js authors. All rights reserved.
+ * Copyright (c) 2012-2013, Christopher Jeffrey (MIT License)
+ * https://github.com/chjj/term.js
+ * @license MIT
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * Originally forked from (with the author's permission):
+ *   Fabrice Bellard's javascript vt100 for jslinux:
+ *   http://bellard.org/jslinux/
+ *   Copyright (c) 2011 Fabrice Bellard
+ *   The original design remains. The terminal itself
+ *   has been extended to include xterm CSI codes, among
+ *   other features.
+ */
+
+/**
+ *  Default styles for xterm.js
+ */
+
+.xterm {
+    cursor: text;
+    position: relative;
+    user-select: none;
+    -ms-user-select: none;
+    -webkit-user-select: none;
+}
+
+.xterm.focus,
+.xterm:focus {
+    outline: none;
+}
+
+.xterm .xterm-helpers {
+    position: absolute;
+    top: 0;
+    /**
+     * The z-index of the helpers must be higher than the canvases in order for
+     * IMEs to appear on top.
+     */
+    z-index: 5;
+}
+
+.xterm .xterm-helper-textarea {
+    padding: 0;
+    border: 0;
+    margin: 0;
+    /* Move textarea out of the screen to the far left, so that the cursor is not visible */
+    position: absolute;
+    opacity: 0;
+    left: -9999em;
+    top: 0;
+    width: 0;
+    height: 0;
+    z-index: -5;
+    /** Prevent wrapping so the IME appears against the textarea at the correct position */
+    white-space: nowrap;
+    overflow: hidden;
+    resize: none;
+}
+
+.xterm .composition-view {
+    /* TODO: Composition position got messed up somewhere */
+    background: #000;
+    color: #FFF;
+    display: none;
+    position: absolute;
+    white-space: nowrap;
+    z-index: 1;
+}
+
+.xterm .composition-view.active {
+    display: block;
+}
+
+.xterm .xterm-viewport {
+    /* On OS X this is required in order for the scroll bar to appear fully opaque */
+    background-color: #000;
+    overflow-y: scroll;
+    cursor: default;
+    position: absolute;
+    right: 0;
+    left: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.xterm .xterm-screen {
+    position: relative;
+}
+
+.xterm .xterm-screen canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.xterm .xterm-scroll-area {
+    visibility: hidden;
+}
+
+.xterm-char-measure-element {
+    display: inline-block;
+    visibility: hidden;
+    position: absolute;
+    top: 0;
+    left: -9999em;
+    line-height: normal;
+}
+
+.xterm.enable-mouse-events {
+    /* When mouse events are enabled (eg. tmux), revert to the standard pointer cursor */
+    cursor: default;
+}
+
+.xterm.xterm-cursor-pointer,
+.xterm .xterm-cursor-pointer {
+    cursor: pointer;
+}
+
+.xterm.column-select.focus {
+    /* Column selection mode */
+    cursor: crosshair;
+}
+
+.xterm .xterm-accessibility,
+.xterm .xterm-message {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    z-index: 10;
+    color: transparent;
+    pointer-events: none;
+}
+
+.xterm .live-region {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.xterm-dim {
+    /* Dim should not apply to background, so the opacity of the foreground color is applied
+     * explicitly in the generated class and reset to 1 here */
+    opacity: 1 !important;
+}
+
+.xterm-underline-1 { text-decoration: underline; }
+.xterm-underline-2 { text-decoration: double underline; }
+.xterm-underline-3 { text-decoration: wavy underline; }
+.xterm-underline-4 { text-decoration: dotted underline; }
+.xterm-underline-5 { text-decoration: dashed underline; }
+
+.xterm-overline {
+    text-decoration: overline;
+}
+
+.xterm-overline.xterm-underline-1 { text-decoration: overline underline; }
+.xterm-overline.xterm-underline-2 { text-decoration: overline double underline; }
+.xterm-overline.xterm-underline-3 { text-decoration: overline wavy underline; }
+.xterm-overline.xterm-underline-4 { text-decoration: overline dotted underline; }
+.xterm-overline.xterm-underline-5 { text-decoration: overline dashed underline; }
+
+.xterm-strikethrough {
+    text-decoration: line-through;
+}
+
+.xterm-screen .xterm-decoration-container .xterm-decoration {
+	z-index: 6;
+	position: absolute;
+}
+
+.xterm-screen .xterm-decoration-container .xterm-decoration.xterm-decoration-top-layer {
+	z-index: 7;
+}
+
+.xterm-decoration-overview-ruler {
+    z-index: 8;
+    position: absolute;
+    top: 0;
+    right: 0;
+    pointer-events: none;
+}
+
+.xterm-decoration-top {
+    z-index: 2;
+    position: relative;
+}
+</style></head>
+  <body>
+    <div id="root"><div class="app-container"><div class="hud-bar"><div class="hud-brand" style="position: relative; cursor: pointer;"><span style="font-family: Consolas, monospace; color: rgb(255, 153, 0); margin-right: 6px; font-size: 13px;">/\_/\</span><span style="font-family: Consolas, monospace; color: rgb(0, 255, 255); margin-right: 6px; font-size: 13px;">( o.o )</span>CLAW V8.2<div class="cat-tip" style="display: none; position: absolute; top: 100%; left: 0px; margin-top: 8px; background: rgb(17, 17, 17); border: 1px solid rgb(51, 51, 51); border-radius: 8px; padding: 16px 20px; z-index: 9999; white-space: pre; font-family: Consolas, monospace; font-size: 13px; line-height: 1.4; box-shadow: rgba(0, 0, 0, 0.8) 0px 8px 24px; min-width: 340px;"><span style="color: rgb(0, 255, 255);">         /\_/\
+</span><span style="color: rgb(0, 255, 255);">        ( o.o ) </span><span style="color: rgb(255, 255, 255); font-weight: bold;">Project CLAW</span> <span style="color: rgb(48, 209, 88);">V8.2</span>
+<span style="color: rgb(0, 255, 255);">         &gt; ^ &lt;  </span><span style="color: rgb(102, 102, 102);">CatTeam Lateral Arsenal Weapon</span>
+<span style="color: rgb(0, 255, 255);">        /|   |\
+</span><span style="color: rgb(0, 255, 255);">       (_|   |_) </span><span style="color: rgb(153, 153, 153);">Codename: Lynx</span></div></div><div style="position: relative; margin-left: 8px; border-left: 1px solid rgb(51, 51, 51); padding-left: 12px;"><div style="display: flex; align-items: center; gap: 8px;"><div style="cursor: pointer; display: flex; align-items: center; gap: 6px;"><span style="font-size: 10px; color: rgb(102, 102, 102);">战区</span><span style="font-size: 12px; color: rgb(255, 153, 0); font-weight: bold;">default</span><span style="font-size: 10px; color: rgb(102, 102, 102);">▾</span></div><button title="战区配置" style="background: transparent; border: none; color: rgb(102, 102, 102); cursor: pointer; padding: 2px; display: flex; align-items: center;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div></div><div class="stat-item"><span class="stat-label">存活主机</span><span class="stat-value c-cyan">—</span></div><div class="stat-item"><span class="stat-label">高危端口</span><span class="stat-value c-up">—</span></div><div class="stat-item"><span class="stat-label">漏洞告警</span><span class="stat-value" style="color: rgb(102, 102, 102);">0</span></div><div class="stat-item"><span class="stat-label">扫描任务</span><span class="stat-value c-gold">—</span></div><div class="stat-item"><span class="stat-label">副官状态</span><span class="stat-value c-up">在线监控中</span></div><div class="stat-item"><span class="stat-label">系统时间</span><span class="stat-value c-gold">17:30:29</span></div><div class="stat-item" style="cursor: pointer; margin-left: auto; border-left: 1px solid rgb(51, 51, 51); padding-left: 16px;"><button style="background: rgba(255, 59, 48, 0.15); color: rgb(255, 59, 48); border: 1px solid rgb(255, 59, 48); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 4px;">⚠ 上帝模式 (无限制)</button></div><div class="stat-item" style="cursor: pointer; border-left: 1px solid rgb(51, 51, 51); padding-left: 16px;"><button style="display: flex; align-items: center; gap: 4px; background: rgba(0, 255, 255, 0.1); color: rgb(0, 255, 255); border: 1px solid rgb(0, 255, 255); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s;">⭳ 导出报告</button></div><div class="stat-item" style="cursor: pointer; border-left: 1px solid rgb(51, 51, 51); padding-left: 16px;"><span class="stat-label">控制台</span><span class="stat-value" style="color: rgb(208, 208, 208);">[Cmd+J] 切换</span></div></div><div class="main-shell" style="display: flex; flex-direction: row; flex: 1 1 0%; overflow: hidden;"><div style="display: flex; flex-direction: column; flex: 1 1 0%; min-width: 0px;"><div style="display: flex; flex: 1 1 0%; min-height: 0px;"><div class="activity-bar"><div class="activity-icon active" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">侦察</div><div class="activity-icon " style="display: flex; flex-direction: column; align-items: center; justify-content: center;">资产</div><div class="activity-icon " style="display: flex; flex-direction: column; align-items: center; justify-content: center;">武库</div><div class="activity-icon " style="display: flex; flex-direction: column; align-items: center; justify-content: center;">作战</div><div class="activity-icon " style="display: flex; flex-direction: column; align-items: center; justify-content: center;">远控</div><div class="activity-icon " style="display: flex; flex-direction: column; align-items: center; justify-content: center;">全域</div></div><div class="sidebar-panel"><div class="p-head">[ 威胁大盘 ]</div><div class="threat-grid"><div class="threat-cell" title="开放了 SMB(445)/RDP(3389)/FTP(21) 等高危端口的主机" style="background: rgba(255, 59, 48, 0.15); cursor: pointer;"><span class="tc-label">极危节点</span><span class="tc-value" style="color: rgb(255, 59, 48);">0</span><span style="font-size: 9px; color: rgb(102, 102, 102); margin-top: 4px;">含 SMB/RDP/FTP 高危端口</span></div><div class="threat-cell" title="开放了 HTTP/HTTPS 类 Web 端口的主机总数" style="background: rgba(0, 255, 255, 0.08); cursor: pointer;"><span class="tc-label">Web服务</span><span class="tc-value" style="color: rgb(0, 255, 255);">0</span><span style="font-size: 9px; color: rgb(102, 102, 102); margin-top: 4px;">含 80/443/8080 端口</span></div><div class="threat-cell" title="本次扫描中发现的所有存活 IP 总数" style="background: rgba(48, 209, 88, 0.1); cursor: pointer;"><span class="tc-label">资产总数</span><span class="tc-value" style="color: rgb(48, 209, 88);">0</span><span style="font-size: 9px; color: rgb(102, 102, 102); margin-top: 4px;">本次扫描存活 IP</span></div><div class="threat-cell" title="每台主机平均开放的端口数量，越高说明攻击面越大" style="background: rgba(255, 153, 0, 0.1);"><span class="tc-label">平均端口</span><span class="tc-value" style="color: rgb(255, 153, 0);">0</span><span style="font-size: 9px; color: rgb(102, 102, 102); margin-top: 4px;">平均暴露面指标</span></div></div><div style="margin-top: 12px;"><div class="p-head">[ 资产节点 (0) ]</div><div style="max-height: 220px; overflow-y: auto;"><div style="font-size: 10px; color: rgb(102, 102, 102); padding: 8px;">暂无资产数据</div></div></div><div style="margin-top: 12px; padding: 12px 0px 0px; border-top: 1px solid rgb(34, 34, 34);"><div class="p-head" style="margin-bottom: 8px;">[ 目标探测 ]</div><div style="font-size: 10px; color: rgb(102, 102, 102); margin-bottom: 8px;">输入 IP 或 CIDR，发起实弹 Nmap 扫描</div><input placeholder="例如: 192.168.1.1 或 10.0.0.0/24" type="text" value="" style="width: 100%; background: rgb(10, 10, 10); color: rgb(208, 208, 208); border: 1px solid rgb(51, 51, 51); border-radius: 4px; padding: 6px 8px; font-family: Consolas, monospace; font-size: 12px; box-sizing: border-box; margin-bottom: 6px;"><div style="display: flex; gap: 4px; margin-bottom: 12px;"><button style="flex: 1 1 0%; background: rgba(0, 255, 255, 0.15); color: rgb(0, 255, 255); border: 1px solid rgb(0, 255, 255); border-radius: 4px; padding: 4px; font-size: 10px; cursor: pointer; transition: 0.2s;">常规 (7口)</button><button style="flex: 1 1 0%; background: rgb(17, 17, 17); color: rgb(102, 102, 102); border: 1px solid rgb(51, 51, 51); border-radius: 4px; padding: 4px; font-size: 10px; cursor: pointer; transition: 0.2s;">IoT (11口)</button><button style="flex: 1 1 0%; background: rgb(17, 17, 17); color: rgb(102, 102, 102); border: 1px solid rgb(51, 51, 51); border-radius: 4px; padding: 4px; font-size: 10px; cursor: pointer; transition: 0.2s;">全量 (30口)</button></div><div style="display: flex; gap: 4px; margin-bottom: 12px; border: 1px solid rgb(51, 51, 51); border-radius: 4px; padding: 4px;"><button style="flex: 1 1 0%; background: rgba(255, 255, 255, 0.05); color: rgb(208, 208, 208); border: none; border-radius: 4px; padding: 6px; font-size: 11px; cursor: pointer; transition: 0.2s;">并入当前战区</button><button style="flex: 1 1 0%; background: transparent; color: rgb(102, 102, 102); border: none; border-radius: 4px; padding: 6px; font-size: 11px; cursor: pointer; transition: 0.2s;">新建独立沙盒</button></div><button id="probe-btn" disabled="" style="display: flex; justify-content: center; align-items: center; gap: 6px; width: 100%; background: rgba(255, 59, 48, 0.1); color: rgb(255, 59, 48); border: 1px solid rgb(255, 59, 48); border-radius: 4px; padding: 8px; cursor: pointer; font-size: 12px; font-weight: bold; transition: 0.2s;"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-crosshair" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="22" x2="18" y1="12" y2="12"></line><line x1="6" x2="2" y1="12" y2="12"></line><line x1="12" x2="12" y1="6" y2="2"></line><line x1="12" x2="12" y1="22" y2="18"></line></svg> 发起探测</button></div></div><div class="activity-main"><div class="terminal-tab-bar"><button class="terminal-tab active">侦察态势</button></div><div class="tab-content-area"><div style="display: flex; gap: 24px; flex-wrap: wrap;"><div style="flex: 1 1 400px;"><div class="p-head" style="margin-bottom: 16px;">[ 量化指标矩阵 ]</div><div class="indicator-grid"><div class="ind-card" style="border-top: 2px solid rgb(0, 255, 255);"><div class="ind-card-title" style="color: rgb(0, 255, 255);">扫描面统计</div><div class="m-row"><span class="lbl">IP总数:</span><span class="val">0</span></div><div class="m-row"><span class="lbl">端口总数:</span><span class="val">0</span></div><div class="m-row"><span class="lbl">扫描引擎:</span><span class="val c-up">NMAP / HTTPX</span></div></div><div class="ind-card"><div class="ind-card-title">脆弱性风险暴露</div><div class="m-row"><span class="lbl">SMB(445):</span><span class="val" style="color: rgb(255, 59, 48);">0 靶标</span></div><div class="m-row"><span class="lbl">RDP(3389):</span><span class="val" style="color: rgb(255, 59, 48);">0 靶标</span></div><div class="m-row"><span class="lbl">FTP(21):</span><span class="val" style="color: rgb(255, 153, 0);">0 靶标</span></div></div><div class="ind-card"><div class="ind-card-title">公防网域面</div><div class="m-row"><span class="lbl">HTTP:</span><span class="val">0 站点</span></div><div class="m-row"><span class="lbl">HTTPS:</span><span class="val">0 站点</span></div><div class="m-row"><span class="lbl">PROXY:</span><span class="val">0 代理</span></div></div><div class="ind-card" style="border-top: 2px solid rgb(255, 153, 0);"><div class="ind-card-title" style="color: rgb(255, 153, 0);">作战智能体</div><div class="m-row"><span class="lbl">安全限级:</span><span class="val">M2 级指令权</span></div><div class="m-row"><span class="lbl">HITL拦截:</span><span class="val c-up">强鉴权启动</span></div><div class="m-row"><span class="lbl">算力核心:</span><span class="val">Gemini 3 阵列</span></div></div></div><div class="p-head" style="margin-top: 24px; margin-bottom: 12px;">[ 威胁热点 TOP5 (风险排序) ]</div><div style="background: rgb(5, 5, 5); border: 1px solid rgb(34, 34, 34); padding: 12px;"><div style="color: rgb(102, 102, 102); font-size: 11px;">暂无资产数据</div></div><div class="p-head" style="margin-top: 24px; margin-bottom: 12px;">[ OS 分布概览 ]</div><div style="background: rgb(5, 5, 5); border: 1px solid rgb(34, 34, 34); padding: 12px;"><div style="color: rgb(102, 102, 102); font-size: 11px;">暂无 OS 识别数据</div></div></div><div style="flex: 0 1 280px; background: rgb(10, 10, 10); border: 1px solid rgb(34, 34, 34); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; height: auto; max-width: 320px; min-width: 220px;"><div style="font-size: 14px; color: rgb(255, 153, 0); font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 8px; height: 8px; background: rgb(255, 59, 48); border-radius: 50%; animation: 2s ease 0s infinite normal none running pulse;"></span>实时动态日志</div><div style="flex: 1 1 0%; overflow-y: auto; color: rgb(208, 208, 208); font-size: 12px; font-family: Consolas, monospace; display: flex; flex-direction: column; gap: 12px;"><div style="border-left: 2px solid rgb(48, 209, 88); padding-left: 12px;"><div style="color: rgb(102, 102, 102); font-size: 10px; margin-bottom: 4px;">17:20:27</div><div style="color: rgb(48, 209, 88); font-weight: bold;">[侦察] 新资产发现</div><div>探测到 0 个存活主机节点</div></div><div style="border-left: 2px solid rgb(0, 255, 255); padding-left: 12px;"><div style="color: rgb(102, 102, 102); font-size: 10px; margin-bottom: 4px;">17:22:27</div><div style="color: rgb(0, 255, 255); font-weight: bold;">[扫描] 网络端口拓扑更新</div><div>扫描完毕，共发现 0 个开放端口</div></div><div style="border-left: 2px solid rgb(255, 59, 48); padding-left: 12px;"><div style="color: rgb(102, 102, 102); font-size: 10px; margin-bottom: 4px;">17:25:27</div><div style="color: rgb(255, 59, 48); font-weight: bold;">[告警] 高危服务暴露</div><div>发现 0 台主机存在 SMB/RDP 高危暴露</div></div><div style="margin-top: auto; padding-top: 16px; border-top: 1px dashed rgb(51, 51, 51); color: rgb(102, 102, 102); font-size: 11px;">[系统提示] 点击 "OP 作战" 面板执行自动漏洞审计</div></div></div></div></div></div></div><div style="display: flex; height: 240px; border-top: 1px solid rgb(51, 51, 51); flex-direction: column; background-color: rgb(5, 5, 5); z-index: 50;"><div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 16px; border-bottom: 1px solid rgb(34, 34, 34); background-color: rgb(17, 17, 17); font-size: 11px; color: rgb(153, 153, 153); cursor: row-resize; user-select: none;"><div style="display: flex; gap: 0px;"><span data-console-tab="xterm" style="cursor: pointer; padding: 4px 12px; color: rgb(0, 255, 255); font-weight: bold; border-bottom: 2px solid rgb(0, 255, 255); transition: 0.2s;">XTERM CONSOLE</span><span style="cursor: pointer; padding: 4px 12px; color: rgb(153, 153, 153); font-weight: normal; border-bottom: 2px solid transparent; transition: 0.2s;">OUTPUT</span><span style="cursor: pointer; padding: 4px 12px; color: rgb(153, 153, 153); font-weight: normal; border-bottom: 2px solid transparent; transition: 0.2s;">DEBUG CONSOLE</span></div><div style="display: flex; gap: 16px;"><span style="cursor: pointer; color: rgb(204, 204, 204); display: flex; align-items: center;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></span></div></div><div style="flex: 1 1 0%; min-height: 0px; overflow: hidden; padding: 8px;"><div style="width: 100%; height: 100%; overflow: hidden;"><div dir="ltr" class="terminal xterm xterm-dom-renderer-owner-1"><div class="xterm-viewport" style="background-color: rgb(0, 0, 0);"><div class="xterm-scroll-area" style="height: 176px;"></div></div><div class="xterm-screen" style="width: 866px; height: 176px;"><div class="xterm-helpers"><textarea class="xterm-helper-textarea" aria-label="Terminal input" aria-multiline="false" autocorrect="off" autocapitalize="off" spellcheck="false" tabindex="0"></textarea><span class="xterm-char-measure-element" aria-hidden="true" style="white-space: pre; font-kerning: none; font-family: Consolas, monospace; font-size: 14px;">WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW</span><div class="composition-view"></div></div><style>.xterm-dom-renderer-owner-1 .xterm-rows span { display: inline-block; height: 100%; vertical-align: top;}</style><style>.xterm-dom-renderer-owner-1 .xterm-rows { color: #00FFFF; font-family: Consolas, monospace; font-size: 14px; font-kerning: none; white-space: pre}.xterm-dom-renderer-owner-1 .xterm-rows .xterm-dim { color: #00ffff80;}.xterm-dom-renderer-owner-1 span:not(.xterm-bold) { font-weight: normal;}.xterm-dom-renderer-owner-1 span.xterm-bold { font-weight: bold;}.xterm-dom-renderer-owner-1 span.xterm-italic { font-style: italic;}@keyframes blink_box_shadow_1 { 50% {  border-bottom-style: hidden; }}@keyframes blink_block_1 { 0% {  background-color: #FF9900;  color: #000000; } 50% {  background-color: inherit;  color: #FF9900; }}.xterm-dom-renderer-owner-1 .xterm-rows.xterm-focus .xterm-cursor.xterm-cursor-blink:not(.xterm-cursor-block) { animation: blink_box_shadow_1 1s step-end infinite;}.xterm-dom-renderer-owner-1 .xterm-rows.xterm-focus .xterm-cursor.xterm-cursor-blink.xterm-cursor-block { animation: blink_block_1 1s step-end infinite;}.xterm-dom-renderer-owner-1 .xterm-rows .xterm-cursor.xterm-cursor-block { background-color: #FF9900; color: #000000;}.xterm-dom-renderer-owner-1 .xterm-rows .xterm-cursor.xterm-cursor-outline { outline: 1px solid #FF9900; outline-offset: -1px;}.xterm-dom-renderer-owner-1 .xterm-rows .xterm-cursor.xterm-cursor-bar { box-shadow: 1px 0 0 #FF9900 inset;}.xterm-dom-renderer-owner-1 .xterm-rows .xterm-cursor.xterm-cursor-underline { border-bottom: 1px #FF9900; border-bottom-style: solid; height: calc(100% - 1px);}.xterm-dom-renderer-owner-1 .xterm-selection { position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none;}.xterm-dom-renderer-owner-1.focus .xterm-selection div { position: absolute; background-color: #4d4d4d;}.xterm-dom-renderer-owner-1 .xterm-selection div { position: absolute; background-color: #4d4d4d;}.xterm-dom-renderer-owner-1 .xterm-fg-0 { color: #2e3436; }.xterm-dom-renderer-owner-1 .xterm-fg-0.xterm-dim { color: #2e343680; }.xterm-dom-renderer-owner-1 .xterm-bg-0 { background-color: #2e3436; }.xterm-dom-renderer-owner-1 .xterm-fg-1 { color: #cc0000; }.xterm-dom-renderer-owner-1 .xterm-fg-1.xterm-dim { color: #cc000080; }.xterm-dom-renderer-owner-1 .xterm-bg-1 { background-color: #cc0000; }.xterm-dom-renderer-owner-1 .xterm-fg-2 { color: #4e9a06; }.xterm-dom-renderer-owner-1 .xterm-fg-2.xterm-dim { color: #4e9a0680; }.xterm-dom-renderer-owner-1 .xterm-bg-2 { background-color: #4e9a06; }.xterm-dom-renderer-owner-1 .xterm-fg-3 { color: #c4a000; }.xterm-dom-renderer-owner-1 .xterm-fg-3.xterm-dim { color: #c4a00080; }.xterm-dom-renderer-owner-1 .xterm-bg-3 { background-color: #c4a000; }.xterm-dom-renderer-owner-1 .xterm-fg-4 { color: #3465a4; }.xterm-dom-renderer-owner-1 .xterm-fg-4.xterm-dim { color: #3465a480; }.xterm-dom-renderer-owner-1 .xterm-bg-4 { background-color: #3465a4; }.xterm-dom-renderer-owner-1 .xterm-fg-5 { color: #75507b; }.xterm-dom-renderer-owner-1 .xterm-fg-5.xterm-dim { color: #75507b80; }.xterm-dom-renderer-owner-1 .xterm-bg-5 { background-color: #75507b; }.xterm-dom-renderer-owner-1 .xterm-fg-6 { color: #06989a; }.xterm-dom-renderer-owner-1 .xterm-fg-6.xterm-dim { color: #06989a80; }.xterm-dom-renderer-owner-1 .xterm-bg-6 { background-color: #06989a; }.xterm-dom-renderer-owner-1 .xterm-fg-7 { color: #d3d7cf; }.xterm-dom-renderer-owner-1 .xterm-fg-7.xterm-dim { color: #d3d7cf80; }.xterm-dom-renderer-owner-1 .xterm-bg-7 { background-color: #d3d7cf; }.xterm-dom-renderer-owner-1 .xterm-fg-8 { color: #555753; }.xterm-dom-renderer-owner-1 .xterm-fg-8.xterm-dim { color: #55575380; }.xterm-dom-renderer-owner-1 .xterm-bg-8 { background-color: #555753; }.xterm-dom-renderer-owner-1 .xterm-fg-9 { color: #ef2929; }.xterm-dom-renderer-owner-1 .xterm-fg-9.xterm-dim { color: #ef292980; }.xterm-dom-renderer-owner-1 .xterm-bg-9 { background-color: #ef2929; }.xterm-dom-renderer-owner-1 .xterm-fg-10 { color: #8ae234; }.xterm-dom-renderer-owner-1 .xterm-fg-10.xterm-dim { color: #8ae23480; }.xterm-dom-renderer-owner-1 .xterm-bg-10 { background-color: #8ae234; }.xterm-dom-renderer-owner-1 .xterm-fg-11 { color: #fce94f; }.xterm-dom-renderer-owner-1 .xterm-fg-11.xterm-dim { color: #fce94f80; }.xterm-dom-renderer-owner-1 .xterm-bg-11 { background-color: #fce94f; }.xterm-dom-renderer-owner-1 .xterm-fg-12 { color: #729fcf; }.xterm-dom-renderer-owner-1 .xterm-fg-12.xterm-dim { color: #729fcf80; }.xterm-dom-renderer-owner-1 .xterm-bg-12 { background-color: #729fcf; }.xterm-dom-renderer-owner-1 .xterm-fg-13 { color: #ad7fa8; }.xterm-dom-renderer-owner-1 .xterm-fg-13.xterm-dim { color: #ad7fa880; }.xterm-dom-renderer-owner-1 .xterm-bg-13 { background-color: #ad7fa8; }.xterm-dom-renderer-owner-1 .xterm-fg-14 { color: #34e2e2; }.xterm-dom-renderer-owner-1 .xterm-fg-14.xterm-dim { color: #34e2e280; }.xterm-dom-renderer-owner-1 .xterm-bg-14 { background-color: #34e2e2; }.xterm-dom-renderer-owner-1 .xterm-fg-15 { color: #eeeeec; }.xterm-dom-renderer-owner-1 .xterm-fg-15.xterm-dim { color: #eeeeec80; }.xterm-dom-renderer-owner-1 .xterm-bg-15 { background-color: #eeeeec; }.xterm-dom-renderer-owner-1 .xterm-fg-16 { color: #000000; }.xterm-dom-renderer-owner-1 .xterm-fg-16.xterm-dim { color: #00000080; }.xterm-dom-renderer-owner-1 .xterm-bg-16 { background-color: #000000; }.xterm-dom-renderer-owner-1 .xterm-fg-17 { color: #00005f; }.xterm-dom-renderer-owner-1 .xterm-fg-17.xterm-dim { color: #00005f80; }.xterm-dom-renderer-owner-1 .xterm-bg-17 { background-color: #00005f; }.xterm-dom-renderer-owner-1 .xterm-fg-18 { color: #000087; }.xterm-dom-renderer-owner-1 .xterm-fg-18.xterm-dim { color: #00008780; }.xterm-dom-renderer-owner-1 .xterm-bg-18 { background-color: #000087; }.xterm-dom-renderer-owner-1 .xterm-fg-19 { color: #0000af; }.xterm-dom-renderer-owner-1 .xterm-fg-19.xterm-dim { color: #0000af80; }.xterm-dom-renderer-owner-1 .xterm-bg-19 { background-color: #0000af; }.xterm-dom-renderer-owner-1 .xterm-fg-20 { color: #0000d7; }.xterm-dom-renderer-owner-1 .xterm-fg-20.xterm-dim { color: #0000d780; }.xterm-dom-renderer-owner-1 .xterm-bg-20 { background-color: #0000d7; }.xterm-dom-renderer-owner-1 .xterm-fg-21 { color: #0000ff; }.xterm-dom-renderer-owner-1 .xterm-fg-21.xterm-dim { color: #0000ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-21 { background-color: #0000ff; }.xterm-dom-renderer-owner-1 .xterm-fg-22 { color: #005f00; }.xterm-dom-renderer-owner-1 .xterm-fg-22.xterm-dim { color: #005f0080; }.xterm-dom-renderer-owner-1 .xterm-bg-22 { background-color: #005f00; }.xterm-dom-renderer-owner-1 .xterm-fg-23 { color: #005f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-23.xterm-dim { color: #005f5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-23 { background-color: #005f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-24 { color: #005f87; }.xterm-dom-renderer-owner-1 .xterm-fg-24.xterm-dim { color: #005f8780; }.xterm-dom-renderer-owner-1 .xterm-bg-24 { background-color: #005f87; }.xterm-dom-renderer-owner-1 .xterm-fg-25 { color: #005faf; }.xterm-dom-renderer-owner-1 .xterm-fg-25.xterm-dim { color: #005faf80; }.xterm-dom-renderer-owner-1 .xterm-bg-25 { background-color: #005faf; }.xterm-dom-renderer-owner-1 .xterm-fg-26 { color: #005fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-26.xterm-dim { color: #005fd780; }.xterm-dom-renderer-owner-1 .xterm-bg-26 { background-color: #005fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-27 { color: #005fff; }.xterm-dom-renderer-owner-1 .xterm-fg-27.xterm-dim { color: #005fff80; }.xterm-dom-renderer-owner-1 .xterm-bg-27 { background-color: #005fff; }.xterm-dom-renderer-owner-1 .xterm-fg-28 { color: #008700; }.xterm-dom-renderer-owner-1 .xterm-fg-28.xterm-dim { color: #00870080; }.xterm-dom-renderer-owner-1 .xterm-bg-28 { background-color: #008700; }.xterm-dom-renderer-owner-1 .xterm-fg-29 { color: #00875f; }.xterm-dom-renderer-owner-1 .xterm-fg-29.xterm-dim { color: #00875f80; }.xterm-dom-renderer-owner-1 .xterm-bg-29 { background-color: #00875f; }.xterm-dom-renderer-owner-1 .xterm-fg-30 { color: #008787; }.xterm-dom-renderer-owner-1 .xterm-fg-30.xterm-dim { color: #00878780; }.xterm-dom-renderer-owner-1 .xterm-bg-30 { background-color: #008787; }.xterm-dom-renderer-owner-1 .xterm-fg-31 { color: #0087af; }.xterm-dom-renderer-owner-1 .xterm-fg-31.xterm-dim { color: #0087af80; }.xterm-dom-renderer-owner-1 .xterm-bg-31 { background-color: #0087af; }.xterm-dom-renderer-owner-1 .xterm-fg-32 { color: #0087d7; }.xterm-dom-renderer-owner-1 .xterm-fg-32.xterm-dim { color: #0087d780; }.xterm-dom-renderer-owner-1 .xterm-bg-32 { background-color: #0087d7; }.xterm-dom-renderer-owner-1 .xterm-fg-33 { color: #0087ff; }.xterm-dom-renderer-owner-1 .xterm-fg-33.xterm-dim { color: #0087ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-33 { background-color: #0087ff; }.xterm-dom-renderer-owner-1 .xterm-fg-34 { color: #00af00; }.xterm-dom-renderer-owner-1 .xterm-fg-34.xterm-dim { color: #00af0080; }.xterm-dom-renderer-owner-1 .xterm-bg-34 { background-color: #00af00; }.xterm-dom-renderer-owner-1 .xterm-fg-35 { color: #00af5f; }.xterm-dom-renderer-owner-1 .xterm-fg-35.xterm-dim { color: #00af5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-35 { background-color: #00af5f; }.xterm-dom-renderer-owner-1 .xterm-fg-36 { color: #00af87; }.xterm-dom-renderer-owner-1 .xterm-fg-36.xterm-dim { color: #00af8780; }.xterm-dom-renderer-owner-1 .xterm-bg-36 { background-color: #00af87; }.xterm-dom-renderer-owner-1 .xterm-fg-37 { color: #00afaf; }.xterm-dom-renderer-owner-1 .xterm-fg-37.xterm-dim { color: #00afaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-37 { background-color: #00afaf; }.xterm-dom-renderer-owner-1 .xterm-fg-38 { color: #00afd7; }.xterm-dom-renderer-owner-1 .xterm-fg-38.xterm-dim { color: #00afd780; }.xterm-dom-renderer-owner-1 .xterm-bg-38 { background-color: #00afd7; }.xterm-dom-renderer-owner-1 .xterm-fg-39 { color: #00afff; }.xterm-dom-renderer-owner-1 .xterm-fg-39.xterm-dim { color: #00afff80; }.xterm-dom-renderer-owner-1 .xterm-bg-39 { background-color: #00afff; }.xterm-dom-renderer-owner-1 .xterm-fg-40 { color: #00d700; }.xterm-dom-renderer-owner-1 .xterm-fg-40.xterm-dim { color: #00d70080; }.xterm-dom-renderer-owner-1 .xterm-bg-40 { background-color: #00d700; }.xterm-dom-renderer-owner-1 .xterm-fg-41 { color: #00d75f; }.xterm-dom-renderer-owner-1 .xterm-fg-41.xterm-dim { color: #00d75f80; }.xterm-dom-renderer-owner-1 .xterm-bg-41 { background-color: #00d75f; }.xterm-dom-renderer-owner-1 .xterm-fg-42 { color: #00d787; }.xterm-dom-renderer-owner-1 .xterm-fg-42.xterm-dim { color: #00d78780; }.xterm-dom-renderer-owner-1 .xterm-bg-42 { background-color: #00d787; }.xterm-dom-renderer-owner-1 .xterm-fg-43 { color: #00d7af; }.xterm-dom-renderer-owner-1 .xterm-fg-43.xterm-dim { color: #00d7af80; }.xterm-dom-renderer-owner-1 .xterm-bg-43 { background-color: #00d7af; }.xterm-dom-renderer-owner-1 .xterm-fg-44 { color: #00d7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-44.xterm-dim { color: #00d7d780; }.xterm-dom-renderer-owner-1 .xterm-bg-44 { background-color: #00d7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-45 { color: #00d7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-45.xterm-dim { color: #00d7ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-45 { background-color: #00d7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-46 { color: #00ff00; }.xterm-dom-renderer-owner-1 .xterm-fg-46.xterm-dim { color: #00ff0080; }.xterm-dom-renderer-owner-1 .xterm-bg-46 { background-color: #00ff00; }.xterm-dom-renderer-owner-1 .xterm-fg-47 { color: #00ff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-47.xterm-dim { color: #00ff5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-47 { background-color: #00ff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-48 { color: #00ff87; }.xterm-dom-renderer-owner-1 .xterm-fg-48.xterm-dim { color: #00ff8780; }.xterm-dom-renderer-owner-1 .xterm-bg-48 { background-color: #00ff87; }.xterm-dom-renderer-owner-1 .xterm-fg-49 { color: #00ffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-49.xterm-dim { color: #00ffaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-49 { background-color: #00ffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-50 { color: #00ffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-50.xterm-dim { color: #00ffd780; }.xterm-dom-renderer-owner-1 .xterm-bg-50 { background-color: #00ffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-51 { color: #00ffff; }.xterm-dom-renderer-owner-1 .xterm-fg-51.xterm-dim { color: #00ffff80; }.xterm-dom-renderer-owner-1 .xterm-bg-51 { background-color: #00ffff; }.xterm-dom-renderer-owner-1 .xterm-fg-52 { color: #5f0000; }.xterm-dom-renderer-owner-1 .xterm-fg-52.xterm-dim { color: #5f000080; }.xterm-dom-renderer-owner-1 .xterm-bg-52 { background-color: #5f0000; }.xterm-dom-renderer-owner-1 .xterm-fg-53 { color: #5f005f; }.xterm-dom-renderer-owner-1 .xterm-fg-53.xterm-dim { color: #5f005f80; }.xterm-dom-renderer-owner-1 .xterm-bg-53 { background-color: #5f005f; }.xterm-dom-renderer-owner-1 .xterm-fg-54 { color: #5f0087; }.xterm-dom-renderer-owner-1 .xterm-fg-54.xterm-dim { color: #5f008780; }.xterm-dom-renderer-owner-1 .xterm-bg-54 { background-color: #5f0087; }.xterm-dom-renderer-owner-1 .xterm-fg-55 { color: #5f00af; }.xterm-dom-renderer-owner-1 .xterm-fg-55.xterm-dim { color: #5f00af80; }.xterm-dom-renderer-owner-1 .xterm-bg-55 { background-color: #5f00af; }.xterm-dom-renderer-owner-1 .xterm-fg-56 { color: #5f00d7; }.xterm-dom-renderer-owner-1 .xterm-fg-56.xterm-dim { color: #5f00d780; }.xterm-dom-renderer-owner-1 .xterm-bg-56 { background-color: #5f00d7; }.xterm-dom-renderer-owner-1 .xterm-fg-57 { color: #5f00ff; }.xterm-dom-renderer-owner-1 .xterm-fg-57.xterm-dim { color: #5f00ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-57 { background-color: #5f00ff; }.xterm-dom-renderer-owner-1 .xterm-fg-58 { color: #5f5f00; }.xterm-dom-renderer-owner-1 .xterm-fg-58.xterm-dim { color: #5f5f0080; }.xterm-dom-renderer-owner-1 .xterm-bg-58 { background-color: #5f5f00; }.xterm-dom-renderer-owner-1 .xterm-fg-59 { color: #5f5f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-59.xterm-dim { color: #5f5f5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-59 { background-color: #5f5f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-60 { color: #5f5f87; }.xterm-dom-renderer-owner-1 .xterm-fg-60.xterm-dim { color: #5f5f8780; }.xterm-dom-renderer-owner-1 .xterm-bg-60 { background-color: #5f5f87; }.xterm-dom-renderer-owner-1 .xterm-fg-61 { color: #5f5faf; }.xterm-dom-renderer-owner-1 .xterm-fg-61.xterm-dim { color: #5f5faf80; }.xterm-dom-renderer-owner-1 .xterm-bg-61 { background-color: #5f5faf; }.xterm-dom-renderer-owner-1 .xterm-fg-62 { color: #5f5fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-62.xterm-dim { color: #5f5fd780; }.xterm-dom-renderer-owner-1 .xterm-bg-62 { background-color: #5f5fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-63 { color: #5f5fff; }.xterm-dom-renderer-owner-1 .xterm-fg-63.xterm-dim { color: #5f5fff80; }.xterm-dom-renderer-owner-1 .xterm-bg-63 { background-color: #5f5fff; }.xterm-dom-renderer-owner-1 .xterm-fg-64 { color: #5f8700; }.xterm-dom-renderer-owner-1 .xterm-fg-64.xterm-dim { color: #5f870080; }.xterm-dom-renderer-owner-1 .xterm-bg-64 { background-color: #5f8700; }.xterm-dom-renderer-owner-1 .xterm-fg-65 { color: #5f875f; }.xterm-dom-renderer-owner-1 .xterm-fg-65.xterm-dim { color: #5f875f80; }.xterm-dom-renderer-owner-1 .xterm-bg-65 { background-color: #5f875f; }.xterm-dom-renderer-owner-1 .xterm-fg-66 { color: #5f8787; }.xterm-dom-renderer-owner-1 .xterm-fg-66.xterm-dim { color: #5f878780; }.xterm-dom-renderer-owner-1 .xterm-bg-66 { background-color: #5f8787; }.xterm-dom-renderer-owner-1 .xterm-fg-67 { color: #5f87af; }.xterm-dom-renderer-owner-1 .xterm-fg-67.xterm-dim { color: #5f87af80; }.xterm-dom-renderer-owner-1 .xterm-bg-67 { background-color: #5f87af; }.xterm-dom-renderer-owner-1 .xterm-fg-68 { color: #5f87d7; }.xterm-dom-renderer-owner-1 .xterm-fg-68.xterm-dim { color: #5f87d780; }.xterm-dom-renderer-owner-1 .xterm-bg-68 { background-color: #5f87d7; }.xterm-dom-renderer-owner-1 .xterm-fg-69 { color: #5f87ff; }.xterm-dom-renderer-owner-1 .xterm-fg-69.xterm-dim { color: #5f87ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-69 { background-color: #5f87ff; }.xterm-dom-renderer-owner-1 .xterm-fg-70 { color: #5faf00; }.xterm-dom-renderer-owner-1 .xterm-fg-70.xterm-dim { color: #5faf0080; }.xterm-dom-renderer-owner-1 .xterm-bg-70 { background-color: #5faf00; }.xterm-dom-renderer-owner-1 .xterm-fg-71 { color: #5faf5f; }.xterm-dom-renderer-owner-1 .xterm-fg-71.xterm-dim { color: #5faf5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-71 { background-color: #5faf5f; }.xterm-dom-renderer-owner-1 .xterm-fg-72 { color: #5faf87; }.xterm-dom-renderer-owner-1 .xterm-fg-72.xterm-dim { color: #5faf8780; }.xterm-dom-renderer-owner-1 .xterm-bg-72 { background-color: #5faf87; }.xterm-dom-renderer-owner-1 .xterm-fg-73 { color: #5fafaf; }.xterm-dom-renderer-owner-1 .xterm-fg-73.xterm-dim { color: #5fafaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-73 { background-color: #5fafaf; }.xterm-dom-renderer-owner-1 .xterm-fg-74 { color: #5fafd7; }.xterm-dom-renderer-owner-1 .xterm-fg-74.xterm-dim { color: #5fafd780; }.xterm-dom-renderer-owner-1 .xterm-bg-74 { background-color: #5fafd7; }.xterm-dom-renderer-owner-1 .xterm-fg-75 { color: #5fafff; }.xterm-dom-renderer-owner-1 .xterm-fg-75.xterm-dim { color: #5fafff80; }.xterm-dom-renderer-owner-1 .xterm-bg-75 { background-color: #5fafff; }.xterm-dom-renderer-owner-1 .xterm-fg-76 { color: #5fd700; }.xterm-dom-renderer-owner-1 .xterm-fg-76.xterm-dim { color: #5fd70080; }.xterm-dom-renderer-owner-1 .xterm-bg-76 { background-color: #5fd700; }.xterm-dom-renderer-owner-1 .xterm-fg-77 { color: #5fd75f; }.xterm-dom-renderer-owner-1 .xterm-fg-77.xterm-dim { color: #5fd75f80; }.xterm-dom-renderer-owner-1 .xterm-bg-77 { background-color: #5fd75f; }.xterm-dom-renderer-owner-1 .xterm-fg-78 { color: #5fd787; }.xterm-dom-renderer-owner-1 .xterm-fg-78.xterm-dim { color: #5fd78780; }.xterm-dom-renderer-owner-1 .xterm-bg-78 { background-color: #5fd787; }.xterm-dom-renderer-owner-1 .xterm-fg-79 { color: #5fd7af; }.xterm-dom-renderer-owner-1 .xterm-fg-79.xterm-dim { color: #5fd7af80; }.xterm-dom-renderer-owner-1 .xterm-bg-79 { background-color: #5fd7af; }.xterm-dom-renderer-owner-1 .xterm-fg-80 { color: #5fd7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-80.xterm-dim { color: #5fd7d780; }.xterm-dom-renderer-owner-1 .xterm-bg-80 { background-color: #5fd7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-81 { color: #5fd7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-81.xterm-dim { color: #5fd7ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-81 { background-color: #5fd7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-82 { color: #5fff00; }.xterm-dom-renderer-owner-1 .xterm-fg-82.xterm-dim { color: #5fff0080; }.xterm-dom-renderer-owner-1 .xterm-bg-82 { background-color: #5fff00; }.xterm-dom-renderer-owner-1 .xterm-fg-83 { color: #5fff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-83.xterm-dim { color: #5fff5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-83 { background-color: #5fff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-84 { color: #5fff87; }.xterm-dom-renderer-owner-1 .xterm-fg-84.xterm-dim { color: #5fff8780; }.xterm-dom-renderer-owner-1 .xterm-bg-84 { background-color: #5fff87; }.xterm-dom-renderer-owner-1 .xterm-fg-85 { color: #5fffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-85.xterm-dim { color: #5fffaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-85 { background-color: #5fffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-86 { color: #5fffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-86.xterm-dim { color: #5fffd780; }.xterm-dom-renderer-owner-1 .xterm-bg-86 { background-color: #5fffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-87 { color: #5fffff; }.xterm-dom-renderer-owner-1 .xterm-fg-87.xterm-dim { color: #5fffff80; }.xterm-dom-renderer-owner-1 .xterm-bg-87 { background-color: #5fffff; }.xterm-dom-renderer-owner-1 .xterm-fg-88 { color: #870000; }.xterm-dom-renderer-owner-1 .xterm-fg-88.xterm-dim { color: #87000080; }.xterm-dom-renderer-owner-1 .xterm-bg-88 { background-color: #870000; }.xterm-dom-renderer-owner-1 .xterm-fg-89 { color: #87005f; }.xterm-dom-renderer-owner-1 .xterm-fg-89.xterm-dim { color: #87005f80; }.xterm-dom-renderer-owner-1 .xterm-bg-89 { background-color: #87005f; }.xterm-dom-renderer-owner-1 .xterm-fg-90 { color: #870087; }.xterm-dom-renderer-owner-1 .xterm-fg-90.xterm-dim { color: #87008780; }.xterm-dom-renderer-owner-1 .xterm-bg-90 { background-color: #870087; }.xterm-dom-renderer-owner-1 .xterm-fg-91 { color: #8700af; }.xterm-dom-renderer-owner-1 .xterm-fg-91.xterm-dim { color: #8700af80; }.xterm-dom-renderer-owner-1 .xterm-bg-91 { background-color: #8700af; }.xterm-dom-renderer-owner-1 .xterm-fg-92 { color: #8700d7; }.xterm-dom-renderer-owner-1 .xterm-fg-92.xterm-dim { color: #8700d780; }.xterm-dom-renderer-owner-1 .xterm-bg-92 { background-color: #8700d7; }.xterm-dom-renderer-owner-1 .xterm-fg-93 { color: #8700ff; }.xterm-dom-renderer-owner-1 .xterm-fg-93.xterm-dim { color: #8700ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-93 { background-color: #8700ff; }.xterm-dom-renderer-owner-1 .xterm-fg-94 { color: #875f00; }.xterm-dom-renderer-owner-1 .xterm-fg-94.xterm-dim { color: #875f0080; }.xterm-dom-renderer-owner-1 .xterm-bg-94 { background-color: #875f00; }.xterm-dom-renderer-owner-1 .xterm-fg-95 { color: #875f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-95.xterm-dim { color: #875f5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-95 { background-color: #875f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-96 { color: #875f87; }.xterm-dom-renderer-owner-1 .xterm-fg-96.xterm-dim { color: #875f8780; }.xterm-dom-renderer-owner-1 .xterm-bg-96 { background-color: #875f87; }.xterm-dom-renderer-owner-1 .xterm-fg-97 { color: #875faf; }.xterm-dom-renderer-owner-1 .xterm-fg-97.xterm-dim { color: #875faf80; }.xterm-dom-renderer-owner-1 .xterm-bg-97 { background-color: #875faf; }.xterm-dom-renderer-owner-1 .xterm-fg-98 { color: #875fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-98.xterm-dim { color: #875fd780; }.xterm-dom-renderer-owner-1 .xterm-bg-98 { background-color: #875fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-99 { color: #875fff; }.xterm-dom-renderer-owner-1 .xterm-fg-99.xterm-dim { color: #875fff80; }.xterm-dom-renderer-owner-1 .xterm-bg-99 { background-color: #875fff; }.xterm-dom-renderer-owner-1 .xterm-fg-100 { color: #878700; }.xterm-dom-renderer-owner-1 .xterm-fg-100.xterm-dim { color: #87870080; }.xterm-dom-renderer-owner-1 .xterm-bg-100 { background-color: #878700; }.xterm-dom-renderer-owner-1 .xterm-fg-101 { color: #87875f; }.xterm-dom-renderer-owner-1 .xterm-fg-101.xterm-dim { color: #87875f80; }.xterm-dom-renderer-owner-1 .xterm-bg-101 { background-color: #87875f; }.xterm-dom-renderer-owner-1 .xterm-fg-102 { color: #878787; }.xterm-dom-renderer-owner-1 .xterm-fg-102.xterm-dim { color: #87878780; }.xterm-dom-renderer-owner-1 .xterm-bg-102 { background-color: #878787; }.xterm-dom-renderer-owner-1 .xterm-fg-103 { color: #8787af; }.xterm-dom-renderer-owner-1 .xterm-fg-103.xterm-dim { color: #8787af80; }.xterm-dom-renderer-owner-1 .xterm-bg-103 { background-color: #8787af; }.xterm-dom-renderer-owner-1 .xterm-fg-104 { color: #8787d7; }.xterm-dom-renderer-owner-1 .xterm-fg-104.xterm-dim { color: #8787d780; }.xterm-dom-renderer-owner-1 .xterm-bg-104 { background-color: #8787d7; }.xterm-dom-renderer-owner-1 .xterm-fg-105 { color: #8787ff; }.xterm-dom-renderer-owner-1 .xterm-fg-105.xterm-dim { color: #8787ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-105 { background-color: #8787ff; }.xterm-dom-renderer-owner-1 .xterm-fg-106 { color: #87af00; }.xterm-dom-renderer-owner-1 .xterm-fg-106.xterm-dim { color: #87af0080; }.xterm-dom-renderer-owner-1 .xterm-bg-106 { background-color: #87af00; }.xterm-dom-renderer-owner-1 .xterm-fg-107 { color: #87af5f; }.xterm-dom-renderer-owner-1 .xterm-fg-107.xterm-dim { color: #87af5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-107 { background-color: #87af5f; }.xterm-dom-renderer-owner-1 .xterm-fg-108 { color: #87af87; }.xterm-dom-renderer-owner-1 .xterm-fg-108.xterm-dim { color: #87af8780; }.xterm-dom-renderer-owner-1 .xterm-bg-108 { background-color: #87af87; }.xterm-dom-renderer-owner-1 .xterm-fg-109 { color: #87afaf; }.xterm-dom-renderer-owner-1 .xterm-fg-109.xterm-dim { color: #87afaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-109 { background-color: #87afaf; }.xterm-dom-renderer-owner-1 .xterm-fg-110 { color: #87afd7; }.xterm-dom-renderer-owner-1 .xterm-fg-110.xterm-dim { color: #87afd780; }.xterm-dom-renderer-owner-1 .xterm-bg-110 { background-color: #87afd7; }.xterm-dom-renderer-owner-1 .xterm-fg-111 { color: #87afff; }.xterm-dom-renderer-owner-1 .xterm-fg-111.xterm-dim { color: #87afff80; }.xterm-dom-renderer-owner-1 .xterm-bg-111 { background-color: #87afff; }.xterm-dom-renderer-owner-1 .xterm-fg-112 { color: #87d700; }.xterm-dom-renderer-owner-1 .xterm-fg-112.xterm-dim { color: #87d70080; }.xterm-dom-renderer-owner-1 .xterm-bg-112 { background-color: #87d700; }.xterm-dom-renderer-owner-1 .xterm-fg-113 { color: #87d75f; }.xterm-dom-renderer-owner-1 .xterm-fg-113.xterm-dim { color: #87d75f80; }.xterm-dom-renderer-owner-1 .xterm-bg-113 { background-color: #87d75f; }.xterm-dom-renderer-owner-1 .xterm-fg-114 { color: #87d787; }.xterm-dom-renderer-owner-1 .xterm-fg-114.xterm-dim { color: #87d78780; }.xterm-dom-renderer-owner-1 .xterm-bg-114 { background-color: #87d787; }.xterm-dom-renderer-owner-1 .xterm-fg-115 { color: #87d7af; }.xterm-dom-renderer-owner-1 .xterm-fg-115.xterm-dim { color: #87d7af80; }.xterm-dom-renderer-owner-1 .xterm-bg-115 { background-color: #87d7af; }.xterm-dom-renderer-owner-1 .xterm-fg-116 { color: #87d7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-116.xterm-dim { color: #87d7d780; }.xterm-dom-renderer-owner-1 .xterm-bg-116 { background-color: #87d7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-117 { color: #87d7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-117.xterm-dim { color: #87d7ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-117 { background-color: #87d7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-118 { color: #87ff00; }.xterm-dom-renderer-owner-1 .xterm-fg-118.xterm-dim { color: #87ff0080; }.xterm-dom-renderer-owner-1 .xterm-bg-118 { background-color: #87ff00; }.xterm-dom-renderer-owner-1 .xterm-fg-119 { color: #87ff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-119.xterm-dim { color: #87ff5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-119 { background-color: #87ff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-120 { color: #87ff87; }.xterm-dom-renderer-owner-1 .xterm-fg-120.xterm-dim { color: #87ff8780; }.xterm-dom-renderer-owner-1 .xterm-bg-120 { background-color: #87ff87; }.xterm-dom-renderer-owner-1 .xterm-fg-121 { color: #87ffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-121.xterm-dim { color: #87ffaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-121 { background-color: #87ffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-122 { color: #87ffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-122.xterm-dim { color: #87ffd780; }.xterm-dom-renderer-owner-1 .xterm-bg-122 { background-color: #87ffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-123 { color: #87ffff; }.xterm-dom-renderer-owner-1 .xterm-fg-123.xterm-dim { color: #87ffff80; }.xterm-dom-renderer-owner-1 .xterm-bg-123 { background-color: #87ffff; }.xterm-dom-renderer-owner-1 .xterm-fg-124 { color: #af0000; }.xterm-dom-renderer-owner-1 .xterm-fg-124.xterm-dim { color: #af000080; }.xterm-dom-renderer-owner-1 .xterm-bg-124 { background-color: #af0000; }.xterm-dom-renderer-owner-1 .xterm-fg-125 { color: #af005f; }.xterm-dom-renderer-owner-1 .xterm-fg-125.xterm-dim { color: #af005f80; }.xterm-dom-renderer-owner-1 .xterm-bg-125 { background-color: #af005f; }.xterm-dom-renderer-owner-1 .xterm-fg-126 { color: #af0087; }.xterm-dom-renderer-owner-1 .xterm-fg-126.xterm-dim { color: #af008780; }.xterm-dom-renderer-owner-1 .xterm-bg-126 { background-color: #af0087; }.xterm-dom-renderer-owner-1 .xterm-fg-127 { color: #af00af; }.xterm-dom-renderer-owner-1 .xterm-fg-127.xterm-dim { color: #af00af80; }.xterm-dom-renderer-owner-1 .xterm-bg-127 { background-color: #af00af; }.xterm-dom-renderer-owner-1 .xterm-fg-128 { color: #af00d7; }.xterm-dom-renderer-owner-1 .xterm-fg-128.xterm-dim { color: #af00d780; }.xterm-dom-renderer-owner-1 .xterm-bg-128 { background-color: #af00d7; }.xterm-dom-renderer-owner-1 .xterm-fg-129 { color: #af00ff; }.xterm-dom-renderer-owner-1 .xterm-fg-129.xterm-dim { color: #af00ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-129 { background-color: #af00ff; }.xterm-dom-renderer-owner-1 .xterm-fg-130 { color: #af5f00; }.xterm-dom-renderer-owner-1 .xterm-fg-130.xterm-dim { color: #af5f0080; }.xterm-dom-renderer-owner-1 .xterm-bg-130 { background-color: #af5f00; }.xterm-dom-renderer-owner-1 .xterm-fg-131 { color: #af5f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-131.xterm-dim { color: #af5f5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-131 { background-color: #af5f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-132 { color: #af5f87; }.xterm-dom-renderer-owner-1 .xterm-fg-132.xterm-dim { color: #af5f8780; }.xterm-dom-renderer-owner-1 .xterm-bg-132 { background-color: #af5f87; }.xterm-dom-renderer-owner-1 .xterm-fg-133 { color: #af5faf; }.xterm-dom-renderer-owner-1 .xterm-fg-133.xterm-dim { color: #af5faf80; }.xterm-dom-renderer-owner-1 .xterm-bg-133 { background-color: #af5faf; }.xterm-dom-renderer-owner-1 .xterm-fg-134 { color: #af5fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-134.xterm-dim { color: #af5fd780; }.xterm-dom-renderer-owner-1 .xterm-bg-134 { background-color: #af5fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-135 { color: #af5fff; }.xterm-dom-renderer-owner-1 .xterm-fg-135.xterm-dim { color: #af5fff80; }.xterm-dom-renderer-owner-1 .xterm-bg-135 { background-color: #af5fff; }.xterm-dom-renderer-owner-1 .xterm-fg-136 { color: #af8700; }.xterm-dom-renderer-owner-1 .xterm-fg-136.xterm-dim { color: #af870080; }.xterm-dom-renderer-owner-1 .xterm-bg-136 { background-color: #af8700; }.xterm-dom-renderer-owner-1 .xterm-fg-137 { color: #af875f; }.xterm-dom-renderer-owner-1 .xterm-fg-137.xterm-dim { color: #af875f80; }.xterm-dom-renderer-owner-1 .xterm-bg-137 { background-color: #af875f; }.xterm-dom-renderer-owner-1 .xterm-fg-138 { color: #af8787; }.xterm-dom-renderer-owner-1 .xterm-fg-138.xterm-dim { color: #af878780; }.xterm-dom-renderer-owner-1 .xterm-bg-138 { background-color: #af8787; }.xterm-dom-renderer-owner-1 .xterm-fg-139 { color: #af87af; }.xterm-dom-renderer-owner-1 .xterm-fg-139.xterm-dim { color: #af87af80; }.xterm-dom-renderer-owner-1 .xterm-bg-139 { background-color: #af87af; }.xterm-dom-renderer-owner-1 .xterm-fg-140 { color: #af87d7; }.xterm-dom-renderer-owner-1 .xterm-fg-140.xterm-dim { color: #af87d780; }.xterm-dom-renderer-owner-1 .xterm-bg-140 { background-color: #af87d7; }.xterm-dom-renderer-owner-1 .xterm-fg-141 { color: #af87ff; }.xterm-dom-renderer-owner-1 .xterm-fg-141.xterm-dim { color: #af87ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-141 { background-color: #af87ff; }.xterm-dom-renderer-owner-1 .xterm-fg-142 { color: #afaf00; }.xterm-dom-renderer-owner-1 .xterm-fg-142.xterm-dim { color: #afaf0080; }.xterm-dom-renderer-owner-1 .xterm-bg-142 { background-color: #afaf00; }.xterm-dom-renderer-owner-1 .xterm-fg-143 { color: #afaf5f; }.xterm-dom-renderer-owner-1 .xterm-fg-143.xterm-dim { color: #afaf5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-143 { background-color: #afaf5f; }.xterm-dom-renderer-owner-1 .xterm-fg-144 { color: #afaf87; }.xterm-dom-renderer-owner-1 .xterm-fg-144.xterm-dim { color: #afaf8780; }.xterm-dom-renderer-owner-1 .xterm-bg-144 { background-color: #afaf87; }.xterm-dom-renderer-owner-1 .xterm-fg-145 { color: #afafaf; }.xterm-dom-renderer-owner-1 .xterm-fg-145.xterm-dim { color: #afafaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-145 { background-color: #afafaf; }.xterm-dom-renderer-owner-1 .xterm-fg-146 { color: #afafd7; }.xterm-dom-renderer-owner-1 .xterm-fg-146.xterm-dim { color: #afafd780; }.xterm-dom-renderer-owner-1 .xterm-bg-146 { background-color: #afafd7; }.xterm-dom-renderer-owner-1 .xterm-fg-147 { color: #afafff; }.xterm-dom-renderer-owner-1 .xterm-fg-147.xterm-dim { color: #afafff80; }.xterm-dom-renderer-owner-1 .xterm-bg-147 { background-color: #afafff; }.xterm-dom-renderer-owner-1 .xterm-fg-148 { color: #afd700; }.xterm-dom-renderer-owner-1 .xterm-fg-148.xterm-dim { color: #afd70080; }.xterm-dom-renderer-owner-1 .xterm-bg-148 { background-color: #afd700; }.xterm-dom-renderer-owner-1 .xterm-fg-149 { color: #afd75f; }.xterm-dom-renderer-owner-1 .xterm-fg-149.xterm-dim { color: #afd75f80; }.xterm-dom-renderer-owner-1 .xterm-bg-149 { background-color: #afd75f; }.xterm-dom-renderer-owner-1 .xterm-fg-150 { color: #afd787; }.xterm-dom-renderer-owner-1 .xterm-fg-150.xterm-dim { color: #afd78780; }.xterm-dom-renderer-owner-1 .xterm-bg-150 { background-color: #afd787; }.xterm-dom-renderer-owner-1 .xterm-fg-151 { color: #afd7af; }.xterm-dom-renderer-owner-1 .xterm-fg-151.xterm-dim { color: #afd7af80; }.xterm-dom-renderer-owner-1 .xterm-bg-151 { background-color: #afd7af; }.xterm-dom-renderer-owner-1 .xterm-fg-152 { color: #afd7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-152.xterm-dim { color: #afd7d780; }.xterm-dom-renderer-owner-1 .xterm-bg-152 { background-color: #afd7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-153 { color: #afd7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-153.xterm-dim { color: #afd7ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-153 { background-color: #afd7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-154 { color: #afff00; }.xterm-dom-renderer-owner-1 .xterm-fg-154.xterm-dim { color: #afff0080; }.xterm-dom-renderer-owner-1 .xterm-bg-154 { background-color: #afff00; }.xterm-dom-renderer-owner-1 .xterm-fg-155 { color: #afff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-155.xterm-dim { color: #afff5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-155 { background-color: #afff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-156 { color: #afff87; }.xterm-dom-renderer-owner-1 .xterm-fg-156.xterm-dim { color: #afff8780; }.xterm-dom-renderer-owner-1 .xterm-bg-156 { background-color: #afff87; }.xterm-dom-renderer-owner-1 .xterm-fg-157 { color: #afffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-157.xterm-dim { color: #afffaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-157 { background-color: #afffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-158 { color: #afffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-158.xterm-dim { color: #afffd780; }.xterm-dom-renderer-owner-1 .xterm-bg-158 { background-color: #afffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-159 { color: #afffff; }.xterm-dom-renderer-owner-1 .xterm-fg-159.xterm-dim { color: #afffff80; }.xterm-dom-renderer-owner-1 .xterm-bg-159 { background-color: #afffff; }.xterm-dom-renderer-owner-1 .xterm-fg-160 { color: #d70000; }.xterm-dom-renderer-owner-1 .xterm-fg-160.xterm-dim { color: #d7000080; }.xterm-dom-renderer-owner-1 .xterm-bg-160 { background-color: #d70000; }.xterm-dom-renderer-owner-1 .xterm-fg-161 { color: #d7005f; }.xterm-dom-renderer-owner-1 .xterm-fg-161.xterm-dim { color: #d7005f80; }.xterm-dom-renderer-owner-1 .xterm-bg-161 { background-color: #d7005f; }.xterm-dom-renderer-owner-1 .xterm-fg-162 { color: #d70087; }.xterm-dom-renderer-owner-1 .xterm-fg-162.xterm-dim { color: #d7008780; }.xterm-dom-renderer-owner-1 .xterm-bg-162 { background-color: #d70087; }.xterm-dom-renderer-owner-1 .xterm-fg-163 { color: #d700af; }.xterm-dom-renderer-owner-1 .xterm-fg-163.xterm-dim { color: #d700af80; }.xterm-dom-renderer-owner-1 .xterm-bg-163 { background-color: #d700af; }.xterm-dom-renderer-owner-1 .xterm-fg-164 { color: #d700d7; }.xterm-dom-renderer-owner-1 .xterm-fg-164.xterm-dim { color: #d700d780; }.xterm-dom-renderer-owner-1 .xterm-bg-164 { background-color: #d700d7; }.xterm-dom-renderer-owner-1 .xterm-fg-165 { color: #d700ff; }.xterm-dom-renderer-owner-1 .xterm-fg-165.xterm-dim { color: #d700ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-165 { background-color: #d700ff; }.xterm-dom-renderer-owner-1 .xterm-fg-166 { color: #d75f00; }.xterm-dom-renderer-owner-1 .xterm-fg-166.xterm-dim { color: #d75f0080; }.xterm-dom-renderer-owner-1 .xterm-bg-166 { background-color: #d75f00; }.xterm-dom-renderer-owner-1 .xterm-fg-167 { color: #d75f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-167.xterm-dim { color: #d75f5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-167 { background-color: #d75f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-168 { color: #d75f87; }.xterm-dom-renderer-owner-1 .xterm-fg-168.xterm-dim { color: #d75f8780; }.xterm-dom-renderer-owner-1 .xterm-bg-168 { background-color: #d75f87; }.xterm-dom-renderer-owner-1 .xterm-fg-169 { color: #d75faf; }.xterm-dom-renderer-owner-1 .xterm-fg-169.xterm-dim { color: #d75faf80; }.xterm-dom-renderer-owner-1 .xterm-bg-169 { background-color: #d75faf; }.xterm-dom-renderer-owner-1 .xterm-fg-170 { color: #d75fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-170.xterm-dim { color: #d75fd780; }.xterm-dom-renderer-owner-1 .xterm-bg-170 { background-color: #d75fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-171 { color: #d75fff; }.xterm-dom-renderer-owner-1 .xterm-fg-171.xterm-dim { color: #d75fff80; }.xterm-dom-renderer-owner-1 .xterm-bg-171 { background-color: #d75fff; }.xterm-dom-renderer-owner-1 .xterm-fg-172 { color: #d78700; }.xterm-dom-renderer-owner-1 .xterm-fg-172.xterm-dim { color: #d7870080; }.xterm-dom-renderer-owner-1 .xterm-bg-172 { background-color: #d78700; }.xterm-dom-renderer-owner-1 .xterm-fg-173 { color: #d7875f; }.xterm-dom-renderer-owner-1 .xterm-fg-173.xterm-dim { color: #d7875f80; }.xterm-dom-renderer-owner-1 .xterm-bg-173 { background-color: #d7875f; }.xterm-dom-renderer-owner-1 .xterm-fg-174 { color: #d78787; }.xterm-dom-renderer-owner-1 .xterm-fg-174.xterm-dim { color: #d7878780; }.xterm-dom-renderer-owner-1 .xterm-bg-174 { background-color: #d78787; }.xterm-dom-renderer-owner-1 .xterm-fg-175 { color: #d787af; }.xterm-dom-renderer-owner-1 .xterm-fg-175.xterm-dim { color: #d787af80; }.xterm-dom-renderer-owner-1 .xterm-bg-175 { background-color: #d787af; }.xterm-dom-renderer-owner-1 .xterm-fg-176 { color: #d787d7; }.xterm-dom-renderer-owner-1 .xterm-fg-176.xterm-dim { color: #d787d780; }.xterm-dom-renderer-owner-1 .xterm-bg-176 { background-color: #d787d7; }.xterm-dom-renderer-owner-1 .xterm-fg-177 { color: #d787ff; }.xterm-dom-renderer-owner-1 .xterm-fg-177.xterm-dim { color: #d787ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-177 { background-color: #d787ff; }.xterm-dom-renderer-owner-1 .xterm-fg-178 { color: #d7af00; }.xterm-dom-renderer-owner-1 .xterm-fg-178.xterm-dim { color: #d7af0080; }.xterm-dom-renderer-owner-1 .xterm-bg-178 { background-color: #d7af00; }.xterm-dom-renderer-owner-1 .xterm-fg-179 { color: #d7af5f; }.xterm-dom-renderer-owner-1 .xterm-fg-179.xterm-dim { color: #d7af5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-179 { background-color: #d7af5f; }.xterm-dom-renderer-owner-1 .xterm-fg-180 { color: #d7af87; }.xterm-dom-renderer-owner-1 .xterm-fg-180.xterm-dim { color: #d7af8780; }.xterm-dom-renderer-owner-1 .xterm-bg-180 { background-color: #d7af87; }.xterm-dom-renderer-owner-1 .xterm-fg-181 { color: #d7afaf; }.xterm-dom-renderer-owner-1 .xterm-fg-181.xterm-dim { color: #d7afaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-181 { background-color: #d7afaf; }.xterm-dom-renderer-owner-1 .xterm-fg-182 { color: #d7afd7; }.xterm-dom-renderer-owner-1 .xterm-fg-182.xterm-dim { color: #d7afd780; }.xterm-dom-renderer-owner-1 .xterm-bg-182 { background-color: #d7afd7; }.xterm-dom-renderer-owner-1 .xterm-fg-183 { color: #d7afff; }.xterm-dom-renderer-owner-1 .xterm-fg-183.xterm-dim { color: #d7afff80; }.xterm-dom-renderer-owner-1 .xterm-bg-183 { background-color: #d7afff; }.xterm-dom-renderer-owner-1 .xterm-fg-184 { color: #d7d700; }.xterm-dom-renderer-owner-1 .xterm-fg-184.xterm-dim { color: #d7d70080; }.xterm-dom-renderer-owner-1 .xterm-bg-184 { background-color: #d7d700; }.xterm-dom-renderer-owner-1 .xterm-fg-185 { color: #d7d75f; }.xterm-dom-renderer-owner-1 .xterm-fg-185.xterm-dim { color: #d7d75f80; }.xterm-dom-renderer-owner-1 .xterm-bg-185 { background-color: #d7d75f; }.xterm-dom-renderer-owner-1 .xterm-fg-186 { color: #d7d787; }.xterm-dom-renderer-owner-1 .xterm-fg-186.xterm-dim { color: #d7d78780; }.xterm-dom-renderer-owner-1 .xterm-bg-186 { background-color: #d7d787; }.xterm-dom-renderer-owner-1 .xterm-fg-187 { color: #d7d7af; }.xterm-dom-renderer-owner-1 .xterm-fg-187.xterm-dim { color: #d7d7af80; }.xterm-dom-renderer-owner-1 .xterm-bg-187 { background-color: #d7d7af; }.xterm-dom-renderer-owner-1 .xterm-fg-188 { color: #d7d7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-188.xterm-dim { color: #d7d7d780; }.xterm-dom-renderer-owner-1 .xterm-bg-188 { background-color: #d7d7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-189 { color: #d7d7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-189.xterm-dim { color: #d7d7ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-189 { background-color: #d7d7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-190 { color: #d7ff00; }.xterm-dom-renderer-owner-1 .xterm-fg-190.xterm-dim { color: #d7ff0080; }.xterm-dom-renderer-owner-1 .xterm-bg-190 { background-color: #d7ff00; }.xterm-dom-renderer-owner-1 .xterm-fg-191 { color: #d7ff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-191.xterm-dim { color: #d7ff5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-191 { background-color: #d7ff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-192 { color: #d7ff87; }.xterm-dom-renderer-owner-1 .xterm-fg-192.xterm-dim { color: #d7ff8780; }.xterm-dom-renderer-owner-1 .xterm-bg-192 { background-color: #d7ff87; }.xterm-dom-renderer-owner-1 .xterm-fg-193 { color: #d7ffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-193.xterm-dim { color: #d7ffaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-193 { background-color: #d7ffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-194 { color: #d7ffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-194.xterm-dim { color: #d7ffd780; }.xterm-dom-renderer-owner-1 .xterm-bg-194 { background-color: #d7ffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-195 { color: #d7ffff; }.xterm-dom-renderer-owner-1 .xterm-fg-195.xterm-dim { color: #d7ffff80; }.xterm-dom-renderer-owner-1 .xterm-bg-195 { background-color: #d7ffff; }.xterm-dom-renderer-owner-1 .xterm-fg-196 { color: #ff0000; }.xterm-dom-renderer-owner-1 .xterm-fg-196.xterm-dim { color: #ff000080; }.xterm-dom-renderer-owner-1 .xterm-bg-196 { background-color: #ff0000; }.xterm-dom-renderer-owner-1 .xterm-fg-197 { color: #ff005f; }.xterm-dom-renderer-owner-1 .xterm-fg-197.xterm-dim { color: #ff005f80; }.xterm-dom-renderer-owner-1 .xterm-bg-197 { background-color: #ff005f; }.xterm-dom-renderer-owner-1 .xterm-fg-198 { color: #ff0087; }.xterm-dom-renderer-owner-1 .xterm-fg-198.xterm-dim { color: #ff008780; }.xterm-dom-renderer-owner-1 .xterm-bg-198 { background-color: #ff0087; }.xterm-dom-renderer-owner-1 .xterm-fg-199 { color: #ff00af; }.xterm-dom-renderer-owner-1 .xterm-fg-199.xterm-dim { color: #ff00af80; }.xterm-dom-renderer-owner-1 .xterm-bg-199 { background-color: #ff00af; }.xterm-dom-renderer-owner-1 .xterm-fg-200 { color: #ff00d7; }.xterm-dom-renderer-owner-1 .xterm-fg-200.xterm-dim { color: #ff00d780; }.xterm-dom-renderer-owner-1 .xterm-bg-200 { background-color: #ff00d7; }.xterm-dom-renderer-owner-1 .xterm-fg-201 { color: #ff00ff; }.xterm-dom-renderer-owner-1 .xterm-fg-201.xterm-dim { color: #ff00ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-201 { background-color: #ff00ff; }.xterm-dom-renderer-owner-1 .xterm-fg-202 { color: #ff5f00; }.xterm-dom-renderer-owner-1 .xterm-fg-202.xterm-dim { color: #ff5f0080; }.xterm-dom-renderer-owner-1 .xterm-bg-202 { background-color: #ff5f00; }.xterm-dom-renderer-owner-1 .xterm-fg-203 { color: #ff5f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-203.xterm-dim { color: #ff5f5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-203 { background-color: #ff5f5f; }.xterm-dom-renderer-owner-1 .xterm-fg-204 { color: #ff5f87; }.xterm-dom-renderer-owner-1 .xterm-fg-204.xterm-dim { color: #ff5f8780; }.xterm-dom-renderer-owner-1 .xterm-bg-204 { background-color: #ff5f87; }.xterm-dom-renderer-owner-1 .xterm-fg-205 { color: #ff5faf; }.xterm-dom-renderer-owner-1 .xterm-fg-205.xterm-dim { color: #ff5faf80; }.xterm-dom-renderer-owner-1 .xterm-bg-205 { background-color: #ff5faf; }.xterm-dom-renderer-owner-1 .xterm-fg-206 { color: #ff5fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-206.xterm-dim { color: #ff5fd780; }.xterm-dom-renderer-owner-1 .xterm-bg-206 { background-color: #ff5fd7; }.xterm-dom-renderer-owner-1 .xterm-fg-207 { color: #ff5fff; }.xterm-dom-renderer-owner-1 .xterm-fg-207.xterm-dim { color: #ff5fff80; }.xterm-dom-renderer-owner-1 .xterm-bg-207 { background-color: #ff5fff; }.xterm-dom-renderer-owner-1 .xterm-fg-208 { color: #ff8700; }.xterm-dom-renderer-owner-1 .xterm-fg-208.xterm-dim { color: #ff870080; }.xterm-dom-renderer-owner-1 .xterm-bg-208 { background-color: #ff8700; }.xterm-dom-renderer-owner-1 .xterm-fg-209 { color: #ff875f; }.xterm-dom-renderer-owner-1 .xterm-fg-209.xterm-dim { color: #ff875f80; }.xterm-dom-renderer-owner-1 .xterm-bg-209 { background-color: #ff875f; }.xterm-dom-renderer-owner-1 .xterm-fg-210 { color: #ff8787; }.xterm-dom-renderer-owner-1 .xterm-fg-210.xterm-dim { color: #ff878780; }.xterm-dom-renderer-owner-1 .xterm-bg-210 { background-color: #ff8787; }.xterm-dom-renderer-owner-1 .xterm-fg-211 { color: #ff87af; }.xterm-dom-renderer-owner-1 .xterm-fg-211.xterm-dim { color: #ff87af80; }.xterm-dom-renderer-owner-1 .xterm-bg-211 { background-color: #ff87af; }.xterm-dom-renderer-owner-1 .xterm-fg-212 { color: #ff87d7; }.xterm-dom-renderer-owner-1 .xterm-fg-212.xterm-dim { color: #ff87d780; }.xterm-dom-renderer-owner-1 .xterm-bg-212 { background-color: #ff87d7; }.xterm-dom-renderer-owner-1 .xterm-fg-213 { color: #ff87ff; }.xterm-dom-renderer-owner-1 .xterm-fg-213.xterm-dim { color: #ff87ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-213 { background-color: #ff87ff; }.xterm-dom-renderer-owner-1 .xterm-fg-214 { color: #ffaf00; }.xterm-dom-renderer-owner-1 .xterm-fg-214.xterm-dim { color: #ffaf0080; }.xterm-dom-renderer-owner-1 .xterm-bg-214 { background-color: #ffaf00; }.xterm-dom-renderer-owner-1 .xterm-fg-215 { color: #ffaf5f; }.xterm-dom-renderer-owner-1 .xterm-fg-215.xterm-dim { color: #ffaf5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-215 { background-color: #ffaf5f; }.xterm-dom-renderer-owner-1 .xterm-fg-216 { color: #ffaf87; }.xterm-dom-renderer-owner-1 .xterm-fg-216.xterm-dim { color: #ffaf8780; }.xterm-dom-renderer-owner-1 .xterm-bg-216 { background-color: #ffaf87; }.xterm-dom-renderer-owner-1 .xterm-fg-217 { color: #ffafaf; }.xterm-dom-renderer-owner-1 .xterm-fg-217.xterm-dim { color: #ffafaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-217 { background-color: #ffafaf; }.xterm-dom-renderer-owner-1 .xterm-fg-218 { color: #ffafd7; }.xterm-dom-renderer-owner-1 .xterm-fg-218.xterm-dim { color: #ffafd780; }.xterm-dom-renderer-owner-1 .xterm-bg-218 { background-color: #ffafd7; }.xterm-dom-renderer-owner-1 .xterm-fg-219 { color: #ffafff; }.xterm-dom-renderer-owner-1 .xterm-fg-219.xterm-dim { color: #ffafff80; }.xterm-dom-renderer-owner-1 .xterm-bg-219 { background-color: #ffafff; }.xterm-dom-renderer-owner-1 .xterm-fg-220 { color: #ffd700; }.xterm-dom-renderer-owner-1 .xterm-fg-220.xterm-dim { color: #ffd70080; }.xterm-dom-renderer-owner-1 .xterm-bg-220 { background-color: #ffd700; }.xterm-dom-renderer-owner-1 .xterm-fg-221 { color: #ffd75f; }.xterm-dom-renderer-owner-1 .xterm-fg-221.xterm-dim { color: #ffd75f80; }.xterm-dom-renderer-owner-1 .xterm-bg-221 { background-color: #ffd75f; }.xterm-dom-renderer-owner-1 .xterm-fg-222 { color: #ffd787; }.xterm-dom-renderer-owner-1 .xterm-fg-222.xterm-dim { color: #ffd78780; }.xterm-dom-renderer-owner-1 .xterm-bg-222 { background-color: #ffd787; }.xterm-dom-renderer-owner-1 .xterm-fg-223 { color: #ffd7af; }.xterm-dom-renderer-owner-1 .xterm-fg-223.xterm-dim { color: #ffd7af80; }.xterm-dom-renderer-owner-1 .xterm-bg-223 { background-color: #ffd7af; }.xterm-dom-renderer-owner-1 .xterm-fg-224 { color: #ffd7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-224.xterm-dim { color: #ffd7d780; }.xterm-dom-renderer-owner-1 .xterm-bg-224 { background-color: #ffd7d7; }.xterm-dom-renderer-owner-1 .xterm-fg-225 { color: #ffd7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-225.xterm-dim { color: #ffd7ff80; }.xterm-dom-renderer-owner-1 .xterm-bg-225 { background-color: #ffd7ff; }.xterm-dom-renderer-owner-1 .xterm-fg-226 { color: #ffff00; }.xterm-dom-renderer-owner-1 .xterm-fg-226.xterm-dim { color: #ffff0080; }.xterm-dom-renderer-owner-1 .xterm-bg-226 { background-color: #ffff00; }.xterm-dom-renderer-owner-1 .xterm-fg-227 { color: #ffff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-227.xterm-dim { color: #ffff5f80; }.xterm-dom-renderer-owner-1 .xterm-bg-227 { background-color: #ffff5f; }.xterm-dom-renderer-owner-1 .xterm-fg-228 { color: #ffff87; }.xterm-dom-renderer-owner-1 .xterm-fg-228.xterm-dim { color: #ffff8780; }.xterm-dom-renderer-owner-1 .xterm-bg-228 { background-color: #ffff87; }.xterm-dom-renderer-owner-1 .xterm-fg-229 { color: #ffffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-229.xterm-dim { color: #ffffaf80; }.xterm-dom-renderer-owner-1 .xterm-bg-229 { background-color: #ffffaf; }.xterm-dom-renderer-owner-1 .xterm-fg-230 { color: #ffffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-230.xterm-dim { color: #ffffd780; }.xterm-dom-renderer-owner-1 .xterm-bg-230 { background-color: #ffffd7; }.xterm-dom-renderer-owner-1 .xterm-fg-231 { color: #ffffff; }.xterm-dom-renderer-owner-1 .xterm-fg-231.xterm-dim { color: #ffffff80; }.xterm-dom-renderer-owner-1 .xterm-bg-231 { background-color: #ffffff; }.xterm-dom-renderer-owner-1 .xterm-fg-232 { color: #080808; }.xterm-dom-renderer-owner-1 .xterm-fg-232.xterm-dim { color: #08080880; }.xterm-dom-renderer-owner-1 .xterm-bg-232 { background-color: #080808; }.xterm-dom-renderer-owner-1 .xterm-fg-233 { color: #121212; }.xterm-dom-renderer-owner-1 .xterm-fg-233.xterm-dim { color: #12121280; }.xterm-dom-renderer-owner-1 .xterm-bg-233 { background-color: #121212; }.xterm-dom-renderer-owner-1 .xterm-fg-234 { color: #1c1c1c; }.xterm-dom-renderer-owner-1 .xterm-fg-234.xterm-dim { color: #1c1c1c80; }.xterm-dom-renderer-owner-1 .xterm-bg-234 { background-color: #1c1c1c; }.xterm-dom-renderer-owner-1 .xterm-fg-235 { color: #262626; }.xterm-dom-renderer-owner-1 .xterm-fg-235.xterm-dim { color: #26262680; }.xterm-dom-renderer-owner-1 .xterm-bg-235 { background-color: #262626; }.xterm-dom-renderer-owner-1 .xterm-fg-236 { color: #303030; }.xterm-dom-renderer-owner-1 .xterm-fg-236.xterm-dim { color: #30303080; }.xterm-dom-renderer-owner-1 .xterm-bg-236 { background-color: #303030; }.xterm-dom-renderer-owner-1 .xterm-fg-237 { color: #3a3a3a; }.xterm-dom-renderer-owner-1 .xterm-fg-237.xterm-dim { color: #3a3a3a80; }.xterm-dom-renderer-owner-1 .xterm-bg-237 { background-color: #3a3a3a; }.xterm-dom-renderer-owner-1 .xterm-fg-238 { color: #444444; }.xterm-dom-renderer-owner-1 .xterm-fg-238.xterm-dim { color: #44444480; }.xterm-dom-renderer-owner-1 .xterm-bg-238 { background-color: #444444; }.xterm-dom-renderer-owner-1 .xterm-fg-239 { color: #4e4e4e; }.xterm-dom-renderer-owner-1 .xterm-fg-239.xterm-dim { color: #4e4e4e80; }.xterm-dom-renderer-owner-1 .xterm-bg-239 { background-color: #4e4e4e; }.xterm-dom-renderer-owner-1 .xterm-fg-240 { color: #585858; }.xterm-dom-renderer-owner-1 .xterm-fg-240.xterm-dim { color: #58585880; }.xterm-dom-renderer-owner-1 .xterm-bg-240 { background-color: #585858; }.xterm-dom-renderer-owner-1 .xterm-fg-241 { color: #626262; }.xterm-dom-renderer-owner-1 .xterm-fg-241.xterm-dim { color: #62626280; }.xterm-dom-renderer-owner-1 .xterm-bg-241 { background-color: #626262; }.xterm-dom-renderer-owner-1 .xterm-fg-242 { color: #6c6c6c; }.xterm-dom-renderer-owner-1 .xterm-fg-242.xterm-dim { color: #6c6c6c80; }.xterm-dom-renderer-owner-1 .xterm-bg-242 { background-color: #6c6c6c; }.xterm-dom-renderer-owner-1 .xterm-fg-243 { color: #767676; }.xterm-dom-renderer-owner-1 .xterm-fg-243.xterm-dim { color: #76767680; }.xterm-dom-renderer-owner-1 .xterm-bg-243 { background-color: #767676; }.xterm-dom-renderer-owner-1 .xterm-fg-244 { color: #808080; }.xterm-dom-renderer-owner-1 .xterm-fg-244.xterm-dim { color: #80808080; }.xterm-dom-renderer-owner-1 .xterm-bg-244 { background-color: #808080; }.xterm-dom-renderer-owner-1 .xterm-fg-245 { color: #8a8a8a; }.xterm-dom-renderer-owner-1 .xterm-fg-245.xterm-dim { color: #8a8a8a80; }.xterm-dom-renderer-owner-1 .xterm-bg-245 { background-color: #8a8a8a; }.xterm-dom-renderer-owner-1 .xterm-fg-246 { color: #949494; }.xterm-dom-renderer-owner-1 .xterm-fg-246.xterm-dim { color: #94949480; }.xterm-dom-renderer-owner-1 .xterm-bg-246 { background-color: #949494; }.xterm-dom-renderer-owner-1 .xterm-fg-247 { color: #9e9e9e; }.xterm-dom-renderer-owner-1 .xterm-fg-247.xterm-dim { color: #9e9e9e80; }.xterm-dom-renderer-owner-1 .xterm-bg-247 { background-color: #9e9e9e; }.xterm-dom-renderer-owner-1 .xterm-fg-248 { color: #a8a8a8; }.xterm-dom-renderer-owner-1 .xterm-fg-248.xterm-dim { color: #a8a8a880; }.xterm-dom-renderer-owner-1 .xterm-bg-248 { background-color: #a8a8a8; }.xterm-dom-renderer-owner-1 .xterm-fg-249 { color: #b2b2b2; }.xterm-dom-renderer-owner-1 .xterm-fg-249.xterm-dim { color: #b2b2b280; }.xterm-dom-renderer-owner-1 .xterm-bg-249 { background-color: #b2b2b2; }.xterm-dom-renderer-owner-1 .xterm-fg-250 { color: #bcbcbc; }.xterm-dom-renderer-owner-1 .xterm-fg-250.xterm-dim { color: #bcbcbc80; }.xterm-dom-renderer-owner-1 .xterm-bg-250 { background-color: #bcbcbc; }.xterm-dom-renderer-owner-1 .xterm-fg-251 { color: #c6c6c6; }.xterm-dom-renderer-owner-1 .xterm-fg-251.xterm-dim { color: #c6c6c680; }.xterm-dom-renderer-owner-1 .xterm-bg-251 { background-color: #c6c6c6; }.xterm-dom-renderer-owner-1 .xterm-fg-252 { color: #d0d0d0; }.xterm-dom-renderer-owner-1 .xterm-fg-252.xterm-dim { color: #d0d0d080; }.xterm-dom-renderer-owner-1 .xterm-bg-252 { background-color: #d0d0d0; }.xterm-dom-renderer-owner-1 .xterm-fg-253 { color: #dadada; }.xterm-dom-renderer-owner-1 .xterm-fg-253.xterm-dim { color: #dadada80; }.xterm-dom-renderer-owner-1 .xterm-bg-253 { background-color: #dadada; }.xterm-dom-renderer-owner-1 .xterm-fg-254 { color: #e4e4e4; }.xterm-dom-renderer-owner-1 .xterm-fg-254.xterm-dim { color: #e4e4e480; }.xterm-dom-renderer-owner-1 .xterm-bg-254 { background-color: #e4e4e4; }.xterm-dom-renderer-owner-1 .xterm-fg-255 { color: #eeeeee; }.xterm-dom-renderer-owner-1 .xterm-fg-255.xterm-dim { color: #eeeeee80; }.xterm-dom-renderer-owner-1 .xterm-bg-255 { background-color: #eeeeee; }.xterm-dom-renderer-owner-1 .xterm-fg-257 { color: #000000; }.xterm-dom-renderer-owner-1 .xterm-fg-257.xterm-dim { color: #00000080; }.xterm-dom-renderer-owner-1 .xterm-bg-257 { background-color: #00FFFF; }</style><div class="xterm-rows" aria-hidden="true" style="line-height: normal; letter-spacing: 0.00625px;"><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"><span class="xterm-cursor xterm-cursor-outline" style="letter-spacing: 0.00151699px;"> </span></div><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"></div><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"></div><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"></div><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"></div><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"></div><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"></div><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"></div><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"></div><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"></div><div style="width: 866px; height: 16px; line-height: 16px; overflow: hidden;"></div></div><div class="xterm-selection" aria-hidden="true"></div><div class="xterm-decoration-container"></div></div></div></div></div></div></div><div class="resizer"></div><div class="col-right" style="width: 380px;"><div class="ai-header" style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 100;"><div class="ai-title" style="display: flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 1; overflow: hidden;"><span style="flex-shrink: 0;">✧</span> <span style="flex-shrink: 0;">LYNX AI</span><span title="camp_vx1oh9" style="font-size: 10px; color: rgb(102, 102, 102); background: rgba(255, 255, 255, 0.05); padding: 2px 6px; border-radius: 4px; font-family: Consolas, monospace; font-weight: normal; text-overflow: ellipsis; overflow: hidden; max-width: 180px;">camp_vx1oh9</span></div><div class="ai-tools" style="display: flex; gap: 8px; position: relative; white-space: nowrap; flex-shrink: 0; margin-left: 8px;"><div class="ai-tool-btn">[+]</div><div class="ai-tool-btn">[历史]</div><div class="ai-tool-btn">[武器库]</div><div class="ai-tool-btn">[-]</div></div></div><div class="ai-chat-area"><div style="margin-top: auto;"><div style="font-size: 18px; color: rgb(0, 255, 255); font-weight: bold; font-family: Consolas, monospace; margin-bottom: 8px;">系统就绪</div><div style="font-size: 12px; color: rgb(102, 102, 102); margin-bottom: 4px;">连接 Gemini 3 Interactions API · 实时流式对话<br>战役通信 ID: camp_vx1oh9</div><div class="chip-group-title">── 快捷指令 ──</div><div class="chips-wrap"><div class="agent-chip">列出所有资产</div><div class="agent-chip">分析攻击路径</div><div class="agent-chip">扫描高危端口</div><div class="agent-chip">查看最新漏洞</div><div class="agent-chip">全局攻击面报告</div><div class="agent-chip">查看 Agent 审计日志</div></div></div></div><div class="ai-input-float"><div class="input-card" style="border-top-left-radius: 8px; border-top-right-radius: 8px;"><textarea class="ai-input" placeholder="输入战术指令..." rows="1"></textarea><div class="input-tools"><div style="position: relative;"><div class="model-selector"><span style="color: rgb(0, 255, 255);">●</span><span style="color: rgb(208, 208, 208);">Flash</span></div></div><button class="send-btn" disabled=""><svg class="send-icon" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"></path></svg></button></div></div></div></div></div></div></div>
+    <script type="module" src="/src/main.jsx?t=1774603017716"></script>
+  
+
+<div style="position: absolute; top: -50000px; width: 50000px; white-space: pre; font-kerning: none; font-family: Consolas, monospace; font-size: 14px;"><span style="font-weight: normal;">                                </span><span style="font-weight: bold;"></span><span style="font-style: italic; font-weight: normal;"></span><span style="font-weight: bold; font-style: italic;"></span></div></body></html>
