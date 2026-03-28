@@ -40,6 +40,23 @@ async def lifespan(app: FastAPI):
                 os.killpg(os.getpgid(job["proc"].pid), signal.SIGTERM)
             except Exception:
                 pass
+                
+    # 斩首 AI 智能体背着 UI 悄悄发起的长时进程 (PGID 档案)
+    ai_pgids_file = "/tmp/claw_ai_pgids.txt"
+    if os.path.exists(ai_pgids_file):
+        try:
+            with open(ai_pgids_file, "r") as f:
+                for line in f:
+                    pid_str = line.strip()
+                    if pid_str.isdigit():
+                        try:
+                            # 发送 SIGTERM 给整个进程组
+                            os.killpg(os.getpgid(int(pid_str)), signal.SIGTERM)
+                        except Exception:
+                            pass
+            os.remove(ai_pgids_file)
+        except Exception:
+            pass
 
 app = FastAPI(
     title="CLAW API",

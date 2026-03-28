@@ -30,7 +30,9 @@ function useTypewriter(text, speed = 15) {
 }
 
 // ========== HUD BAR ==========
-function HudBar({ stats, onToggleTerminal, onRefreshAssets }) {
+function HudBar({ onRefreshAssets }) {
+  const stats = useStore(s => s.stats)
+  const onToggleTerminal = () => useStore.getState().setTerminalOpen(!useStore.getState().terminalOpen)
   const [time, setTime] = useState('')
   const [showScope, setShowScope] = useState(false)
   const [scopeList, setScopeList] = useState([])
@@ -341,7 +343,13 @@ function CreateTheaterModal({ onClose, onCreated }) {
 }
 
 // ========== LEFT SIDEBAR ==========
-function Sidebar({ assets, onSelect, selected, view, onNavigate, onRefreshAssets }) {
+function Sidebar({ onRefreshAssets }) {
+  const assets = useStore(s => s.assets)
+  const onSelect = useStore(s => s.setSelectedIp)
+  const selected = useStore(s => s.selectedIp)
+  const view = useStore(s => s.view)
+  const onNavigate = useStore(s => s.setView)
+
   const critical = assets.filter(a => a.ports.some(p => [445, 3389, 21].includes(p.port)))
   const webHosts = assets.filter(a => a.ports.some(p => [80, 443, 8080, 8443].includes(p.port)))
   const [probeTarget, setProbeTarget] = useState('')
@@ -767,7 +775,13 @@ function AlfaRadarView() {
   )
 }
 
-function WorkArea({ stats, assets, selectedIp, view, onExecCommand }) {
+function WorkArea() {
+  const stats = useStore(s => s.stats)
+  const assets = useStore(s => s.assets)
+  const selectedIp = useStore(s => s.selectedIp)
+  const view = useStore(s => s.view)
+  const onExecCommand = cmd => useStore.getState().setExternalCommand({ id: Date.now(), cmd })
+
   const [tab, setTab] = useState(0)
 
   // Global Multi-Select Hub
@@ -1907,7 +1921,12 @@ const MODELS = [
   { key: 'deep', label: 'Deep Think', color: '#FF3B30', desc: '最强推理' },
 ]
 
-function AiPanel({ width, onResize, selectedIp, assets, externalCommand, isHqMode }) {
+function AiPanel({ isHqMode }) {
+  const width = useStore(s => s.aiWidth)
+  const onResize = useStore(s => s.setAiWidth)
+  const selectedIp = useStore(s => s.selectedIp)
+  const assets = useStore(s => s.assets)
+  const externalCommand = useStore(s => s.externalCommand)
   const agentMode = useStore(s => s.agentMode)
   const toggleAgentMode = useStore(s => s.toggleAgentMode)
   const sudoPassword = useStore(s => s.sudoPassword)
@@ -2756,7 +2775,13 @@ function OutputConsole() {
   )
 }
 
-function Spotlight({ assets, open, onClose, onSelectAsset, onSelectModule }) {
+function Spotlight() {
+  const assets = useStore(s => s.assets)
+  const open = useStore(s => s.spotlightOpen)
+  const onClose = () => useStore.getState().setSpotlightOpen(false)
+  const onSelectAsset = (ip) => useStore.getState().setSelectedIp(ip)
+  const onSelectModule = cmd => useStore.getState().setExternalCommand({ id: Date.now(), cmd })
+
   if (!open) return null;
   const [query, setQuery] = useState('')
   const filteredAssets = assets.filter(a => a.ip.includes(query) || a.os.toLowerCase().includes(query.toLowerCase()))
@@ -2925,24 +2950,10 @@ const MemoXTerm = React.memo(XTermConsole)
 
 function App() {
   const currentTheater = useStore(state => state.currentTheater)
-  const stats = useStore(state => state.stats)
   const setStats = useStore(state => state.setStats)
-  const assets = useStore(state => state.assets)
   const setAssets = useStore(state => state.setAssets)
-  const selectedIp = useStore(state => state.selectedIp)
-  const setSelectedIp = useStore(state => state.setSelectedIp)
   const view = useStore(state => state.view)
   const setView = useStore(state => state.setView)
-  const aiWidth = useStore(state => state.aiWidth)
-  const setAiWidth = useStore(state => state.setAiWidth)
-  const spotlightOpen = useStore(state => state.spotlightOpen)
-  const setSpotlightOpen = useStore(state => state.setSpotlightOpen)
-  const externalCommand = useStore(state => state.externalCommand)
-  const setExternalCommand = useStore(state => state.setExternalCommand)
-  const terminalOpen = useStore(state => state.terminalOpen)
-  const setTerminalOpen = useStore(state => state.setTerminalOpen)
-  const consoleTab = useStore(state => state.consoleTab)
-  const setConsoleTab = useStore(state => state.setConsoleTab)
 
   const [isDocked, setIsDocked] = useState(true)
 
@@ -2950,13 +2961,13 @@ function App() {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        setSpotlightOpen(o => !o)
+        useStore.getState().setSpotlightOpen(!useStore.getState().spotlightOpen)
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
         e.preventDefault()
-        setTerminalOpen(o => !o)
+        useStore.getState().setTerminalOpen(!useStore.getState().terminalOpen)
       }
-      if (e.key === 'Escape') setSpotlightOpen(false)
+      if (e.key === 'Escape') useStore.getState().setSpotlightOpen(false)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -3025,8 +3036,8 @@ function App() {
 
   useEffect(() => {
     const handleSwitchConsole = (e) => {
-      setTerminalOpen(true)
-      setConsoleTab(e.detail)
+      useStore.getState().setTerminalOpen(true)
+      useStore.getState().setConsoleTab(e.detail)
     }
     window.addEventListener('CLAW_SWITCH_CONSOLE_TAB', handleSwitchConsole)
     return () => window.removeEventListener('CLAW_SWITCH_CONSOLE_TAB', handleSwitchConsole)
@@ -3034,7 +3045,7 @@ function App() {
 
   return (
     <div className="app-container">
-      <HudBar stats={stats} onToggleTerminal={() => setTerminalOpen(o => !o)} onRefreshAssets={refreshAssets} />
+      <HudBar onRefreshAssets={refreshAssets} />
       <div className="main-shell" style={{ display: 'flex', flexDirection: 'row', flex: 1, overflow: 'hidden' }}>
 
         {/* Left pane: Activities, Sidebar, Center WorkArea OVER Terminal */}
@@ -3051,13 +3062,13 @@ function App() {
             </div>
 
             {/* Sidebar conditionally renders based on view mappings; for RF, it renders null to maximize radar width */}
-            <Sidebar assets={assets} onSelect={setSelectedIp} selected={selectedIp} view={view} onNavigate={setView} onRefreshAssets={refreshAssets} />
+            <Sidebar onRefreshAssets={refreshAssets} />
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, borderRight: '1px solid #333' }}>
               {view === 'RF' ? (
                 <AlfaRadarView />
               ) : (
-                <WorkArea stats={stats} assets={assets} selectedIp={selectedIp} view={view} onExecCommand={cmd => setExternalCommand({ id: Date.now(), cmd })} />
+                <WorkArea />
               )}
               
               {/* Terminal renders natively inside flex column when Docked, keeping scroll bars constrained */}
@@ -3067,17 +3078,10 @@ function App() {
         </div>
 
         {/* Right pane: AI Panel - Reverted to native outer block so it spans full height */}
-        <AiPanel 
-          width={aiWidth} 
-          onResize={setAiWidth} 
-          selectedIp={selectedIp} 
-          assets={assets} 
-          externalCommand={externalCommand} 
-          isHqMode={false} // Disable auto-flex override to restore commander's draggability 
-        />
+        <AiPanel isHqMode={false} />
 
       </div>
-      <Spotlight assets={assets} open={spotlightOpen} onClose={() => setSpotlightOpen(false)} onSelectAsset={ip => setSelectedIp(ip)} onSelectModule={cmd => setExternalCommand({ id: Date.now(), cmd })} />
+      <Spotlight />
       {!isDocked && <FloatingConsole isDocked={isDocked} setIsDocked={setIsDocked} />}
     </div>
   )

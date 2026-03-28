@@ -53,6 +53,13 @@ CREATE TABLE IF NOT EXISTS vulns (
     scan_id TEXT NOT NULL,
     FOREIGN KEY (scan_id) REFERENCES scans(scan_id)
 );
+CREATE TABLE IF NOT EXISTS mcp_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+    campaign_id TEXT, 
+    role TEXT, 
+    content TEXT, 
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -60,8 +67,9 @@ def get_db(db_path=None):
     """获取数据库连接，自动建表 + 迁移"""
     path = db_path or DEFAULT_DB_PATH
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, timeout=15.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
     conn.executescript(SCHEMA)
     
     # 向后兼容：兼容旧有孤岛战区数据

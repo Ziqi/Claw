@@ -290,8 +290,14 @@ def claw_execute_shell(command: str, thought: str, justification: str, reason: s
     try:
         proc = subprocess.Popen(
             command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            cwd=os.path.join(BASE_DIR), text=True, bufsize=1
+            cwd=os.path.join(BASE_DIR), text=True, bufsize=1, preexec_fn=os.setsid
         )
+        # Register PGID to a unified file for FastAPI lifespan cleanup
+        try:
+            with open("/tmp/claw_ai_pgids.txt", "a") as f:
+                f.write(f"{proc.pid}\n")
+        except Exception:
+            pass
         
         # 🚨 移除阻塞的 for line 循环，使用安全的底层多路复用读取
         try:
