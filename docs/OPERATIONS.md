@@ -1,12 +1,12 @@
-# 🐱 CatTeam 作战手册 (V9.0 G.I. Era)
+# 🐱 CatTeam 作战手册 (V9.2 Deep Autonomy)
 
-本手册按**实战场景**组织，告诉你什么时候该跑什么命令。
+本手册按**实战场景**组织，重点介绍 **G.I. 智能大屏** 的核心管线。
 
-> **V9.0 全栈智能大屏同步注释**: 本文档已经过 V9 真实代码基线审计。功能项将标记为 `[✅对齐设计]`, `[➕超纲新增]`, `[🔄偏离重构]`, `[❌已删除/未开发]`。
+> **V9.2 深度自动化声明**: 本文档已经过 V9.1 原生代码基准线的清洗。TUI 终端降级为次要的回退手段。
 
 ---
 
-## 🖥️ Web 作战指挥台 (V9.0 Commander's HUD)
+## 🖥️ G.I. 智能大屏操作术 (V9.2 Commander's HUD)
 
 ### 启动服务
 
@@ -20,29 +20,29 @@ cd ~/CatTeam/frontend && npx vite --port 5173
 
 浏览器打开 `http://localhost:5173` 即可进入单兵全维度指挥大屏。
 
-### [🔄偏离重构] V9.0 界面布局 (The "HUD" Layout)
+### V9.2 界面布局与管线节点 (The "HUD" Layout)
 
-左侧的 `Activity Bar` 导航条**并未被删除，而是被深度重构为 V9 核心中枢**。旧版的 `AG` (Agent日志) 等无效锚点被替换，当前系统完全服从上、中、右的三段军事化布局：
+左侧的 `Activity Bar` 导航条**并未被删除，而是被深度重构为 V9 核心中枢**。当前系统完全服从上、中、右的三段军事化布局：
 
-| 区域 | 真实模块 | 审计状态 |
+| 区域 | 真实模块 | 说明 |
 |---|---|---|
-| **领航域 (Top Header)** | 全局战役管线 (CampaignPipeline) 进度发光条 | `[✅对齐 D14 设计]` |
-| **情境沙盒 (Center Pane)**| 【资产大表 AssetTable】与【战役看板 TheaterKanban】 | `[✅对齐 D14 设计]` |
-| **火控挂架 (Center Top)** | 规划中：全局多选准星 (Global Multi-Select Reticle) | `[❌严重欠债待补]` |
-| **隔离武库 (Left Tab)**   | 独立的弹药陈列室 (ArmoryViewTab) | `[✅对齐原始设计]` |
-| **C2 远控桥 (Left Tab)**  | Sliver GRPC / Web 控制台 (SliverViewTab) | `[➕原生未规划的超纲新增]` |
-| **副官参谋 (Right Pane)** | 原生闪电大模型终端支持 (Interactions State Machine) | `[🔄基于 chats.create 缝合妥协]` |
+| **领航域 (Top Header)** | 全局战役管线 (CampaignPipeline) 进度发光条 | 当前战区的射频、注入、报告进度指示器。 |
+| **情境沙盒 (Center Pane)**| 【资产大表 AssetTable】与【战役看板 TheaterKanban】 | ALFA 与 NMAP 双重雷达探明的资产。 |
+| **火控挂架 (Center Top)** | **开发中：** 全局多选准星 (Global Multi-Select Reticle) | 允许在不同的资产上框选靶标。 |
+| **视觉防线 (A2UI Forge)**| AI 实时锻造引擎 (A2UIForgeModal) | 视觉层面反馈 Web 对话页面。 |
+| **C2 远控桥 (Left Tab)**  | Sliver GRPC / Web 控制台 (SliverViewTab) | 后渗透 C2 端点控制。 |
+| **副官参谋 (Right Pane)** | 原生闪电大模型终端支持 (Interactions State Machine) | OSINT 字典生成与其他复杂任务辅助。 |
 
 ### [➕超纲新增] V9.0 环境壁垒 (Theater Manager)
 在启动 Web 面板后，**强烈建议第一步在顶部 Header 选择/新建 `战区 (Theater)`**。
 所有扫描仪、资产入库、AI 对话上下文，**均被 SQLite 物理隔离在您选定的战区内**，横跨星巴克与内网时绝不会出现数据串流污染！
 
-### [✅对齐设计] A2UI 零日武器生成
-在主面板触发 `拦截 Beacon` 后，AI 副官会实时推送 `A2UIForgeModal` (零日钓鱼锻造仓)。您可以点击【生成并落盘持久化】，钓鱼源码会直接写入 `CatTeam_Loot/payloads/`！
+### A2UI 零日武器生成与持久化
+在主面板触发 `拦截 Beacon` 等高级对抗动作时，AI 副官会实时推送 `A2UIForgeModal` (零日钓鱼锻造仓)。后端将自动解析渲染意图，将伪造页面实装到沙盒中投递。
 
 ---
 
-## 🗺️ 总决策流程图
+## 命令行回退操作流程图 (Fallback CLI Flow)
 
 ```
                         ┌─────────┐
@@ -85,7 +85,9 @@ cd ~/CatTeam/frontend && npx vite --port 5173
 
 ---
 
-## 场景零：启动交互式控制台（推荐）
+## 备用场景零：启动交互式 CLI 控制台
+
+如果因网络或环境问题无法访问 Web 端大屏，可降级启动原生 TUI 控制台：
 
 ```bash
 cd ~/CatTeam

@@ -1,41 +1,35 @@
 # 🐱 CatTeam 开发路线图 (Roadmap)
 
-**最后更新：** 2026-03-28 V9.1 / A2.2  
+**最后更新：** 2026-03-29 V9.2 / A2.2  
 
 ---
 
 ## 版本演进全景
 
 ```
-V1.0 (03-24)  ━━  V2.0 (03-25)  ━━  V3.0 (03-25)  ━━  V4.0 (03-25)  ━━  V5.0 (03-25)  ━━  V7.0 (03-25)  ━━  V8.0-α (03-26)  ━━  V8.2 (03-27)  ━━  V9.0 (Planned)
-  基础链           工程化           攻击链           合规/AD/TUI       SQLite+AI       Agentic AI       Web Dashboard     流式工作台        多智能体+图谱
+V1.0 (03-24)  ━━  V5.0 (03-25)  ━━  V8.0-α (03-26)  ━━  V8.2 (03-27)  ━━  V9.0 (03-27)  ━━  V9.1 (03-28)  ━━  V9.2 (Current)
+  基础链           SQLite+AI       Web Dashboard     流式工作台        智能大屏       护城河加固        Deep Autonomy
 ```
 
 ---
 
 ## 🔮 未来计划 (Planned)
 
-### 🌟 V10-alpha — 多智能体分布式渗透 (Planned)
-> 预留占位区。
+### 🚀 V9.2 — 深度自动化 (Deep Autonomy) (Current)
+> **纵向挖掘 Gemini 3 API 极限，横向打通 OSINT→破解→报告的端到端管线**
 
-### ⭐ V9.0 — 全栈智能大屏 (Generative Interface Era) & D14/D15 架构落地
-> **聚焦单兵作战环境下的全维自主渗透。依托极简硬件 (单本+Alfa网卡)，将大屏彻底升级为 G.I. (Generative Interface) 时代的智控终端，建立【领航域】+【情境沙盒】+【AI 参谋部】三段式指挥范式。**
+**【🔴 P0 战役管线填补】**
+- [ ] **全局多选准星 (Global Target Reticle)**：解决武库陷入“单机盲狙”的长期 UX 欠债
+- [ ] **ALFA 无线战术闭环**：利用物理网卡打通 Monitor -> Deauth -> Crack (Hashcat) 的真实无线打击
 
-**【🔴 已完工基座：底层引擎重构与多模态战斧 (Phases 12-14)】**
-- [🔄偏离执行] **跨版本状态机平替 (Interactions API)**：D14 要求 `client.interactions`，因 SDK 不支持，改用 `client.chats.create` 手写上下文栈模拟。
-- [❌重大遗漏] **云端免杀代码沙箱 (CodeExecution)**：D14 要求 `types.Tool(code_execution=...)`，但 V9 未予开发挂载。
-- [🔄偏离执行] **ReAct 引擎护城河 (State Continuum)**：采用第 15 步截断 `tools=[]` 强制总结，而非深度修改底层状态机。
-- [✅彻底对齐] **Pydantic 认知图谱蒸馏 (Structured Output)**：强制大模型按 `AttackGraph` 结构输出 JSON，彻底消灭渲染挂死。
-- [✅彻底对齐] **A2UI ✖️ 零日欺骗落地 (Phase 14)**：实装假页面提纯投递，并[➕新增]落盘持久化至实体兵工厂。
-- [❌重大遗漏] **视觉自我博弈循环**：Playwright 无头浏览器渲染并多模态喂图截断环节未开发。
-- [🔄偏离执行] **轻量图谱降维 (GraphRAG Light)**：彻底去除 Neo4j，采用在前端跑 NetworkX 内存状态全替换。
+**【🟡 P1 核心赋能】**
+- [ ] **端到端 OSINT 管线**：AI 生成字典无需手动粘贴，直接闭环导入 Hashcat
+- [ ] **Google Search 引用渲染**：UI 支持解析 `groundingChunks`
+- [ ] **Deep Research 模型接入**：挂载 `deep-research-pro` 异步推演
 
-**【⏳ 待开工模块与 V9.1 架构偿债 (Phases 15-16)】**
-- [✅彻底对齐] **全栈指挥官视窗 (The Commander's HUD)**：正式废弃枯燥独立的 OP 遥控面板。引入顶部【点亮式全局战役线】，左翼隔离武库，右翼 AI 参谋部。
-- [❌核心欠债] **全局多选准星 (Global Target Reticle)**：长期未开发的 P0 债。目前独立武库由于缺乏此跨页多选状态管线，陷入单机盲狙陷阱。V9.2 首要任务！
-- [🔄偏离执行] **Deep Research ✖️ 语义密码图谱**：采用一般级 Flash 大模型及 Pydantic 下发，在 `/api/v1/agent/osint` 端点直连，未拉起深层次纯后台模型。
-- [➕超纲新增] **战区物理隔离 (Theater Manager)**：为防靶场内网跨界污染，强制新增 SQLite 环境层隔离。
-- [➕超纲新增] **C2 控制流 (Sliver Integration)**：越过原设计，新增前端 React C2 面板预留位。
+---
+
+## ✅ 已完成版本 (V9 纪元)
 
 ---
 

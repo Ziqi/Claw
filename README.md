@@ -2,22 +2,22 @@
 
 ```
      /\_/\  
-    ( o.o )  Project CLAW V9.0
-     > ^ <   CatTeam Lateral Arsenal Weapon V9.0
+    ( o.o )  Project CLAW V9.2
+     > ^ <   CatTeam Lateral Arsenal Weapon V9.2
     /|   |\  
-   (_|   |_) Codename: Lynx · Bloomberg Terminal
+   (_|   |_) Codename: Lynx · Deep Autonomy
 ```
 
 # 🐱 Project CLAW
 
 **C**atTeam **L**ateral **A**rsenal **W**eapon
 
-AI-Native 红队全栈作战平台 · Bloomberg Terminal UI · FastAPI + React · Gemini 3 Agentic AI
+AI-Native 红队全栈作战平台 · Generative Interface (HUD) · FastAPI + React · Gemini 3.1 Pro
 
-[![Version](https://img.shields.io/badge/V9.0-blue)]()
-[![Agent](https://img.shields.io/badge/Agent-A2.1-green)]()
+[![Version](https://img.shields.io/badge/V9.2-blue)]()
+[![Agent](https://img.shields.io/badge/Agent-A2.2-green)]()
 [![Dashboard](https://img.shields.io/badge/Dashboard-Bloomberg-black)]()
-[![AI](https://img.shields.io/badge/AI-Gemini%203.1%20Pro-orange)]()
+[![AI](https://img.shields.io/badge/AI-Gemini%203.1-orange)]()
 [![License](https://img.shields.io/badge/license-Private-red)]()
 
 </div>
@@ -47,26 +47,27 @@ python3 claw-agent.py # AI 智能体
 ## 🎯 系统架构
 
 ```
-┌─ 侦察链 ──────────────────────────────────────────────┐
-│  00 后勤总机 → 01 幽灵斥候 → 02 端口扫描 → 02.5 数据入库 │
-│  DHCP换脸       被动嗅探       Nmap扫描      XML→SQLite   │
-└──────────────────────────┬─────────────────────────────┘
-                           │ claw.db + live_assets.json
-                ┌──────────┼──────────┐
-                ↓          ↓          ↓
-           03 Web指纹   Nuclei      🧠 CLAW Agent (MCP)
-           纯Python     漏洞扫描     Gemini 3 ReAct
-                                     HITL 三级分权
-┌─ 攻击链 ──────────────────────────────────────────────┐
-│  04 投毒陷阱  → 05 算力破解  → 06 横向移动               │
-│  Responder      Hashcat GPU    Impacket SMB            │
-│  09 后渗透提取 → 10 AD域Kerberoast                      │
-└────────────────────────────────────────────────────────┘
+```
+┌─ 侦察与捕获 ────────────────────────────────────────────────────────┐
+│  📡 00 Alfa网卡嗅探 → 01 幽灵斥候 → 02 端口扫描 → 02.5 环境沙盒入库 │
+│     Monitor Mode      被动/主动雷达   Nmap引擎      SQLite 多战区    │
+└───────────────────────────┬────────────────────────────────────────┘
+                            │ claw.db + live_assets.json
+                 ┌──────────┼──────────┐
+                 ↓          ↓          ↓
+            03 Web指纹   A2UI 欺骗   🧠 LYNX Copilot
+            语义提取     视觉自我博弈  Gemini 3.1 沙箱
+                                       OSINT 字典生成
+┌─ 算力与后渗透 ────────────────────────────────────────────────────────┐
+│  04 EAPOL/投毒陷阱 → 05 算力破解  → 06 横向移动                       │
+│  .cap 握手捕获        Hashcat GPU    Impacket SMB                     │
+│  09 后渗透战利品提取 → 10 AD域 Kerberoast / BloodHound                 │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-## 🧠 CLAW Agent (V8.2 / MCP 架构)
+## 🧠 LYNX Agent (V9.2 / Copilot 架构)
 
-基于 **Gemini 3 Interactions API** 的自主红队智能体，V8.2 已迁移至 MCP 架构 (动态工具发现 + 缓存式 schema)：
+基于 **Gemini 3.1 Pro** 构建，并全面接入 Cloud Python Execution 与 Google Search Grounding。LYNX 目前通过 MCP 架构控制战区：
 
 | 模式 | 工具 | 安全机制 |
 |---|---|---|
@@ -150,7 +151,7 @@ python3 claw-agent.py --readonly # M1 只读模式
 ```
 V1.0 (基础链) → V2.0 (工程化) → V3.0 (攻击链) → V4.0 (合规/AD)
      → V5.0 (SQLite+AI) → V7.0 (Agentic AI) → V8.0 (Web Dashboard)
-     → V8.2 (MCP + 流式流水线) \n     → V9.0 (全栈智能指挥大盘) ← 当前版本
+     → V9.0 (智能大屏) → V9.1 (护城河加固) \n     → V9.2 (Deep Autonomy) ← 当前版本
 ```
 
 ## 📚 文档索引

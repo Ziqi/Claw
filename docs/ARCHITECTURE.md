@@ -1,4 +1,4 @@
-# CatTeam 架构设计文档 V8.2 / A2.1
+# CatTeam 架构设计文档 V9.2 / Copilot Era
 
 ## 1. 平台定位与行业对标
 
@@ -20,7 +20,7 @@
 
 CLAW V7.0: 工具集 → 框架 (已跨越: 有编排+数据层+Agent)
 CLAW V8.0: 框架 → 作战平台 (GUI + 协作 + 审计 + 态势感知)
-CLAW V8.2: 引入多战区隔离机制与流式作战流水线 (Operation Pipeline)
+CLAW V9.2: G.I. 智能指挥大盘 + 视觉自我博弈 + 物理/无线隔离管线
 ```
 
 ### 1.2 竞品对标
@@ -30,24 +30,21 @@ CLAW V8.2: 引入多战区隔离机制与流式作战流水线 (Operation Pipeli
 | **Kali Linux** | 工具集 | CLI | ✅ | 600+ 工具预装 |
 | **Metasploit** | 框架 | CLI + Armitage | ✅ | exploit 库 + payload```
 ┌──────────────────────────────────────────┐
-│    🖥️ Web Dashboard (React + Vite)        │ ← V8.2 (MCP+流水线+审计)
-│  Bloomberg Terminal UI · lucide-react SVG  │
-│  HUD/Activity Bar/AI Copilot/OP/拓扑图    │
+│    🖥️ Web Dashboard (React + Vite)        │ ← V9.2 全栈大屏
+│  G.I. 交互范式 · 战区沙盒 · 多选微操火力网│
 ├──────────────────────────────────────────┤
-│    🌐 API 层 (FastAPI)                    │ ← V8.2
-│  /api/v1/ops/run · ops/log · env/switch  │
+│    🌐 API 层 (FastAPI)                    │ 
+│  /ops/run · /env/switch · /agent/osint   │
 ├──────────────────────────────────────────┤
-│         控制面 (Makefile v5.0 + TUI)      │
-│   preflight → run/fast/phantom/crack/... │
+│      🚀 ALFA 物理渗透管线 (V9.2 NEW)      │
+│  Monitor / Deauth / Aircrack-ng 截获     │
 ├──────────────────────────────────────────┤
-│    🗡️ MCP 层 (Model Context Protocol)    │ ← V8.2 NEW
+│    🗡️ MCP 层 (Model Context Protocol)    │ 
 │  mcp_armory_server.py: 工具 → MCP Tool    │
-│  agent_mcp.py: stdio 动态发现+缓存 schema │
 ├──────────────────────────────────────────┤
-│      🧠 Agent 层 (Gemini 3 via MCP)       │
-│  ReAct Loop + HITL 三级分权              │
-│  MCP Tools: query_db/read_file/list      │
-│    /execute_shell/run_module/sliver_exec  │
+│    🧠 LYNX Copilot (Gemini 3.1 Pro)      │ ← V9.2 
+│  A2UI 视觉锻造 + CodeExecution 云端沙箱   │
+│  OSINT 语义字典提纯 + Google Search      │
 ├──────────────────────────────────────────┤
 │         AI 辅助层 (Gemini Flash)            │
 │  16-ai-analyze / 17-ask-lynx / 脱敏层    │
@@ -172,12 +169,12 @@ CLAW V8.2: 引入多战区隔离机制与流式作战流水线 (Operation Pipeli
 | `23-hp-proxy-unlocker` | Mac (Python) | IP + 凭据字典 | 终端输出 | 4 阶段代理解锁: 端口→状态→爆破→隧道 |
 | `make toolbox` | Docker/Mac | 交互选择 | 各工具输出 | Nikto/Hydra/Sqlmap/binwalk/固件解剖刀 |
 
-### 🧠 Agent 智能体 (V7.0 新增, V8.2 MCP 迁移)
+### 🧠 LYNX Copilot 智能体 (V9.2 架构)
 
 | 模块 | 环境 | 输入 | 输出 | 关键特性 |
 |---|---|---|---|---|
-| `agent_mcp.py` | Mac (Python) | 自然语言 | 智能分析 + 命令执行 | Gemini 3, MCP 动态工具发现, 缓存式 schema |
-| `mcp_armory_server.py` | Mac (Python) | MCP stdio | 工具执行结果 | 标准 MCP Server, 6 个 Tool |
+| `agent_mcp.py` | Mac (Python) | 自然语言/URL | 智能分析 + 命令执行 | Gemini 3.1, URL Context, 视觉自我博弈 |
+| `mcp_armory_server.py` | Mac (Python) | MCP stdio | 工具执行结果 | 标准 MCP Server |
 | MCP Tool: `claw_query_db` | 内嵌 | SQL | JSON | 只允许 SELECT, 自动放行 |
 | MCP Tool: `claw_read_file` | 内嵌 | 文件路径 | 文件内容 | 路径穿越防护, 支持 Loot + 项目根目录 |
 | MCP Tool: `claw_list_assets` | 内嵌 | 环境名 | 资产清单 | 自动放行 |
@@ -194,14 +191,19 @@ graph TD
     CFG[config.sh] -.->|source| ALL[所有模块]
 
     subgraph 侦察链
-        A[00-armory<br/>DHCP换脸] --> B[01-recon<br/>嗅探+黑名单]
+        A[00-armory/ALFA<br/>物理嗅探] --> B[01-recon<br/>嗅探+黑名单]
         B -->|targets.txt| C[02-probe<br/>Nmap扫描]
-        C -->|nmap_results.xml| D[02.5-parse<br/>XML→JSON]
+        C -->|nmap_results.xml| D[02.5-parse<br/>XML→SQLite]
+    end
+
+    subgraph 语义层
+        D -->|claw.db| OSINT[OSINT Agent<br/>语义字典提纯]
+        OSINT -->|Wordlist| G
     end
 
     subgraph 审计层
         D -->|live_assets.json| E1[03-audit<br/>httpx]
-        D -->|live_assets.json| E2[03-audit-web<br/>手搓httpx]
+        D -->|live_assets.json| E2[A2UI Forge<br/>零日欺骗锻造]
     end
 
     subgraph 攻击链
@@ -210,23 +212,16 @@ graph TD
         D -->|"live_assets.json<br/>SMB目标"| H
     end
 
-    subgraph 情报层
-        H --> I[07-report<br/>战报生成]
-        D --> I
-        D --> J[08-diff<br/>资产变化]
-    end
-
     style A fill:#ff9800
     style B fill:#2196f3,color:#fff
     style C fill:#f44336,color:#fff
     style D fill:#9c27b0,color:#fff
     style E1 fill:#e91e63,color:#fff
     style E2 fill:#e91e63,color:#fff
+    style OSINT fill:#009688,color:#fff
     style F fill:#b71c1c,color:#fff
     style G fill:#ff5722,color:#fff
     style H fill:#d50000,color:#fff
-    style I fill:#1565c0,color:#fff
-    style J fill:#1565c0,color:#fff
 ```
 
 ### 数据文件依赖链
