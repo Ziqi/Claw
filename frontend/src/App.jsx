@@ -57,9 +57,12 @@ function HudBar({ onRefreshAssets }) {
 
   // Fetch theaters on mount
   const refreshTheaters = () => {
-    fetch(`${API}/env/list`).then(r => r.json()).then(d => {
+    return fetch(`${API}/env/list`).then(r => r.json()).then(d => {
       setTheaters(d.theaters || [])
-      setCurrentTheater(d.current || 'default')
+      const curr = d.current || 'default'
+      // 核心热修复：无论何种途径刷新环境列表，拿到最新的当前环境后，必须强制写透 window
+      window.__claw_current_theater = curr
+      setCurrentTheater(curr)
     }).catch(console.error)
   }
   useEffect(() => { refreshTheaters() }, [])
@@ -70,6 +73,9 @@ function HudBar({ onRefreshAssets }) {
   const switchTheater = (name) => {
     fetch(`${API}/env/switch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
       .then(r => r.json()).then(() => {
+        // [Hotfix] 强行同步注入！打断 React 自身的 useState 延迟
+        // 确保紧随其后的 refreshAssets 在执行读取 window.__claw_current_theater 时能拿到最新字符串
+        window.__claw_current_theater = name;
         setCurrentTheater(name)
         setShowTheaterMenu(false)
         refreshTheaters()
@@ -222,8 +228,8 @@ function HudBar({ onRefreshAssets }) {
       )}
 
       {/* Create / Config Theater Modal */}
-      {showCreateTheater && <CreateTheaterModal onClose={() => setShowCreateTheater(false)} onCreated={() => { refreshTheaters(); onRefreshAssets(); setShowCreateTheater(false) }} />}
-      {showTheaterConfig && <TheaterConfigModal theater={currentTheater} onClose={() => setShowTheaterConfig(false)} onUpdated={() => { refreshTheaters(); onRefreshAssets(); setShowTheaterConfig(false) }} />}
+      {showCreateTheater && <CreateTheaterModal onClose={() => setShowCreateTheater(false)} onCreated={() => { refreshTheaters().then(() => onRefreshAssets()); setShowCreateTheater(false) }} />}
+      {showTheaterConfig && <TheaterConfigModal theater={currentTheater} onClose={() => setShowTheaterConfig(false)} onUpdated={() => { refreshTheaters().then(() => onRefreshAssets()); setShowTheaterConfig(false) }} />}
     </div>
   )
 }

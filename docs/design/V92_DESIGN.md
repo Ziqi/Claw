@@ -30,26 +30,16 @@ V9.2 的核心目标不再是修复底层缺陷，而是**纵向挖掘 Gemini 3 
 | ✅ P0-2 | **冷启动 Thought Signature 保护** | `agent_mcp.py` | 跳过 SQLite 中无法恢复 `thoughtSignature` 的 `[thinking]` 占位符，防止 400 崩溃 |
 | ✅ P0-3 | **全局多选准星 (Global Target)** | `App.jsx`, `agent.py` | (D4 重构) 将前端选中 IP 集通过 SSE 打入 System Prompt 的强制靶向清单，消除盲狙 |
 | ✅ P0-4 | **Markdown 护城河 (AST State Machine)** | `App.jsx`, `agent.py` | (D4 重构) 废弃正则流解析，后端脱敏沙盒反撇号，前端拦截残缺结构并增加 A2UI JSON Loading 保护 |
+| ✅ P0-5 | **React UI 管线脱水解耦** | `App.jsx` | (D3-D9 重构) 剥离顶层状态硬编码，引入叶子组件自治订阅，配合 AbortController 消除 ALFA 大盘网络串台与 OOM 假死。 |
+| ✅ Backlog | **Schema 分裂与进程孤儿** | `main.py`, `db` | 物理隔离 SQLite 建表， FastApi Lifespan 中引入 PGID 全局清道夫，斩杀失控 MCP。 |
 
 ---
 
 ## 三、V9.2 待开发项 (按优先级排列)
 
-### 🔴 P0 — 核心 UX 欠债
+### 🔴 P0 — 核心 UX 欠债 (本梯队已全部清零)
 
-#### 3.0 前端渲染管线重构 (D3 延期债务)
-
-> D3 导师案卷裁决 + 高危卡顿 OOM 风险点
-
-**问题**：目前近 3000 行的 `App.jsx` 单体包含致命的级联重绘（Render Avalanche）、Mutation 状态污染及 `AiPanel` 内存泄露问题。在进行高频拖拽或收到大量大模型 SSE 数据时极易拉死主线程。
-
-**设计方案 (V9.2 专项分支处理)**：
-- 将全局频繁触发 `Re-render` 的 `aiWidth` / `selectedIp` 从 `<App />` 转移至下层叶子组件内部订阅机制。
-- 对 Zunstand 长会话状态（如打字机气泡）实行严格的 Immutability 更新机制。
-- 对事件总线、`AbortController`、拖拽鼠标监听事件补充 React 生命周期销毁（`useEffect` cleanup）以防挂起。
-
-**涉及文件**：
-- `frontend/src/App.jsx`
+所有关于 UI 内存狂飙、卡顿及巨石组件的状态雪崩已随 D3-D9 的联合收网专项分支彻底修复。目前已无遗留的致命体验阻塞点。
 
 ---
 

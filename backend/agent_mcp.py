@@ -337,17 +337,23 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             _session_cache[campaign_id] = chat_history
             _session_timestamps[campaign_id] = time.time()
 
+        config_kwargs = {
+            "system_instruction": dynamic_prompt,
+            "tools": gemini_tools,
+            "temperature": 1.0,
+            "tool_config": tool_config_obj
+        }
+        
+        # P0-4 热修复：Gemini Flash-Lite 不支持 ThinkingConfig
+        # 如果强行带入 minimal 思考参数，底层 SDK 将发生验证错误并导致配置全丢！
+        if thinking_level and thinking_level != "minimal":
+            config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=thinking_level)
+
         client = genai.Client(api_key=API_KEY)
         chat = client.aio.chats.create(
             model=selected_model,
             history=chat_history,
-            config=types.GenerateContentConfig(
-                system_instruction=dynamic_prompt,
-                tools=gemini_tools,
-                temperature=1.0,
-                thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
-                tool_config=tool_config_obj
-            )
+            config=types.GenerateContentConfig(**config_kwargs)
         )
         
         mode_label = "Agent 全自主" if agent_mode else "Advisor 只读顾问"
@@ -366,9 +372,13 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                 try:
                     # [修复 2] 在 Step 3 的 for 循环内部，动态剥夺高算力以快速消化底层情报
                     dynamic_think = "low" if isinstance(current_input, list) else thinking_level
-                    override_config = types.GenerateContentConfig(
-                        thinking_config=types.ThinkingConfig(thinking_level=dynamic_think)
-                    )
+                    
+                    # 同样热修复思考层级问题，防止覆盖循环再次拉爆配置
+                    override_kwargs = {}
+                    if dynamic_think and dynamic_think != "minimal":
+                        override_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=dynamic_think)
+                        
+                    override_config = types.GenerateContentConfig(**override_kwargs)
                     response_stream = await chat.send_message_stream(current_input, config=override_config)
                     
                     async for chunk in response_stream:
