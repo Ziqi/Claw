@@ -4,6 +4,9 @@ const useStore = create((set) => ({
   stats: null,
   setStats: (stats) => set({ stats }),
 
+  currentTheater: 'default',
+  setCurrentTheater: (theater) => set({ currentTheater: theater }),
+
   assets: [],
   setAssets: (assets) => set({ assets }),
 

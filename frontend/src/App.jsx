@@ -60,15 +60,19 @@ function HudBar({ onRefreshAssets }) {
     return fetch(`${API}/env/list`).then(r => r.json()).then(d => {
       setTheaters(d.theaters || [])
       const curr = d.current || 'default'
-      // 核心热修复：无论何种途径刷新环境列表，拿到最新的当前环境后，必须强制写透 window
+      // 核心：同时写透 window 全局变量 + Zustand Store，确保 refreshAssets 的 Drift Guard 不误杀
       window.__claw_current_theater = curr
       setCurrentTheater(curr)
+      useStore.getState().setCurrentTheater(curr)
     }).catch(console.error)
   }
   useEffect(() => { refreshTheaters() }, [])
 
-  // Expose currentTheater globally for OP Pipeline & OP Sidebar
-  useEffect(() => { window.__claw_current_theater = currentTheater }, [currentTheater])
+  // Expose currentTheater globally for OP Pipeline & OP Sidebar & Zustand Store
+  useEffect(() => {
+    window.__claw_current_theater = currentTheater
+    useStore.getState().setCurrentTheater(currentTheater)
+  }, [currentTheater])
 
   const switchTheater = (name) => {
     fetch(`${API}/env/switch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
