@@ -18,14 +18,15 @@ V1.0 (03-24)  ━━  V5.0 (03-25)  ━━  V8.0-α (03-26)  ━━  V8.2 (03-27
 ### 🚀 V9.2 — 深度自动化 (Deep Autonomy) (Current)
 > **纵向挖掘 Gemini 3 API 极限，横向打通 OSINT→破解→报告的端到端管线**
 
-**【🔴 P0 战役管线填补】**
+**【🔴 P0 战役管线填补 (已清零)】**
 - [x] **全局多选准星 (Global Target Reticle) (D4 拔除)**：已解决武库陷入“单机盲狙”的长期 UX 欠债，与后端 `agent_mcp.py` 的 System Prompt 联合挂载火力锁定约束。
 - [x] **Markdown 流式状态机防撕裂 (D4 拔除)**：彻底铲除正则匹配弊病，用奇偶遍历拦截所有未闭合长串代码并在 Sandbox 层实行脱敏拦截，消除红屏报错。
-- [ ] **ALFA 无线战术闭环**：利用物理网卡打通 Monitor -> Deauth -> Crack (Hashcat) 的真实无线打击
+- [x] **React 渲染引擎解耦 (D3 拔除)**：剥离 App.jsx 级联状态，消灭 OOM 和 504 熔断，引入 Hash + AbortController 双轨防串台。
+- [x] **后台孤儿管控与 I/O 脱水 (D5-D9 拔除)**：FastAPI 建立跨组屠夫机制与 SQLite 单线排队防轮询死锁，隔离大体积流。
 
-**【🟡 P1 核心赋能】**
+**【🟡 P1 核心赋能 (下一目标段)】**
+- [ ] **Google Search 引用渲染 (UI 接入阶段)**：后端解析流已埋口，待 UI 接入 `groundingChunks`
 - [ ] **端到端 OSINT 管线**：AI 生成字典无需手动粘贴，直接闭环导入 Hashcat
-- [ ] **Google Search 引用渲染**：UI 支持解析 `groundingChunks`
 - [ ] **Deep Research 模型接入**：挂载 `deep-research-pro` 异步推演
 
 ---

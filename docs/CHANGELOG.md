@@ -1,3 +1,11 @@
+## [V9.2 - D3-D9 Architecture Decoupling & UI OOM Refactoring] - 2026-03-29
+### Added / Fixed
+- **UI Architecture (App.jsx)**: Fixed P0 Render Avalanche. Decoupled monolithic state `useStore` hooks into individual leaf components (`Sidebar`, `AiPanel`, `WorkArea`) to eradicate entire Virtual DOM repaints and frontend OOM crashes during ALFA radar polling.
+- **State Networking (main.py, App.jsx)**: Fixed P0 N+1 Polling cascade & State Drift. Implemented strict hash-based network synchronization `/api/v1/sync` paired with HTTP `AbortController` and theater drift guards to drop ghost payload during view switching.
+- **Process Orchestration (main.py, mcp_armory_server.py)**: Fixed P1 Orphan Runaways. Added global PGID records for all background AI-spawned processes via `os.setsid` and executed automated `killpg` in FastAPI `lifespan` hook.
+- **ALFA Stream Decoupling (main.py)**: Decoupled raw stdout trapping for `airodump-ng`. Adopted an asynchronous 1Hz CSV dehydration watcher backed by `aiofiles`, ending Regex overflow and ANSI terminal corruption.
+- **Agent Integration (AiPanel.jsx, main.py)**: Migrated Heavy OSINT LLM hits to a thread-isolated `StreamingResponse` to stop Uvicorn worker deadlocks. Laid structural groundwork for Google Search Grounding UI presentation.
+
 ## [V9.2 - D1 Code Review Refactoring] - 2026-03-28
 ### Added / Fixed
 - **AI Core (agent_mcp.py)**: Fixed P0 Schema Crash. Added `OBJECT` support and explicit internal constraints for `ARRAY` to avoid Gemini 400 Bad Request during MCP initialization.
