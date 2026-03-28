@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const API = 'http://localhost:8000/api/v1'
+const API = `http://${window.location.hostname}:8000/api/v1`
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null)

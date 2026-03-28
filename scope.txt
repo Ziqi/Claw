@@ -1,4 +1,3 @@
-# CatTeam ROE Scope File (作战授权范围)
+# CatTeam ROE Scope File
 # 每行一个 CIDR 或单 IP
-# 留空 = 上帝模式 (无限制)
 

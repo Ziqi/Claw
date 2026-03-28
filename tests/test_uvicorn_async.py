@@ -3,7 +3,7 @@ import time
 import httpx
 import sys
 
-API_URL = "http://localhost:8000/api/v1"
+API_URL = "http://127.0.0.1:8000/api/v1"
 
 async def read_sse(job_id):
     """Simulates a heavy SSE logger reading the ops_log pipeline"""

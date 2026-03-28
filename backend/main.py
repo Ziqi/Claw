@@ -195,7 +195,9 @@ def list_scans(limit: int = Query(20, ge=1, le=100)):
     """扫描历史"""
     with get_db() as conn:
         rows = conn.execute(
-            "SELECT scan_id, env, timestamp, total_hosts FROM scans ORDER BY timestamp DESC LIMIT ?",
+            "SELECT s.scan_id, s.env, s.timestamp, s.mode, "
+            "(SELECT COUNT(DISTINCT a.ip) FROM assets a WHERE a.scan_id = s.scan_id) as total_hosts "
+            "FROM scans s ORDER BY s.timestamp DESC LIMIT ?",
             (limit,)
         ).fetchall()
         return {"scans": [dict(r) for r in rows]}
@@ -405,7 +407,10 @@ async def forge_payload(req: ForgeRequest):
         correction_resp = client.models.generate_content(
             model="gemini-3.1-pro-preview", 
             contents=[image_part, CORRECTION_PROMPT],
-            config=types.GenerateContentConfig(temperature=0.1)
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                media_resolution=types.MediaResolution.MEDIA_RESOLUTION_HIGH,  # P1-4: 提升视觉自纠错 OCR 精度
+            )
         )
         correction_result = correction_resp.text.strip()
         
@@ -1161,7 +1166,7 @@ def generate_osint_dict(req: OsintRequest):
         client = genai.Client(api_key=AGENT_API_KEY)
         prompt = f"你是一名为攻防演练提供弹药的顶尖 OSINT 情报特工。这里有几台高危设备目标 (可能包含开了 445/3389 的机器，或路由网关): {req.targets}。请推断出 15 个极其精准的弱口令和定制化密码 (包含常见的默认密码和年份组合)，为后续字典降维攻击做准备。无多余废话，直接返回 JSON 数组。"
         response = client.models.generate_content(
-            model='gemini-2.5-pro',
+            model='gemini-3-flash-preview',
             contents=prompt,
             config={
                 'response_mime_type': 'application/json',

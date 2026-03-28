@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Network, DataSet } from 'vis-network/standalone'
 
-const API = 'http://localhost:8000/api/v1'
+const API = `http://${window.location.hostname}:8000/api/v1`
 
 export default function Topology() {
   const containerRef = useRef(null)

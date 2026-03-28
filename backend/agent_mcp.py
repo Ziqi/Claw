@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-CLAW Agent MCP V8.2 — Optimized for speed.
+CLAW Agent MCP V9.2 — A3.0 Complete Edition.
 
-Performance fix: MCP tool schema is discovered ONCE at startup and cached.
-Each chat message only creates a lightweight Gemini chat (no subprocess spawn).
-The MCP subprocess is only spawned when a tool is actually called.
+D19 Ruling Implementation:
+  - In-Memory Session Cache + Write-Behind SQLite audit trail
+  - Dynamic Least Privilege tool downgrade for OFF mode
+  - Persistent MCP connection pooling via async worker
 """
-import os, json, sqlite3, asyncio
+import os, json, sqlite3, asyncio, time
 from typing import AsyncGenerator
 from mcp.client.stdio import stdio_client
 from mcp.client.session import ClientSession
@@ -16,6 +17,99 @@ from google import genai
 from google.genai import types
 
 from backend.agent import BASE_DIR, DB_PATH, classify_command, audit_log_write, SYSTEM_PROMPT, MODEL, API_KEY
+
+# ====== In-Memory Session Cache (D19 Ruling: Write-Behind Architecture) ======
+# Key: campaign_id → Value: list[types.Content] (原生 Gemini History，保留 thoughtSignature)
+_session_cache: dict[str, list] = {}
+_session_timestamps: dict[str, float] = {}
+_SESSION_MAX_AGE = 3600  # 1小时无活跃则可被冷启动回收
+
+
+def _load_history_from_db(campaign_id: str) -> list:
+    """从 SQLite 审计库重建会话上下文（仅冷启动/页面刷新时调用）"""
+    chat_history = []
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("CREATE TABLE IF NOT EXISTS mcp_messages (campaign_id TEXT, role TEXT, content TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
+        cursor = conn.execute("SELECT role, content FROM mcp_messages WHERE campaign_id=? ORDER BY timestamp ASC", (campaign_id,))
+        rows = cursor.fetchall()
+        for r_role, r_json in rows:
+            try:
+                parts_data = json.loads(r_json)
+                parts = []
+                for p in parts_data:
+                    if "text" in p:
+                        if p["text"] == "[thinking]":
+                            continue  # P0-2: 跳过 thinking 占位符，thoughtSignature 无法从 SQLite 恢复
+                        parts.append(types.Part.from_text(p["text"]))
+                    elif "function_call" in p: parts.append(types.Part.from_function_call(name=p["function_call"]["name"], args=p["function_call"]["args"]))
+                    elif "function_response" in p: parts.append(types.Part.from_function_response(name=p["function_response"]["name"], response=p["function_response"]["response"]))
+                if parts:
+                    chat_history.append(types.Content(role=r_role, parts=parts))
+            except Exception:
+                pass
+        conn.close()
+    except Exception as e:
+        audit_log_write("DB_COLD_START_ERROR", f"Failed to load history: {e}")
+    return chat_history
+
+
+def _serialize_turns(new_turns: list) -> list:
+    """将 types.Content 序列化为可存储的 JSON 格式（P0-2 修复：处理 Thinking Parts）"""
+    serialized = []
+    for item in new_turns:
+        parts_repr = []
+        for p in item.parts:
+            # P0-2 修复：显式处理 thought/thinking Part（Gemini 3 thinking 模式产出）
+            if hasattr(p, 'thought') and p.thought:
+                # Thought 内容由 thoughtSignature 保护，只需标记存在以保持 turn 顺序
+                parts_repr.append({"text": "[thinking]"})
+            elif p.text:
+                parts_repr.append({"text": p.text})
+            elif p.function_call:
+                args_dict = {}
+                if hasattr(p.function_call.args, "items"):
+                    args_dict = dict(p.function_call.args.items())
+                elif hasattr(p.function_call, "to_dict"):
+                    args_dict = p.function_call.to_dict().get("args", {})
+                parts_repr.append({"function_call": {"name": p.function_call.name, "args": args_dict}})
+            elif p.function_response:
+                resp_dict = {}
+                if hasattr(p.function_response.response, "items"):
+                    resp_dict = dict(p.function_response.response.items())
+                elif hasattr(p.function_response, "to_dict"):
+                    resp_dict = p.function_response.to_dict().get("response", {})
+                parts_repr.append({"function_response": {"name": p.function_response.name, "response": resp_dict}})
+        if parts_repr:
+            serialized.append((item.role, json.dumps(parts_repr, ensure_ascii=False)))
+    return serialized
+
+
+def _sync_persist_history(campaign_id: str, serialized_turns: list):
+    """同步 SQLite 写入（在线程池中执行，不阻塞主推理链）"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("CREATE TABLE IF NOT EXISTS mcp_messages (campaign_id TEXT, role TEXT, content TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
+        for role, content_json in serialized_turns:
+            conn.execute(
+                "INSERT INTO mcp_messages (campaign_id, role, content) VALUES (?, ?, ?)",
+                (campaign_id, role, content_json)
+            )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        audit_log_write("DB_ASYNC_WRITE_ERROR", f"Async persist failed for {campaign_id}: {e}")
+
+
+async def _async_persist_history(campaign_id: str, new_turns: list):
+    """Write-Behind: 异步旁路入库，不阻塞主推理链"""
+    try:
+        serialized = _serialize_turns(new_turns)
+        if serialized:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _sync_persist_history, campaign_id, serialized)
+    except Exception as e:
+        audit_log_write("DB_ASYNC_ERROR", f"Async persist dispatch failed: {e}")
 
 # ====== Cached MCP Tool Declarations ======
 _cached_gemini_tools = None
@@ -42,9 +136,11 @@ async def _discover_mcp_tools():
                 req = t.inputSchema.get("required", [])
                 schema_props = {}
                 for k, v in props.items():
-                    type_str = "STRING" if v.get("type") == "string" else (
-                        "INTEGER" if v.get("type") == "integer" else "STRING"
-                    )
+                    _type_map = {
+                        "string": "STRING", "integer": "INTEGER",
+                        "boolean": "BOOLEAN", "number": "NUMBER", "array": "ARRAY",
+                    }
+                    type_str = _type_map.get(v.get("type"), "STRING")
                     schema_props[k] = types.Schema(type=type_str, description=v.get("description", ""))
                 
                 schema = types.Schema(type="OBJECT", properties=schema_props, required=req)
@@ -96,9 +192,22 @@ async def _mcp_worker():
 async def _call_mcp_tool(tool_name: str, args: dict) -> str:
     """Use persistent MCP session pool via dedicated async worker task to bypass AnyIO scope limits."""
     global _mcp_worker_task
-    if _mcp_worker_task is None:
+    # P0-1 修复：检查 worker 是否已崩溃（.done() 表示子进程已退出），自动重建
+    if _mcp_worker_task is None or _mcp_worker_task.done():
+        if _mcp_worker_task is not None and _mcp_worker_task.done():
+            audit_log_write("MCP_WORKER_RESTART", "MCP subprocess exited unexpectedly, spawning new worker")
         _mcp_worker_task = asyncio.create_task(_mcp_worker())
-        
+        await asyncio.sleep(0.5)  # 给子进程启动的时间
+
+    # P1-5 修复：定期清理过期会话缓存（防止 OOM）
+    now = time.time()
+    expired = [k for k, ts in _session_timestamps.items() if now - ts > _SESSION_MAX_AGE]
+    for k in expired:
+        _session_cache.pop(k, None)
+        _session_timestamps.pop(k, None)
+    if expired:
+        audit_log_write("CACHE_EVICT", f"Evicted {len(expired)} expired sessions")
+
     loop = asyncio.get_running_loop()
     future = loop.create_future()
     await _mcp_queue.put((tool_name, args, future))
@@ -155,22 +264,25 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
         # Step 1: Get cached tool declarations (fast after first call)
         base_tools = await _get_gemini_tools()
         
-        # Step 2: Create Gemini chat
+        # Step 2: Create Gemini chat — D19 Ruling: 3-Tier Dynamic Least Privilege
         if not agent_mode:
-            allowed_names = {"claw_list_assets", "claw_query_db", "claw_read_file"}
+            # OFF Mode (Advisor): 仅保留只读数据查看工具，物理剔除所有 I/O 执行工具
+            # claw_execute_shell, claw_run_module, claw_read_file, claw_delegate_agent,
+            # claw_a2ui_render_screenshot 全部物理删除
+            allowed_names = {"claw_list_assets", "claw_query_db"}
             filtered_decls = []
             for t in base_tools:
                 if t.function_declarations:
                     for fd in t.function_declarations:
                         if fd.name in allowed_names:
                             filtered_decls.append(fd)
-            gemini_tools = [types.Tool(function_declarations=filtered_decls)]
+            gemini_tools = [types.Tool(function_declarations=filtered_decls)] if filtered_decls else []
             include_server_tools = False
         else:
-            # When agent mode is enabled, we append native Google Search for live Web capability and Code Execution!
-            # Combining built-in tools with custom tools is supported natively in gemini-3.1!
+            # ON Mode (Agent): 全部工具 + Google Search + Code Execution
             gemini_tools = base_tools.copy() if isinstance(base_tools, list) else list(base_tools)
             gemini_tools.append(types.Tool(google_search=types.GoogleSearch()))
+            gemini_tools.append(types.Tool(url_context=types.UrlContext()))  # P1-1: 让 AI 直接阅读 CVE 详情页/目标官网
             include_server_tools = True
 
         tool_config_obj = types.ToolConfig(
@@ -181,27 +293,15 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
         dynamic_prompt = SYSTEM_PROMPT + f"\n\n[SYSTEM NOTIFICATION]\nThe Commander is currently active in Operation Theater '{theater}'. " \
                                          f"All tools that accept an 'env' parameter MUST explicitly specify '{theater}' as the environment unless instructed otherwise.\n"
 
-        # Step 1.5: Load Chat History from SQLite
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("CREATE TABLE IF NOT EXISTS mcp_messages (campaign_id TEXT, role TEXT, content TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
-        cursor = conn.execute("SELECT role, content FROM mcp_messages WHERE campaign_id=? ORDER BY timestamp ASC", (campaign_id,))
-        rows = cursor.fetchall()
-        
-        chat_history = []
-        for r_role, r_json in rows:
-            try:
-                # Basic deserialization of stored text/parts into type.Content
-                parts_data = json.loads(r_json)
-                parts = []
-                for p in parts_data:
-                     if "text" in p: parts.append(types.Part.from_text(p["text"]))
-                     elif "function_call" in p: parts.append(types.Part.from_function_call(name=p["function_call"]["name"], args=p["function_call"]["args"]))
-                     elif "function_response" in p: parts.append(types.Part.from_function_response(name=p["function_response"]["name"], response=p["function_response"]["response"]))
-                if parts:
-                     chat_history.append(types.Content(role=r_role, parts=parts))
-            except Exception as e:
-                pass
-        conn.close()
+        # Step 1.5: Memory-First History Load (D19 Ruling: 0ms for hot sessions)
+        if campaign_id in _session_cache:
+            chat_history = _session_cache[campaign_id]
+            _session_timestamps[campaign_id] = time.time()
+        else:
+            # Cold start: rebuild from SQLite audit trail
+            chat_history = _load_history_from_db(campaign_id)
+            _session_cache[campaign_id] = chat_history
+            _session_timestamps[campaign_id] = time.time()
 
         client = genai.Client(api_key=API_KEY)
         chat = client.aio.chats.create(
@@ -216,7 +316,9 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             )
         )
         
-        yield sse("RUN_STARTED", {"status": f"Lynx 正在分析您的请求... (模型: {selected_model}, 推理: {thinking_level})"})
+        mode_label = "Agent 全自主" if agent_mode else "Advisor 只读顾问"
+        cache_label = f"内存缓存 ({len(chat_history)} 轮)" if campaign_id in _session_cache and chat_history else "冷启动恢复"
+        yield sse("RUN_STARTED", {"status": f"Lynx 正在分析您的请求... (模型: {selected_model}, 推理: {thinking_level}, 模式: {mode_label}, 上下文: {cache_label})"})
         
         # Step 3: Multi-turn execution loop (max 15 steps safety limit)
         max_steps = 15
@@ -270,20 +372,27 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                     args_dict = {}
                 
                 risk = args_dict.get("risk_level", "GREEN")
-                yield sse("TOOL_CALL_START", {"name": fc.name, "args": args_dict, "risk_level": risk})
+                # P0-3 修复：SSE 事件中过滤掉可能包含 sudo_pass 的字段，防止凭据泄露到前端
+                safe_args_for_sse = {k: v for k, v in args_dict.items() if k != "command" or "sudo" not in str(v).lower()}
+                if "command" in args_dict and "command" not in safe_args_for_sse:
+                    safe_args_for_sse["command"] = args_dict["command"]  # 原始命令（未注入密码前）安全
+                yield sse("TOOL_CALL_START", {"name": fc.name, "args": safe_args_for_sse, "risk_level": risk})
                 
-                # Sudo Pipeline Injection
+                # P0-3 修复：Sudo Pipeline Injection（使用独立副本 + 转义防注入）
+                exec_args = dict(args_dict)  # 独立执行副本，不污染原始 args_dict
                 if sudo_pass and fc.name == "claw_execute_shell":
-                    cmd_val = args_dict.get("command", "")
+                    cmd_val = exec_args.get("command", "")
                     if "sudo " in cmd_val:
-                        args_dict["command"] = f"echo '{sudo_pass}' | sudo -S " + cmd_val.replace("sudo ", "", 1)
+                        safe_pass = sudo_pass.replace("'", "'\\''")  # 转义单引号防 shell 注入
+                        exec_args["command"] = f"echo '{safe_pass}' | sudo -S " + cmd_val.replace("sudo ", "", 1)
                 elif sudo_pass and fc.name == "claw_run_module":
-                    cmd_val = args_dict.get("module_cmd", "")
+                    cmd_val = exec_args.get("module_cmd", "")
                     if "sudo " in cmd_val:
-                        args_dict["module_cmd"] = f"echo '{sudo_pass}' | sudo -S " + cmd_val.replace("sudo ", "", 1)
+                        safe_pass = sudo_pass.replace("'", "'\\''")
+                        exec_args["module_cmd"] = f"echo '{safe_pass}' | sudo -S " + cmd_val.replace("sudo ", "", 1)
 
-                # Call MCP tool
-                result_text = await _call_mcp_tool(fc.name, args_dict)
+                # Call MCP tool — 使用 exec_args（含 sudo 注入的执行副本）
+                result_text = await _call_mcp_tool(fc.name, exec_args)
                 status = "success" if not result_text.startswith("Tool execution failed") else "failed"
                 # Formulate a human-readable preview chunk
                 preview_text = result_text[:1000]
@@ -345,41 +454,20 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             except Exception as loop_err:
                  yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"(强制总结失败: {str(loop_err)})"})
 
-        # Step 4: Persist Chat History Delta to SQLite before exiting the interaction
+        # Step 4: Update In-Memory Cache + Async Write-Behind to SQLite (D19 Ruling)
         try:
-            conn = sqlite3.connect(DB_PATH)
-            # Only save the new additions to avoid duplicating history
             new_turns = chat._history[len(chat_history):] if chat._history else []
-            for item in new_turns:
-                parts_repr = []
-                for p in item.parts:
-                    if p.text:
-                        parts_repr.append({"text": p.text})
-                    elif p.function_call:
-                        # Extract the inner dictionary mapping from the FunctionCall object
-                        args_dict = {}
-                        if hasattr(p.function_call.args, "items"):
-                            args_dict = dict(p.function_call.args.items())
-                        elif hasattr(p.function_call, "to_dict"):
-                            args_dict = p.function_call.to_dict().get("args", {})
-                        parts_repr.append({"function_call": {"name": p.function_call.name, "args": args_dict}})
-                    elif p.function_response:
-                        resp_dict = {}
-                        if hasattr(p.function_response.response, "items"):
-                            resp_dict = dict(p.function_response.response.items())
-                        elif hasattr(p.function_response, "to_dict"):
-                            resp_dict = p.function_response.to_dict().get("response", {})
-                        parts_repr.append({"function_response": {"name": p.function_response.name, "response": resp_dict}})
+            if new_turns:
+                # 1. 更新内存缓存（0ms，保留原生 types.Content 含 thoughtSignature）
+                if campaign_id not in _session_cache:
+                    _session_cache[campaign_id] = []
+                _session_cache[campaign_id].extend(new_turns)
+                _session_timestamps[campaign_id] = time.time()
                 
-                if parts_repr:
-                    conn.execute(
-                        "INSERT INTO mcp_messages (campaign_id, role, content) VALUES (?, ?, ?)",
-                        (campaign_id, item.role, json.dumps(parts_repr, ensure_ascii=False))
-                    )
-            conn.commit()
-            conn.close()
+                # 2. 异步旁路落盘（不阻塞当前 SSE 流）
+                asyncio.create_task(_async_persist_history(campaign_id, new_turns))
         except Exception as e:
-            audit_log_write("DB_ERROR_MCP", f"Failed to persist chat history: {e}")
+            audit_log_write("DB_ERROR_MCP", f"Failed to update session cache: {e}")
 
         yield sse("RUN_FINISHED", {"interaction_id": campaign_id})
                 

@@ -21,12 +21,14 @@ LOOT_DIR = os.path.join(BASE_DIR, "CatTeam_Loot")
 AUDIT_LOG = os.path.join(BASE_DIR, "CatTeam_Loot", "agent_audit.log")
 
 def audit_log_write(action: str, detail: str = ""):
-    """Record Agent Operations Audit Log"""
+    """Record Agent Operations Audit Log（已加固：防日志注入）"""
     try:
         os.makedirs(os.path.dirname(AUDIT_LOG), exist_ok=True)
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        safe_action = action.replace("\n", "⏎").replace("\r", "")
+        safe_detail = detail[:200].replace("\n", "⏎").replace("\r", "")
         with open(AUDIT_LOG, "a") as f:
-            f.write(f"[{ts}] MCP_ARMORY: {action} | {detail[:200]}\n")
+            f.write(f"[{ts}] MCP_ARMORY: {safe_action} | {safe_detail}\n")
     except:
         pass
 
@@ -56,8 +58,24 @@ RED_PATTERNS = [
     "> /", ">> /", "chmod", "chown", "sudo",
 ]
 
+# Shell 元字符黑名单 — 防止通过管道/子shell/反引号绕过 HITL 分级
+SHELL_METACHAR_PATTERNS = [";", "||", "&&", "|", "`", "$(", "\n", "\r"]
+
 def classify_command(cmd: str) -> str:
+    """三级分类: green / yellow / red（已加固：Shell 元字符链路检测）"""
     cmd_lower = cmd.strip().lower()
+    # Layer 0: Shell 元字符检测
+    for meta in SHELL_METACHAR_PATTERNS:
+        if meta in cmd_lower:
+            import re
+            segments = re.split(r'[;|&`\n\r]|\$\(', cmd_lower)
+            for seg in segments:
+                seg = seg.strip()
+                if not seg: continue
+                for pattern in RED_PATTERNS:
+                    if pattern in seg: return "red"
+            return "yellow"
+    # Layer 1: 标准模式匹配
     for pattern in RED_PATTERNS:
         if pattern in cmd_lower: return "red"
     for pattern in YELLOW_PATTERNS:
@@ -97,30 +115,111 @@ def claw_query_db(sql: str, thought: str, justification: str, mitre_ttp: str = "
     except Exception as e:
         return json.dumps({"error": f"SQL 执行失败: {str(e)}"})
 
+# ============================================================
+#  D19 Ruling: LFI Physical Sandbox (Dual-Layer Defense)
+# ============================================================
+ALLOWED_READ_DIRS = [
+    os.path.abspath(LOOT_DIR),                    # 战利品目录
+    os.path.abspath(BASE_DIR),                     # 项目根目录（脚本源码）
+]
+
+# 绝对禁止读取的文件黑名单（即使在白名单目录内）
+BLOCKED_FILENAMES = {
+    "config.sh",              # API Key 和敏感配置
+    ".env",                   # 环境变量
+    ".gitconfig",             # Git 凭据
+    "id_rsa", "id_ed25519",   # SSH 私钥
+    "id_rsa.pub",             # SSH 公钥
+    ".bash_history",          # 命令历史
+    ".zsh_history",
+}
+
+# 绝对禁止穿越到的系统目录前缀
+BLOCKED_PREFIXES = [
+    "/etc/", "/var/", "/usr/", "/root/", "/home/",
+    "/tmp/", "/dev/", "/proc/", "/sys/",
+    os.path.expanduser("~/.ssh"),
+    os.path.expanduser("~/.gnupg"),
+    os.path.expanduser("~/.config"),
+]
+
+
+def _is_path_safe(target_path: str) -> tuple[bool, str]:
+    """双层安全校验：白名单目录 + 黑名单文件"""
+    abs_target = os.path.abspath(target_path)
+    
+    # Layer 1: 系统级危险路径阻断
+    for prefix in BLOCKED_PREFIXES:
+        if abs_target.startswith(prefix):
+            return False, f"系统目录穿越被拦截: {prefix}"
+    
+    # Layer 2: 白名单目录校验（必须处于项目范围内）
+    in_whitelist = False
+    for allowed_dir in ALLOWED_READ_DIRS:
+        try:
+            if os.path.commonpath([allowed_dir, abs_target]) == allowed_dir:
+                in_whitelist = True
+                break
+        except ValueError:
+            continue
+    
+    if not in_whitelist:
+        return False, f"路径不在授权范围内"
+    
+    # Layer 3: 文件级黑名单（凭据保护）
+    basename = os.path.basename(abs_target)
+    if basename in BLOCKED_FILENAMES:
+        return False, f"该文件已被安全策略永久封锁: {basename}"
+    
+    return True, "ok"
+
+
 @mcp.tool()
 def claw_read_file(path: str, thought: str, justification: str, max_lines: int = 50, mitre_ttp: str = "N/A", risk_level: str = "GREEN") -> str:
-    """Read a project file or loot file from CatTeam_Loot directory."""
+    """Read a project file or loot file. Reads within CatTeam_Loot/ and project scripts (.py/.sh) are allowed. config.sh and system files are permanently blocked."""
     audit_log_write("TOOL_CALLED", f"claw_read_file: {path}")
-    full_path = os.path.normpath(os.path.join(LOOT_DIR, path))
-    if not (full_path.startswith(os.path.normpath(LOOT_DIR)) or full_path.startswith(os.path.normpath(BASE_DIR))):
-        return json.dumps({"error": "安全拦截: 路径穿越被禁止"})
-    if os.path.islink(os.path.join(LOOT_DIR, "latest")):
-        full_path = full_path.replace(os.path.join(LOOT_DIR, "latest"), os.path.realpath(os.path.join(LOOT_DIR, "latest")))
     
+    # 1. 规范化路径（优先在 LOOT_DIR 中查找）
+    full_path = os.path.abspath(os.path.join(LOOT_DIR, path))
+    
+    # 2. 解析 latest 软链接
+    if os.path.islink(os.path.join(LOOT_DIR, "latest")):
+        full_path = full_path.replace(
+            os.path.join(LOOT_DIR, "latest"),
+            os.path.realpath(os.path.join(LOOT_DIR, "latest"))
+        )
+    
+    # 3. 如果 LOOT_DIR 中不存在，尝试项目根目录
     if not os.path.exists(full_path):
         project_path = os.path.join(BASE_DIR, path)
-        if os.path.exists(project_path): full_path = project_path
+        if os.path.exists(project_path):
+            full_path = project_path
         else:
+            # 递归搜索
             candidates = glob.glob(os.path.join(LOOT_DIR, "**", os.path.basename(path)), recursive=True)
-            if not candidates: candidates = glob.glob(os.path.join(BASE_DIR, "**", os.path.basename(path)), recursive=True)
-            if candidates: full_path = candidates[0]
-            else: return json.dumps({"error": f"文件不存在: {path}"})
-            
+            if not candidates:
+                candidates = glob.glob(os.path.join(BASE_DIR, "**", os.path.basename(path)), recursive=True)
+            if candidates:
+                full_path = candidates[0]
+            else:
+                return json.dumps({"error": f"文件不存在: {path}"})
+    
+    # 4. 双层安全校验（核心熔断机制）
+    is_safe, reason = _is_path_safe(full_path)
+    if not is_safe:
+        audit_log_write("SECURITY_VIOLATION", f"Agent LFI 越权尝试被物理拦截: {path} -> {reason}")
+        return json.dumps({
+            "error": f"🚨 致命越权拦截：{reason}。底层 I/O 指令已被物理熔断！"
+        })
+    
+    # 5. 正常读取文件
     try:
-        with open(full_path, "r", errors="replace") as f: lines = f.readlines()
+        with open(full_path, "r", errors="replace") as f:
+            lines = f.readlines()
         total = len(lines)
         content = "".join(lines[:max_lines])
-        if total > max_lines: content += f"\n... [截断: 共 {total} 行, 显示 {max_lines} 行]"
+        if total > max_lines:
+            content += f"\n... [截断: 共 {total} 行, 显示 {max_lines} 行]"
         return json.dumps({"file": path, "content": content, "total_lines": total}, ensure_ascii=False)
     except Exception as e:
         return json.dumps({"error": f"读取失败: {str(e)}"})
