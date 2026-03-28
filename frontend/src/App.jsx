@@ -73,13 +73,13 @@ function HudBar({ onRefreshAssets }) {
   const switchTheater = (name) => {
     fetch(`${API}/env/switch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
       .then(r => r.json()).then(() => {
-        // [Hotfix] 强行同步注入！打断 React 自身的 useState 延迟
-        // 确保紧随其后的 refreshAssets 在执行读取 window.__claw_current_theater 时能拿到最新字符串
+        // [Hotfix] 强行同步注入 window 全局变量，打断 React 的 useState 延迟
         window.__claw_current_theater = name;
-        setCurrentTheater(name)
+        setCurrentTheater(name)  // 这会触发 useEffect([currentTheater])，由它来负责刷新数据
         setShowTheaterMenu(false)
         refreshTheaters()
-        onRefreshAssets()
+        // 注意：不再在此处调用 onRefreshAssets()！
+        // 由 useEffect([currentTheater]) 统一调度，避免竞态导致旧战区 Hash 污染新战区
       })
   }
   const handleExportReport = async () => {
@@ -3027,9 +3027,11 @@ function App() {
 
   // 3. 唯一的全局轮询节拍器
   useEffect(() => {
-    // 战区发生切换时：清空旧 Hash 并强制拉取新战区数据
+    // 战区发生切换时：先清空旧战区的残影数据，再强制拉取新战区
     dataHashRef.current = null;
-    refreshAssets(true);
+    setAssets([]);           // 立即清空，防止切换瞬间残留旧战区的幽灵资产
+    setStats({ hosts: 0, ports: 0, vulns: 0, scans: 0, latest_scan: null });
+    refreshAssets(true);     // 强制全量拉取（忽略 Hash 短路）
 
     // 挂载稳定轮询
     const timer = setInterval(() => refreshAssets(false), 3000);

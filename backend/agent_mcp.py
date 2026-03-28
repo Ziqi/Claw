@@ -312,15 +312,18 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             gemini_tools = [types.Tool(function_declarations=filtered_decls)] if filtered_decls else []
             include_server_tools = False
         else:
-            # ON Mode (Agent): 全部工具 + Google Search + Code Execution
+            # ON Mode (Agent): 自定义战术工具放最前面，提升模型主动调用倾向性
             gemini_tools = base_tools.copy() if isinstance(base_tools, list) else list(base_tools)
+            # Google Search 和 URL Context 放在后面，避免模型优先使用云端工具而忽略本地战术工具
             gemini_tools.append(types.Tool(google_search=types.GoogleSearch()))
-            gemini_tools.append(types.Tool(url_context=types.UrlContext()))  # P1-1: 让 AI 直接阅读 CVE 详情页/目标官网
+            gemini_tools.append(types.Tool(url_context=types.UrlContext()))
             include_server_tools = True
 
         tool_config_obj = types.ToolConfig(
-            function_calling_config=types.FunctionCallingConfig(mode="AUTO"),
-            include_server_side_tool_invocations=include_server_tools
+            function_calling_config=types.FunctionCallingConfig(mode="AUTO")
+            # 注意：绝对不能加 include_server_side_tool_invocations=True！
+            # 该参数会让模型将所有工具执行责任推给“服务端”，
+            # 导致模型不再主动发起 function_call，而是输出“我无法执行”的文本教学
         )
             
         target_context = f"\n🎯 [LOCKED TARGETS]: The Commander has authorized action EXCLUSIVELY against: {', '.join(target_ips)}. Prioritize these assets!\n" if target_ips else ""
