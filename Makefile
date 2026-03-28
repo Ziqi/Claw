@@ -222,3 +222,18 @@ status:
 		ls -lh "$$LATEST" 2>/dev/null | tail -n +2 | while read line; do echo "    $$line"; done; \
 	fi
 	@echo ""
+
+# -------- 无线打击预留接口 (V9.2 Alfa Pipeline) --------
+wifi-mon:
+	@echo "\033[1;33m[~] 此模块为 V9.2 预留：开启监视模式 (WLAN Monitor)...\033[0m"
+	@if ! command -v airmon-ng &>/dev/null; then \
+		echo '{"level":"FATAL","module":"wifi-mon","err_code":127,"msg":"airmon-ng 未安装"}' >&2; exit 127; \
+	fi
+	@echo "    等待物理 Alfa 网卡接入..."
+
+wifi-deauth:
+	@echo "\033[1;33m[~] 此模块为 V9.2 预留：发射反认证帧获取握手包...\033[0m"
+	@if ! command -v aireplay-ng &>/dev/null; then \
+		echo '{"level":"FATAL","module":"wifi-deauth","err_code":127,"msg":"aireplay-ng 未安装"}' >&2; exit 127; \
+	fi
+	@echo "    等待物理 Alfa 网卡接入..."

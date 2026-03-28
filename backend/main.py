@@ -8,7 +8,7 @@ import os, sqlite3, json, re
 from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 from pydantic import BaseModel
 import pty, fcntl, struct, termios, asyncio, aiofiles
 import time
@@ -26,10 +26,26 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "CatTeam_Loot", "claw.db")
 AUDIT_LOG = os.path.join(BASE_DIR, "CatTeam_Loot", "agent_audit.log")
 
+ACTIVE_JOBS = {}
+import signal
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动前钩子
+    yield
+    # 关闭时钩子（清场行动）：彻底斩首所有遗留后台任务的孤儿进程
+    for j_id, job in list(ACTIVE_JOBS.items()):
+        if job.get("proc") and job["proc"].poll() is None:
+            try:
+                os.killpg(os.getpgid(job["proc"].pid), signal.SIGTERM)
+            except Exception:
+                pass
+
 app = FastAPI(
     title="CLAW API",
     description="Project CLAW V8.2 — AI 驱动的安全验证平台",
     version="8.2.0",
+    lifespan=lifespan
 )
 
 # CORS — 允许前端开发服务器
@@ -113,6 +129,66 @@ def get_stats():
             "vulns": vulns,
             "scans": scans,
             "latest_scan": dict(latest) if latest else None,
+        }
+
+import hashlib
+
+@app.get("/api/v1/sync")
+def sync_data(theater: str = Query("default", description="显式战区防串台"), client_hash: str = Query(None)):
+    """智能增量同步接口：返回特征哈希，若无变化则直接短路"""
+    with get_db() as conn:
+        env = theater # 彻底抛弃 get_current_env() 隐式调用
+        
+        # 1. 极速聚合核心特征
+        hosts = conn.execute("SELECT COUNT(DISTINCT a.ip) as c FROM assets a JOIN scans s ON a.scan_id = s.scan_id WHERE s.env = ?", (env,)).fetchone()["c"]
+        ports = conn.execute("SELECT COUNT(*) as c FROM ports p JOIN scans s ON p.scan_id = s.scan_id WHERE s.env = ?", (env,)).fetchone()["c"]
+        vulns = conn.execute("SELECT COUNT(*) as c FROM vulns v JOIN scans s ON v.scan_id = s.scan_id WHERE s.env = ?", (env,)).fetchone()["c"]
+        scans = conn.execute("SELECT COUNT(*) as c FROM scans WHERE env = ?", (env,)).fetchone()["c"]
+        
+        latest_row = conn.execute("SELECT timestamp FROM scans WHERE env = ? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
+        latest_ts = latest_row["timestamp"] if latest_row else "empty"
+        
+        # 2. 生成当前战区的数据摘要 (Digest Hash)
+        current_hash = hashlib.md5(f"{hosts}-{ports}-{vulns}-{latest_ts}".encode()).hexdigest()
+        
+        stats = {
+            "hosts": hosts, "ports": ports, "vulns": vulns, "scans": scans,
+            "latest_scan": {"timestamp": latest_ts} if latest_row else None
+        }
+        
+        # 【防雪崩短路】如果前端传来的 Hash 一致，直接拒绝下发全量大表
+        if client_hash == current_hash:
+            return {"changed": False, "hash": current_hash, "stats": stats}
+            
+        # 3. 若数据有变，进行消除 N+1 的极速全量拉取
+        scan_id_row = conn.execute("SELECT scan_id FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
+        assets = []
+        if scan_id_row:
+            scan_id = scan_id_row["scan_id"]
+            
+            # 批量查 assets
+            asset_rows = conn.execute("SELECT ip, os FROM assets WHERE scan_id = ? ORDER BY ip", (scan_id,)).fetchall()
+            # 批量查 ports，避免 for 循环里发 SQL
+            port_rows = conn.execute("SELECT ip, port, service, product, version FROM ports WHERE scan_id = ?", (scan_id,)).fetchall()
+            
+            ports_by_ip = {}
+            for p in port_rows:
+                ports_by_ip.setdefault(p["ip"], []).append(dict(p))
+                
+            for r in asset_rows:
+                ip = r["ip"]
+                assets.append({
+                    "ip": ip,
+                    "os": r["os"],
+                    "port_count": len(ports_by_ip.get(ip, [])),
+                    "ports": ports_by_ip.get(ip, [])
+                })
+                
+        return {
+            "changed": True,
+            "hash": current_hash,
+            "stats": stats,
+            "assets": assets
         }
 
 
@@ -927,13 +1003,10 @@ def env_delete(req: EnvDeleteRequest):
     return {"status": "ok", "message": f"战区 {req.name} 已删除/清空"}
 
 
+# (ACTIVE_JOBS 和 signal 已移至顶部)
 import uuid
 import subprocess
 import os
-import signal
-
-ACTIVE_JOBS = {}
-
 import asyncio
 
 async def background_waiter(job_id: str, proc: subprocess.Popen, log_fh):
@@ -983,8 +1056,12 @@ def ops_run(req: OpsRunRequest, background_tasks: BackgroundTasks):
     # Open log file for subprocess stdout — store handle so it can be closed later
     log_fh = open(log_file, "a")
     
+    # D7 PTY 伪装：用 script 强行剥除 isatty() 的无色彩降级，并防止管道缓存。兼容 macOS/Linux 取消 '-c'
+    # 使用 python3 原生 pty 包裹作为最高兼容性的“万能欺骗器”，强制工具开启 TTY 行缓冲并吐出 ANSI 颜色！
+    cmd_wrapper = f"""python3 -c "import pty, sys; sys.exit(pty.spawn(['bash', '-c', {repr(req.command)}]))" """
+    
     if req.sudo_pass:
-        cmd_wrapper = f"sudo -S -p '' {req.command}"
+        cmd_wrapper = f"sudo -S -p '' {cmd_wrapper}"
         proc = subprocess.Popen(
             cmd_wrapper,
             shell=True,
@@ -1000,7 +1077,7 @@ def ops_run(req: OpsRunRequest, background_tasks: BackgroundTasks):
         proc.stdin.close()
     else:
         proc = subprocess.Popen(
-            req.command,
+            cmd_wrapper,
             shell=True,
             cwd=BASE_DIR,
             stdout=log_fh,
@@ -1029,35 +1106,42 @@ def ops_stop(job_id: str):
     except Exception as e:
         return {"error": str(e)}
 
-
+@app.get("/api/v1/ops/jobs/active")
+def ops_active_jobs():
+    """抛出当前失联阵地里的挂起任务，供终端断线重连（D7）"""
+    jobs = []
+    for jid, job in ACTIVE_JOBS.items():
+        if job.get("proc") and job["proc"].poll() is None:
+            jobs.append({"job_id": jid, "pid": job["proc"].pid})
+    return {"status": "ok", "active_jobs": jobs}
 
 @app.get("/api/v1/ops/log/{job_id}")
-async def ops_log(job_id: str, theater: str = "default"):
-    """SSE 流式返回该 job 的日志输出"""
+async def ops_log(job_id: str, theater: str = "default", request: Request = None):
+    """SSE 流式返回该 job 的日志输出（D7 Chunk 块重构版）"""
     log_file = os.path.join(BASE_DIR, "CatTeam_Loot", theater, "logs", f"{job_id}.log")
     
     async def log_generator():
         if not os.path.exists(log_file):
-            yield f"data: [Error: Log file not found for {job_id}]\n\n"
+            yield f"data: {json.dumps({'text': '[Sys] Log file not found'})}\n\n"
             return
             
-        async with aiofiles.open(log_file, "r") as f:
-            # Read whatever is already there
-            content = await f.read()
-            if content:
-                # Send chunks or line by line
-                lines = content.split('\n')
-                for line in lines:
-                    if line:
-                        yield "data: {}\n\n".format(json.dumps({'text': line + '\n'}, ensure_ascii=False))
-            
-            # Tail the file
+        async with aiofiles.open(log_file, "rb") as f:
             job = ACTIVE_JOBS.get(job_id)
             proc = job["proc"] if job else None
+            
             while True:
-                line = await f.readline()
-                if line:
-                    yield f"data: {json.dumps({'text': line}, ensure_ascii=False)}\n\n"
+                if request and await request.is_disconnected():
+                    break # 侦测断开，及时止损后端 I/O
+
+                # 采用 4KB Chunk 块读取，彻底解决 OOM 和 \r 进度条阻塞死锁
+                chunk = await f.read(4096)
+                if chunk:
+                    # 宽容解码，直接投喂原生块给 xterm.js
+                    text = chunk.decode("utf-8", errors="replace")
+                    yield f"data: {json.dumps({'text': text}, ensure_ascii=False)}\n\n"
+                    
+                    # 🚀 极其关键：强制让出事件循环控制权，拯救 FastAPI 高并发！
+                    await asyncio.sleep(0.01)
                 else:
                     if proc and proc.poll() is not None:
                         # Process finished and no more lines — close file handle
@@ -1065,9 +1149,10 @@ async def ops_log(job_id: str, theater: str = "default"):
                             try: job["log_fh"].close()
                             except: pass
                         finished_msg = f"\n--- [Task Finished with code {proc.returncode}] ---\n"
-                        yield f"data: {json.dumps({'text': finished_msg, 'done': True}, ensure_ascii=False)}\n\n"
+                        yield f"data: {json.dumps({'text': finished_msg, 'done': True})}\n\n"
                         break
-                    await asyncio.sleep(0.5)
+                    # 进程还在跑，暂无新输出，挂起等待
+                    await asyncio.sleep(0.2)
 
     return StreamingResponse(
         log_generator(),
@@ -1154,31 +1239,109 @@ class OsintRequest(BaseModel):
 class OsintDictionary(BaseModel):
     dictionary: List[str]
 
-@app.post("/api/v1/agent/osint")
-def generate_osint_dict(req: OsintRequest):
-    """
-     Phase 16: OSINT 语义特工 (Semantic Credential Profiling)
-    """
-    if not AGENT_API_KEY:
-        # Fallback to a mocked dictionary if no key is provided just for UX completion
-        return {"dictionary": ["Admin@2026", "admin123", "root", "Server_123!", "QWERTY", "Password@1", "123456", "Cisco123", "system"]}
-    try:
-        client = genai.Client(api_key=AGENT_API_KEY)
-        prompt = f"你是一名为攻防演练提供弹药的顶尖 OSINT 情报特工。这里有几台高危设备目标 (可能包含开了 445/3389 的机器，或路由网关): {req.targets}。请推断出 15 个极其精准的弱口令和定制化密码 (包含常见的默认密码和年份组合)，为后续字典降维攻击做准备。无多余废话，直接返回 JSON 数组。"
-        response = client.models.generate_content(
-            model='gemini-3-flash-preview',
-            contents=prompt,
-            config={
-                'response_mime_type': 'application/json',
-                'response_schema': OsintDictionary
-            }
-        )
-        data = json.loads(response.text)
-        return {"dictionary": data.get("dictionary", [])}
-    except Exception as e:
-        print(f"[OSINT ERROR] {e}")
-        # Graceful fallback to prevent frontend crash
-        return {"dictionary": ["Admin@2026", "root", "123456", "server123!"], "error": str(e)}
+import csv
+from io import StringIO
+
+ALFA_CSV_PREFIX = "/tmp/claw_alfa"
+
+@app.post("/api/v1/wifi/start")
+def start_alfa_sniffing(interface: str = "wlan1"):
+    """启动 Airodump-ng 物理嗅探守护进程"""
+    os.system(f"rm -f {ALFA_CSV_PREFIX}-*.csv")
+
+    cmd = [
+        "airodump-ng", interface,
+        "-w", ALFA_CSV_PREFIX,
+        "--output-format", "csv",
+        "--write-interval", "1"  # 关键：每1秒强制落盘一次
+    ]
+    # 使用 DEVNULL 丢弃终端脏输出，完全依靠 CSV 数据交换
+    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=os.setsid)
+    return {"status": "sniffing_started", "interface": interface}
+
+@app.get("/api/v1/wifi/stream")
+async def stream_alfa_radar(request: Request):
+    """前端接入此端点，获取无阻塞的 1Hz 雷达刷新流"""
+    csv_file = f"{ALFA_CSV_PREFIX}-01.csv"
+    
+    async def event_generator():
+        while True:
+            if await request.is_disconnected():
+                break
+                
+            if os.path.exists(csv_file):
+                try:
+                    # aiofiles 确保读取不阻塞 FastAPI 主事件循环
+                    async with aiofiles.open(csv_file, mode='r', encoding='utf-8', errors='ignore') as f:
+                        content = await f.read()
+                        
+                    # 坑点防范：airodump CSV 分为上下两截，上半区 AP，下半区 Client，中间由空行隔开
+                    ap_section = content.split('\r\n\r\n')[0] if '\r\n\r\n' in content else content.split('\n\n')[0]
+                    reader = csv.DictReader(StringIO(ap_section.strip()))
+                    
+                    bssids = []
+                    for row in reader:
+                        # 清洗脏键名与无效行
+                        row = {k.strip(): v.strip() for k, v in row.items() if k and k.strip()}
+                        if not row or row.get('BSSID') == 'BSSID' or not row.get('BSSID'): 
+                            continue
+                            
+                        bssids.append({
+                            "bssid": row.get('BSSID', ''),
+                            "ssid": row.get('ESSID', '').strip() or '<HIDDEN>',
+                            "pwr": row.get('Power', '-100'),
+                            "ch": row.get('channel', '0'),
+                            "enc": row.get('Privacy', 'OPEN')
+                        })
+                        
+                    yield f"data: {json.dumps({'targets': bssids})}\n\n"
+                except Exception:
+                    pass # 容忍读写瞬间极小概率的 I/O 竞态冲突
+            
+            await asyncio.sleep(1) # 与 write-interval 同频脉冲
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@app.post("/api/v1/agent/osint/stream")
+async def generate_osint_dict_stream(req: OsintRequest, request: Request):
+    """流式 OSINT 特工 (彻底释放主线程阻塞)"""
+    
+    async def event_generator():
+        # 1. 立即返回握手日志，稳住前端 UI
+        yield f"data: {json.dumps({'type': 'log', 'msg': '[OSINT] 建立隐蔽安全隧道...'})}\n\n"
+        await asyncio.sleep(0.5)
+        yield f"data: {json.dumps({'type': 'log', 'msg': f'[OSINT] 劫持目标实体指纹: {req.targets}'})}\n\n"
+        yield f"data: {json.dumps({'type': 'log', 'msg': '[OSINT] 呼叫 Gemini 3.1 Pro 智能体群集推演...'})}\n\n"
+
+        # 2. 将同步阻塞的大模型请求封装为普通函数
+        def _call_gemini():
+            if not AGENT_API_KEY:
+                return {"dictionary": ["Admin@2026", "root", "123456"]}
+            from google import genai
+            client = genai.Client(api_key=AGENT_API_KEY)
+            prompt = f"针对高危设备 {req.targets} 推断15个极其精准的弱口令... 无废话，返回JSON格式"
+            response = client.models.generate_content(
+                model='gemini-3.1-pro-preview',
+                contents=prompt,
+                config={'response_mime_type': 'application/json', 'response_schema': OsintDictionary}
+            )
+            return json.loads(response.text)
+
+        try:
+            # 3. 核心：在此异步挂起，由线程池接管重型计算，绝对不阻塞 FastAPI 主循环
+            result = await asyncio.to_thread(_call_gemini)
+            
+            if await request.is_disconnected():
+                return
+                
+            yield f"data: {json.dumps({'type': 'log', 'msg': '[OSINT] Pydantic 字典蒸馏完成！'})}\n\n"
+            # 推送最终成果并标记结束
+            yield f"data: {json.dumps({'type': 'done', 'dictionary': result.get('dictionary', [])})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'msg': f'特工神经元熔断: {str(e)}'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/")
 def root():

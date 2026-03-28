@@ -62,25 +62,32 @@ RED_PATTERNS = [
 SHELL_METACHAR_PATTERNS = [";", "||", "&&", "|", "`", "$(", "\n", "\r"]
 
 def classify_command(cmd: str) -> str:
-    """三级分类: green / yellow / red（已加固：Shell 元字符链路检测）"""
-    cmd_lower = cmd.strip().lower()
-    # Layer 0: Shell 元字符检测
+    """三级分类: green / yellow / red（已加固：Shell 元字符链路检测 + 剔除 Sudo 引信 + Fail Closed）"""
+    # 🚨 解决 Sudo 悖论：在鉴权前剥离系统静默注入的密码管道，只审查真实载荷
+    audit_cmd = cmd.strip().lower()
+    if audit_cmd.startswith("echo '") and " | sudo -s " in audit_cmd:
+        audit_cmd = audit_cmd.split(" | sudo -s ", 1)[1]
+
+    # Layer 0: Shell 元字符检测 (切换为 Fail-Closed)
     for meta in SHELL_METACHAR_PATTERNS:
-        if meta in cmd_lower:
+        if meta in audit_cmd:
             import re
-            segments = re.split(r'[;|&`\n\r]|\$\(', cmd_lower)
+            segments = re.split(r'[;|&`\n\r]|\$\(', audit_cmd)
             for seg in segments:
                 seg = seg.strip()
                 if not seg: continue
                 for pattern in RED_PATTERNS:
                     if pattern in seg: return "red"
-            return "yellow"
+            # 🚨 核心修复：使用了元字符却未命中黑名单 (如 curl | bash)
+            # 必须强制拉响警报，绝不允许降级为 yellow！
+            return "red"
+            
     # Layer 1: 标准模式匹配
     for pattern in RED_PATTERNS:
-        if pattern in cmd_lower: return "red"
+        if pattern in audit_cmd: return "red"
     for pattern in YELLOW_PATTERNS:
-        if pattern in cmd_lower: return "yellow"
-    first_word = cmd_lower.split()[0] if cmd_lower.split() else ""
+        if pattern in audit_cmd: return "yellow"
+    first_word = audit_cmd.split()[0] if audit_cmd.split() else ""
     first_word = os.path.basename(first_word)
     if first_word in GREEN_COMMANDS: return "green"
     return "yellow"
@@ -269,33 +276,37 @@ def claw_execute_shell(command: str, thought: str, justification: str, reason: s
         if cmd_lower.startswith(block_cmd) or f" {block_cmd} " in f" {cmd_lower} ":
             return json.dumps({"error": f"安全拦截: 禁止执行交互式命令 {block_cmd} (会阻塞 Agent 线程)。请使用 API 或非交互模式（如 msfconsole -x）。"})
 
+    # 🚨 密码脱敏：还原不带密码的原始指令，用于日志打印和报错，死守安全底线
+    safe_log_cmd = command
+    if safe_log_cmd.startswith("echo '") and " | sudo -S " in safe_log_cmd:
+        safe_log_cmd = "sudo " + safe_log_cmd.split(" | sudo -S ", 1)[1]
+
     level = classify_command(command)
     if level == "red":
-        audit_log_write(f"BLOCKED:{command}", f"RED 级操作需要审批 reason={reason}")
-        return json.dumps({"error": "🔴 高危操作需要 Web 端审批", "command": command, "risk_level": "red", "requires_approval": True})
+        audit_log_write(f"BLOCKED:{safe_log_cmd}", f"RED 级操作需要审批 reason={reason}")
+        return json.dumps({"error": "🔴 高危操作需要 Web 端审批", "command": safe_log_cmd, "risk_level": "red", "requires_approval": True})
 
-    audit_log_write(f"EXEC:{command}", f"level={level}")
+    audit_log_write(f"EXEC:{safe_log_cmd}", f"level={level}")
     try:
         proc = subprocess.Popen(
             command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             cwd=os.path.join(BASE_DIR), text=True, bufsize=1
         )
-        stdout_lines, stderr_buf = [], []
-        def read_stderr():
-            for line in proc.stderr: stderr_buf.append(line)
-        t = threading.Thread(target=read_stderr, daemon=True)
-        t.start()
-        for line in proc.stdout: stdout_lines.append(line)
-        proc.wait(timeout=120)
-        t.join(timeout=2)
         
-        stdout = "".join(stdout_lines)[:3000]
-        stderr = "".join(stderr_buf)[:1000]
-        if len("".join(stdout_lines)) > 3000: stdout += f"\n... [截断: 共 {len(''.join(stdout_lines))} 字符]"
+        # 🚨 移除阻塞的 for line 循环，使用安全的底层多路复用读取
+        try:
+            stdout, stderr = proc.communicate(timeout=120)
+        except subprocess.TimeoutExpired:
+            proc.kill() # 🚨 斩首孤儿进程！物理回收系统资源
+            stdout, stderr = proc.communicate() # 榨干管道残余数据
+            return json.dumps({"error": "命令执行超时 (120秒已被物理斩断)", "stdout": stdout[:3000], "stderr": stderr[:1000]}, ensure_ascii=False)
         
-        return json.dumps({"exit_code": proc.returncode, "stdout": stdout, "stderr": stderr}, ensure_ascii=False)
-    except subprocess.TimeoutExpired: return json.dumps({"error": "命令执行超时 (120秒)"})
-    except Exception as e: return json.dumps({"error": f"执行失败: {str(e)}"})
+        stdout_trunc = stdout[:3000] + (f"\n... [截断: 共 {len(stdout)} 字符]" if len(stdout) > 3000 else "")
+        stderr_trunc = stderr[:1000]
+        
+        return json.dumps({"exit_code": proc.returncode, "stdout": stdout_trunc, "stderr": stderr_trunc}, ensure_ascii=False)
+    except Exception as e: 
+        return json.dumps({"error": f"执行失败: {str(e)}"})
 
 @mcp.tool()
 def claw_run_module(module: str, thought: str, justification: str, reason: str = "", mitre_ttp: str = "N/A", risk_level: str = "YELLOW") -> str:

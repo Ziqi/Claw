@@ -19,7 +19,8 @@ V1.0 (03-24)  ━━  V5.0 (03-25)  ━━  V8.0-α (03-26)  ━━  V8.2 (03-27
 > **纵向挖掘 Gemini 3 API 极限，横向打通 OSINT→破解→报告的端到端管线**
 
 **【🔴 P0 战役管线填补】**
-- [ ] **全局多选准星 (Global Target Reticle)**：解决武库陷入“单机盲狙”的长期 UX 欠债
+- [x] **全局多选准星 (Global Target Reticle) (D4 拔除)**：已解决武库陷入“单机盲狙”的长期 UX 欠债，与后端 `agent_mcp.py` 的 System Prompt 联合挂载火力锁定约束。
+- [x] **Markdown 流式状态机防撕裂 (D4 拔除)**：彻底铲除正则匹配弊病，用奇偶遍历拦截所有未闭合长串代码并在 Sandbox 层实行脱敏拦截，消除红屏报错。
 - [ ] **ALFA 无线战术闭环**：利用物理网卡打通 Monitor -> Deauth -> Crack (Hashcat) 的真实无线打击
 
 **【🟡 P1 核心赋能】**
@@ -344,3 +345,6 @@ V1.0 (03-24)  ━━  V5.0 (03-25)  ━━  V8.0-α (03-26)  ━━  V8.2 (03-27
 | 03-26 AM | D10 提交 (Q14-Q26: Gemini 3 能力+竞品+UI+代码审查) |
 | 03-26 PM | D10 导师批复: TUI 冻结 / Interactions API P0 / 三板斧论文创新点 |
 | 03-26 PM | docs 重构 (advisor 归档/design 分离/.gitignore) + V8_DESIGN.md |
+
+**【🟡 P1 架构重构 (D3 延期项)】**
+- [ ] **前端 React 渲染管线重构**：根据导师 D3 的反馈，将 3000 行 `App.jsx` 的顶层状态（如 `aiWidth`, `selectedIp`）彻底下沉，消除 Render Avalanche；修复 `AiPanel` 的 Mutation 状态污染及 `AbortController` 僵尸卸载监听器。（**注：由于涉及核心重绘算法，此大修将择日新开 git 分支独立处理。**）

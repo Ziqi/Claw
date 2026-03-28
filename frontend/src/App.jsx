@@ -668,12 +668,30 @@ function AlfaRadarView() {
   const toggleRfTarget = useStore(s => s.toggleRfTarget)
   const clearRfTargets = useStore(s => s.clearRfTargets)
   
-  // Dummy BSSID data for UI prototype
-  const bssids = window.__alfa_targets || [
-    { bssid: '00:11:22:33:44:55', ssid: 'CatTeam_5G', pwr: '-45', ch: '149', enc: 'WPA2' },
-    { bssid: 'AA:BB:CC:DD:EE:FF', ssid: 'Starbucks_WiFi', pwr: '-68', ch: '6', enc: 'OPEN' },
-    { bssid: '66:77:88:99:AA:BB', ssid: 'Guest_Network', pwr: '-82', ch: '1', enc: 'WPA3' },
-  ]
+  const [bssids, setBssids] = useState([])
+
+  useEffect(() => {
+    const ctrl = new AbortController()
+    
+    // 复用系统内已封装好的 fetchEventSource
+    import('@microsoft/fetch-event-source').then(({ fetchEventSource }) => {
+      fetchEventSource(`${API}/wifi/stream`, {
+        method: 'GET',
+        signal: ctrl.signal,
+        onmessage(ev) {
+          const data = JSON.parse(ev.data)
+          if (data.targets) {
+              // 过滤掉无效值，并按信号强度(PWR)动态排序
+              const valid = data.targets.filter(t => parseInt(t.pwr) > -95 && parseInt(t.pwr) < 0)
+              valid.sort((a, b) => parseInt(b.pwr) - parseInt(a.pwr))
+              setBssids(valid)
+          }
+        }
+      })
+    })
+    
+    return () => ctrl.abort()
+  }, [])
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto', background: '#050505', padding: '16px' }}>
@@ -1674,26 +1692,41 @@ function OsintTerminalModal({ isOpen, onClose, targets }) {
   
   useEffect(() => {
     if (!isOpen) return
-    setLog(['[OSINT] 建立安全隧道...', '[OSINT] 劫持目标实体属性指纹...'])
+    setLog(['[SYS] 正在向司令部申请派发 OSINT 幽灵特工...'])
+    setDict(null)
     
-    setTimeout(() => setLog(l => [...l, '[OSINT] 呼叫 Gemini 3.1 Pro 智能体群集...']), 1000)
-    setTimeout(() => setLog(l => [...l, '[OSINT] 深度检索暗网泄露凭证模式... (推演中)']), 2500)
-    
-    fetch(`${API}/agent/osint`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targets })
+    // 创建中断器，支持长官中途关闭弹窗撤销打击
+    const ctrl = new AbortController()
+
+    import('@microsoft/fetch-event-source').then(({ fetchEventSource }) => {
+      fetchEventSource(`${API}/agent/osint/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targets }),
+        signal: ctrl.signal,
+        onmessage(ev) {
+          const data = JSON.parse(ev.data)
+          if (data.type === 'log') {
+            // 真实流式追加特工日志
+            setLog(l => [...l, data.msg])
+          } else if (data.type === 'done') {
+            // 接收靶向字典
+            setLog(l => [...l, '-----------------------------'])
+            setDict(data.dictionary)
+            ctrl.abort() // 任务达成，主动切断神经元连接
+          } else if (data.type === 'error') {
+            setLog(l => [...l, `[ERROR] ${data.msg}`])
+            ctrl.abort()
+          }
+        },
+        onerror(err) {
+          setLog(l => [...l, `[SYS ERROR] 战术链路断裂: ${err.message}`])
+          throw err // 阻止底层疯狂重连
+        }
+      })
     })
-    .then(r => r.json())
-    .then(data => {
-      setLog(l => [...l, '[OSINT] Pydantic 字典蒸馏完成！', '-----------------------------'])
-      if (data.dictionary) {
-        setDict(data.dictionary)
-      } else {
-        setLog(l => [...l, '[ERROR] ' + (data.error || 'Unknown error')])
-      }
-    })
-    .catch(err => setLog(l => [...l, '[ERROR] ' + err.message]))
+
+    return () => ctrl.abort() // UI 销毁时，切断底层请求
   }, [isOpen, targets])
 
   if (!isOpen) return null
@@ -1878,6 +1911,10 @@ function AiPanel({ width, onResize, selectedIp, assets, externalCommand, isHqMod
   const agentMode = useStore(s => s.agentMode)
   const toggleAgentMode = useStore(s => s.toggleAgentMode)
   const sudoPassword = useStore(s => s.sudoPassword)
+  
+  // ✅ [修复点 1] 挂载兵装槽里的全局并发靶向状态
+  const globalTargets = useStore(s => s.globalTargets || [])
+  
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -1957,11 +1994,23 @@ function AiPanel({ width, onResize, selectedIp, assets, externalCommand, isHqMod
     const ctrl = new AbortController()
     abortRef.current = ctrl
 
+    // ✅ [修复点 2] 动态计算火力覆盖面（多选优先级 > 单点 > 空）
+    const activeTargets = globalTargets.length > 0 ? globalTargets : (selectedIp ? [selectedIp] : [])
+
     try {
       await fetchEventSource(`http://${window.location.hostname}:8000/api/agent/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: userMsg, campaign_id: campaignId, model: model.key, theater: window.__claw_current_theater || 'default', agent_mode: agentMode, sudo_pass: sudoPassword }),
+        body: JSON.stringify({ 
+          query: userMsg, 
+          campaign_id: campaignId, 
+          model: model.key, 
+          theater: window.__claw_current_theater || 'default', 
+          agent_mode: agentMode, 
+          sudo_pass: sudoPassword,
+          // ✅ [修复点 3] 将靶向数组发给后端
+          target_ips: activeTargets 
+        }),
         signal: ctrl.signal,
         openWhenHidden: true,
 
@@ -2427,58 +2476,75 @@ function A2UIRenderer({ data }) {
   return renderNode(data, 'root')
 }
 
+// ✅ [防御点 2] 彻底重写 StreamingText，完美兼容流式“半截”未闭合状态
 function StreamingText({ text, done, isError }) {
-  // Parse text into segments: regular text and code blocks
-  const segments = []
-  const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g
-  let lastIndex = 0
-  let match
-  const textStr = text || ''
-
-  while ((match = codeBlockRegex.exec(textStr)) !== null) {
-    if (match.index > lastIndex) {
-      segments.push({ type: 'text', content: textStr.slice(lastIndex, match.index) })
+  const segments = [];
+  const textStr = text || '';
+  
+  // 利用 ``` 分割：偶数索引永远是普通文本，奇数索引永远是代码块（无论是否闭合）
+  const parts = textStr.split('```');
+  
+  for (let i = 0; i < parts.length; i++) {
+    if (i % 2 === 0) {
+      if (parts[i]) segments.push({ type: 'text', content: parts[i] });
+    } else {
+      // 奇数索引是代码块。如果流未结束且是最后一段，则处于「未闭合接收中」状态
+      const isUnclosed = (i === parts.length - 1) && !done;
+      const firstNewline = parts[i].indexOf('\n');
+      
+      let lang = 'text', content = parts[i];
+      if (firstNewline !== -1) {
+        lang = parts[i].slice(0, firstNewline).trim() || 'bash';
+        content = parts[i].slice(firstNewline + 1);
+      } else {
+        lang = parts[i].trim() || 'bash'; // 换行符还没推过来
+        content = ''; 
+      }
+      segments.push({ type: 'code', lang, content, isUnclosed });
     }
-    segments.push({ type: 'code', lang: match[1] || 'bash', content: match[2].trim() })
-    lastIndex = match.index + match[0].length
-  }
-  if (lastIndex < textStr.length) {
-    segments.push({ type: 'text', content: textStr.slice(lastIndex) })
   }
 
-  const handleCopy = (code) => {
-    navigator.clipboard.writeText(code).catch(() => { })
-  }
-
-  const handleExec = (code) => {
-    // Dispatch to AI panel as a user command
-    const event = new CustomEvent('claw-exec-cmd', { detail: code })
-    window.dispatchEvent(event)
-  }
+  const handleCopy = (code) => { navigator.clipboard.writeText(code).catch(() => {}) }
+  const handleExec = (code) => { window.dispatchEvent(new CustomEvent('claw-exec-cmd', { detail: code })) }
 
   return (
     <div style={{ color: isError ? '#FF3B30' : '#D0D0D0' }}>
       {segments.map((seg, i) => {
         if (seg.type === 'code') {
+          // ✅ [防御点 3] A2UI 渐进式渲染保护 (优雅吞咽 JSON Parse 报错)
           if (seg.lang === 'a2ui') {
             try {
               return <A2UIRenderer key={i} data={JSON.parse(seg.content)} />
             } catch (e) {
-              return <div key={i} style={{ color: '#FF3B30', fontSize: '11px', background: '#222', padding: '4px', marginTop: '4px' }}>A2UI Parse Error: {e.message}</div>
+              if (seg.isUnclosed) {
+                return (
+                  <div key={i} style={{ color: '#00FFFF', fontSize: '11px', background: 'rgba(0,255,255,0.05)', padding: '8px', border: '1px dashed #00FFFF', marginTop: '4px' }}>
+                    <Loader2 size={12} className="spin" style={{marginRight: '6px', verticalAlign: 'middle'}}/>
+                    [A2UI] 视觉拓扑阵列数据流折跃中...
+                  </div>
+                )
+              }
+              return <div key={i} style={{ color: '#FF3B30', fontSize: '11px', background: '#222', padding: '8px', marginTop: '4px' }}>[A2UI Parse Error] {e.message}</div>
             }
           }
 
           const isBash = ['bash', 'sh', 'shell', ''].includes(seg.lang)
           return (
-            <div key={i} style={{ background: '#0A0A0A', border: '1px solid #333', borderRadius: '4px', margin: '8px 0', overflow: 'hidden' }}>
+            <div key={i} style={{ background: '#0A0A0A', border: seg.isUnclosed ? '1px dashed #FF9900' : '1px solid #333', borderRadius: '4px', margin: '8px 0', overflow: 'hidden' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', background: '#111', borderBottom: '1px solid #222' }}>
-                <span style={{ color: '#666', fontSize: '10px' }}>{seg.lang || 'code'}</span>
+                <span style={{ color: seg.isUnclosed ? '#FF9900' : '#666', fontSize: '10px' }}>
+                  {seg.lang || 'code'} {seg.isUnclosed && <span className="blink">...</span>}
+                </span>
                 <div style={{ display: 'flex', gap: '4px' }}>
-                  <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', borderRadius: '3px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }} onClick={() => handleCopy(seg.content)} title="复制到剪贴板"><Copy size={10} /> 复制</button>
-                  {isBash && <button style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30', border: '1px solid #333', borderRadius: '3px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }} onClick={() => handleExec(seg.content)} title="发送到 AI 执行">▶ 执行</button>}
+                  <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', borderRadius: '3px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }} onClick={() => handleCopy(seg.content)}><Copy size={10} /> 复制</button>
+                  {/* 仅当代码块闭合后，才允许发送到 AI 执行 */}
+                  {isBash && !seg.isUnclosed && <button style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30', border: '1px solid #333', borderRadius: '3px', padding: '2px 8px', fontSize: '10px', cursor: 'pointer' }} onClick={() => handleExec(seg.content)}>▶ 执行</button>}
                 </div>
               </div>
-              <pre style={{ margin: 0, padding: '8px 10px', color: '#D0D0D0', fontSize: '12px', fontFamily: 'Consolas, monospace', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>{seg.content}</pre>
+              <pre style={{ margin: 0, padding: '8px 10px', color: '#D0D0D0', fontSize: '12px', fontFamily: 'Consolas, monospace', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+                {seg.content}
+                {seg.isUnclosed && <span className="typing-cursor" style={{ background: '#FF9900' }}></span>}
+              </pre>
             </div>
           )
         }
@@ -2490,7 +2556,7 @@ function StreamingText({ text, done, isError }) {
           </span>
         )
       })}
-      {!done && <span className="typing-cursor"></span>}
+      {!done && segments.length > 0 && segments[segments.length-1].type === 'text' && <span className="typing-cursor"></span>}
     </div>
   )
 }
@@ -2896,17 +2962,68 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const refreshAssets = () => {
-    fetch(`${API}/stats`).then(r => r.json()).then(setStats).catch(console.error)
-    fetch(`${API}/assets?size=200`).then(r => r.json()).then(d => setAssets(d.assets || [])).catch(console.error)
-  }
+  // 1. 在 App 组件顶层引入两个防御守卫 Ref
+  const abortCtrlRef = useRef(null);
+  const dataHashRef = useRef(null);
 
-  // Expose refreshAssets globally for OP Pipeline
-  useEffect(() => { window.__claw_refresh_assets = refreshAssets }, []) // eslint-disable-line
+  // 2. 重构带有“防串台”与“熔断机制”的同步引擎
+  const refreshAssets = async (forceUpdate = false) => {
+    // 【守卫 A：请求溯源】获取发起请求瞬间的真实战区，取代对后端的隐式推断
+    const reqTheater = useStore.getState().currentTheater || window.__claw_current_theater || 'default';
+
+    // 【守卫 B：网络拥塞阻断】斩断上一个在途的老旧请求，防止网络积压引发并发雪崩
+    if (abortCtrlRef.current) abortCtrlRef.current.abort();
+    abortCtrlRef.current = new AbortController();
+    const signal = abortCtrlRef.current.signal;
+
+    try {
+      const clientHash = forceUpdate ? '' : (dataHashRef.current || '');
+      const res = await fetch(`${API}/sync?theater=${reqTheater}&client_hash=${clientHash}`, { signal });
+      const data = await res.json();
+
+      // 【守卫 C：战区幻影拦截 (Theater Drift Check)】
+      // 若异步等待期间，用户已经切走了战区，则无情丢弃这份迟到的旧数据，彻底根治串台污染！
+      if (useStore.getState().currentTheater !== reqTheater) {
+        console.warn(`[Drift Guard] 拦截并丢弃战区 ${reqTheater} 的滞后幻影数据`);
+        return; 
+      }
+
+      // 更新基础轻量指标 (保证时间跳动等)
+      if (data.stats) setStats(data.stats);
+
+      // 【守卫 D：OOM 终结者】
+      // 若后端判定大表数据未变，立刻 return。这就免去了 React 对成百上千个 DOM 节点的无意义 Diff 重绘
+      if (!data.changed) return;
+
+      // 确认为新数据，放行渲染
+      dataHashRef.current = data.hash;
+      if (data.assets) setAssets(data.assets);
+
+    } catch (err) {
+      // 忽略因主动掐断产生的 AbortError
+      if (err.name !== 'AbortError') console.error('[CLAW Sync Error]', err);
+    }
+  };
+
+  // 全局暴露以供作战模块 (如 Nmap 扫描结束) 强制刷新
+  useEffect(() => { window.__claw_refresh_assets = () => refreshAssets(true) }, []); // eslint-disable-line
+
+  // 3. 唯一的全局轮询节拍器
+  useEffect(() => {
+    // 战区发生切换时：清空旧 Hash 并强制拉取新战区数据
+    dataHashRef.current = null;
+    refreshAssets(true);
+
+    // 挂载稳定轮询
+    const timer = setInterval(() => refreshAssets(false), 3000);
+    
+    return () => {
+      clearInterval(timer);
+      if (abortCtrlRef.current) abortCtrlRef.current.abort();
+    };
+  }, [currentTheater]);
 
   useEffect(() => {
-    refreshAssets()
-
     const handleSwitchConsole = (e) => {
       setTerminalOpen(true)
       setConsoleTab(e.detail)

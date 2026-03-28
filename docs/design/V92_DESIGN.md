@@ -28,6 +28,8 @@ V9.2 的核心目标不再是修复底层缺陷，而是**纵向挖掘 Gemini 3 
 | ✅ P1-3 | **System Prompt 视觉侦察指令注入** | `agent.py` | 新增 `## 多模态侦察能力` 段，激活 A2UI 截图主动分析 CMS 和 URL Context 读取 CVE |
 | ✅ P1-4 | **Forge 截图 `media_resolution_high`** | `main.py` | 在 A2UI 视觉自我博弈中启用高清 OCR 模式，细微排版破绽识别率提升 |
 | ✅ P0-2 | **冷启动 Thought Signature 保护** | `agent_mcp.py` | 跳过 SQLite 中无法恢复 `thoughtSignature` 的 `[thinking]` 占位符，防止 400 崩溃 |
+| ✅ P0-3 | **全局多选准星 (Global Target)** | `App.jsx`, `agent.py` | (D4 重构) 将前端选中 IP 集通过 SSE 打入 System Prompt 的强制靶向清单，消除盲狙 |
+| ✅ P0-4 | **Markdown 护城河 (AST State Machine)** | `App.jsx`, `agent.py` | (D4 重构) 废弃正则流解析，后端脱敏沙盒反撇号，前端拦截残缺结构并增加 A2UI JSON Loading 保护 |
 
 ---
 
@@ -35,23 +37,19 @@ V9.2 的核心目标不再是修复底层缺陷，而是**纵向挖掘 Gemini 3 
 
 ### 🔴 P0 — 核心 UX 欠债
 
-#### 3.1 全局多选准星 (Global Target Reticle)
+#### 3.0 前端渲染管线重构 (D3 延期债务)
 
-> D17 导师裁决 + ROADMAP P0 核心欠债
+> D3 导师案卷裁决 + 高危卡顿 OOM 风险点
 
-**问题**：当前独立武库页面缺少跨页面多选状态管线，用户无法框选多台主机后批量下发扫描/爆破/钓鱼等战术行动。每次操作只能针对单一目标，沦为"单机盲狙"。
+**问题**：目前近 3000 行的 `App.jsx` 单体包含致命的级联重绘（Render Avalanche）、Mutation 状态污染及 `AiPanel` 内存泄露问题。在进行高频拖拽或收到大量大模型 SSE 数据时极易拉死主线程。
 
-**设计方案**：
-- 在 Zustand Store 中构建全局 `selectedTargets: Set<string>` 状态池
-- 中部数据海 (Theater Kanban) 资产卡片支持 Checkbox 多选
-- 右键菜单 / 悬浮武库弹窗变为"对选中的 N 台主机批量执行"
-- AI 参谋部自动感知选中目标上下文（通过 System Prompt 动态注入）
+**设计方案 (V9.2 专项分支处理)**：
+- 将全局频繁触发 `Re-render` 的 `aiWidth` / `selectedIp` 从 `<App />` 转移至下层叶子组件内部订阅机制。
+- 对 Zunstand 长会话状态（如打字机气泡）实行严格的 Immutability 更新机制。
+- 对事件总线、`AbortController`、拖拽鼠标监听事件补充 React 生命周期销毁（`useEffect` cleanup）以防挂起。
 
 **涉及文件**：
-- `frontend/src/App.jsx` — 全局状态 + UI 交互
-- `backend/agent_mcp.py` — System Prompt 动态注入选中目标上下文
-
-**预估工作量**：大（2-3 天）
+- `frontend/src/App.jsx`
 
 ---
 

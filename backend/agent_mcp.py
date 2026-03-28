@@ -25,91 +25,113 @@ _session_timestamps: dict[str, float] = {}
 _SESSION_MAX_AGE = 3600  # 1小时无活跃则可被冷启动回收
 
 
-def _load_history_from_db(campaign_id: str) -> list:
-    """从 SQLite 审计库重建会话上下文（仅冷启动/页面刷新时调用）"""
-    chat_history = []
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("CREATE TABLE IF NOT EXISTS mcp_messages (campaign_id TEXT, role TEXT, content TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
-        cursor = conn.execute("SELECT role, content FROM mcp_messages WHERE campaign_id=? ORDER BY timestamp ASC", (campaign_id,))
-        rows = cursor.fetchall()
-        for r_role, r_json in rows:
-            try:
-                parts_data = json.loads(r_json)
-                parts = []
-                for p in parts_data:
-                    if "text" in p:
-                        if p["text"] == "[thinking]":
-                            continue  # P0-2: 跳过 thinking 占位符，thoughtSignature 无法从 SQLite 恢复
-                        parts.append(types.Part.from_text(p["text"]))
-                    elif "function_call" in p: parts.append(types.Part.from_function_call(name=p["function_call"]["name"], args=p["function_call"]["args"]))
-                    elif "function_response" in p: parts.append(types.Part.from_function_response(name=p["function_response"]["name"], response=p["function_response"]["response"]))
-                if parts:
-                    chat_history.append(types.Content(role=r_role, parts=parts))
-            except Exception:
-                pass
-        conn.close()
-    except Exception as e:
-        audit_log_write("DB_COLD_START_ERROR", f"Failed to load history: {e}")
-    return chat_history
+# ====== 1. 全局并发护航队列 (解决 Database Locked) ======
+_db_write_queue = asyncio.Queue()
+_db_worker_started = False
 
-
-def _serialize_turns(new_turns: list) -> list:
-    """将 types.Content 序列化为可存储的 JSON 格式（P0-2 修复：处理 Thinking Parts）"""
-    serialized = []
-    for item in new_turns:
-        parts_repr = []
-        for p in item.parts:
-            # P0-2 修复：显式处理 thought/thinking Part（Gemini 3 thinking 模式产出）
-            if hasattr(p, 'thought') and p.thought:
-                # Thought 内容由 thoughtSignature 保护，只需标记存在以保持 turn 顺序
-                parts_repr.append({"text": "[thinking]"})
-            elif p.text:
-                parts_repr.append({"text": p.text})
-            elif p.function_call:
-                args_dict = {}
-                if hasattr(p.function_call.args, "items"):
-                    args_dict = dict(p.function_call.args.items())
-                elif hasattr(p.function_call, "to_dict"):
-                    args_dict = p.function_call.to_dict().get("args", {})
-                parts_repr.append({"function_call": {"name": p.function_call.name, "args": args_dict}})
-            elif p.function_response:
-                resp_dict = {}
-                if hasattr(p.function_response.response, "items"):
-                    resp_dict = dict(p.function_response.response.items())
-                elif hasattr(p.function_response, "to_dict"):
-                    resp_dict = p.function_response.to_dict().get("response", {})
-                parts_repr.append({"function_response": {"name": p.function_response.name, "response": resp_dict}})
-        if parts_repr:
-            serialized.append((item.role, json.dumps(parts_repr, ensure_ascii=False)))
-    return serialized
-
-
-def _sync_persist_history(campaign_id: str, serialized_turns: list):
-    """同步 SQLite 写入（在线程池中执行，不阻塞主推理链）"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("CREATE TABLE IF NOT EXISTS mcp_messages (campaign_id TEXT, role TEXT, content TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)")
-        for role, content_json in serialized_turns:
-            conn.execute(
-                "INSERT INTO mcp_messages (campaign_id, role, content) VALUES (?, ?, ?)",
-                (campaign_id, role, content_json)
+async def _db_writer_worker():
+    """后台唯一 SQLite 落盘护航协程，绝对保证顺序，无锁冲突"""
+    # 延长 timeout，并开启 WAL 模式提升并发性能
+    with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        # 将 DDL 移出高频写路径；引入自增 ID 防止同秒内乱序
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS mcp_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                campaign_id TEXT, 
+                role TEXT, 
+                content TEXT, 
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        audit_log_write("DB_ASYNC_WRITE_ERROR", f"Async persist failed for {campaign_id}: {e}")
-
+        """)
+    
+    while True:
+        campaign_id, serialized_turns = await _db_write_queue.get()
+        try:
+            with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+                conn.executemany(
+                    "INSERT INTO mcp_messages (campaign_id, role, content) VALUES (?, ?, ?)",
+                    [(campaign_id, role, content_json) for role, content_json in serialized_turns]
+                )
+                conn.commit()
+        except Exception as e:
+            audit_log_write("DB_ASYNC_WRITE_ERROR", f"Error: {e}")
+        finally:
+            _db_write_queue.task_done()
 
 async def _async_persist_history(campaign_id: str, new_turns: list):
-    """Write-Behind: 异步旁路入库，不阻塞主推理链"""
+    """Write-Behind: 无阻塞推入时序队列 (替换掉危险的 run_in_executor)"""
     try:
         serialized = _serialize_turns(new_turns)
         if serialized:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, _sync_persist_history, campaign_id, serialized)
+            await _db_write_queue.put((campaign_id, serialized))
     except Exception as e:
-        audit_log_write("DB_ASYNC_ERROR", f"Async persist dispatch failed: {e}")
+        audit_log_write("DB_ASYNC_ERROR", str(e))
+
+def _start_db_worker_if_needed():
+    """懒加载唤醒唯一护航工人"""
+    global _db_worker_started
+    if not _db_worker_started:
+        _db_worker_started = True
+        try:
+            asyncio.create_task(_db_writer_worker())
+        except Exception as e:
+            audit_log_write("DB_WORKER_START_ERROR", str(e))
+
+# ====== 2. 拥抱原生 SDK 的无损序列化 (解决冷热失真) ======
+def _serialize_turns(new_turns: list) -> list:
+    """利用 Pydantic 机制 100% 留存 thought_signature、 executable_code 等所有底层属性"""
+    serialized = []
+    for item in new_turns:
+        try:
+            # model_dump 会递归处理所有嵌套类型
+            if hasattr(item, "model_dump"):
+                content_dict = item.model_dump(exclude_none=True)
+            elif hasattr(item, "to_dict"):
+                content_dict = item.to_dict()
+            else:
+                continue
+            serialized.append((item.role, json.dumps(content_dict, ensure_ascii=False)))
+        except Exception as e:
+            pass
+    return serialized
+
+def _load_history_from_db(campaign_id: str) -> list:
+    """从 SQLite 无损重建原汁原味的 types.Content 上下文"""
+    chat_history = []
+    try:
+        with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
+            # 必须 ORDER BY id ASC 确保绝对的 Role 交替时序（兼容未建 id 的遗留数据）
+            cursor = conn.execute("SELECT content FROM mcp_messages WHERE campaign_id=? ORDER BY rowid ASC", (campaign_id,))
+            rows = cursor.fetchall()
+            
+            for (r_json,) in rows:
+                try:
+                    data = json.loads(r_json)
+                    
+                    # 兼容旧版本 List 格式的脏数据 (防止由于代码升级导致旧会话读取崩溃)
+                    if isinstance(data, list):
+                        chat_history.append(types.Content(
+                            role="user" if len(chat_history) % 2 == 0 else "model",
+                            parts=[types.Part.from_text("[系统：旧版本多轮记忆由于格式失效已被冻结，若报错请开启全新对话]")]
+                        ))
+                        continue 
+
+                    # SDK 原生反序列化机制，自动重组包含签名与沙盒代码的完整对象
+                    if hasattr(types.Content, "model_validate"):
+                        content_obj = types.Content.model_validate(data)
+                    elif hasattr(types.Content, "from_dict"):
+                        content_obj = types.Content.from_dict(data)
+                    else:
+                        content_obj = types.Content(**data)
+                        
+                    chat_history.append(content_obj)
+                except Exception as e:
+                    pass
+    except Exception as e:
+        audit_log_write("DB_COLD_START_ERROR", f"Failed to load history: {e}")
+    
+    return chat_history
 
 # ====== Cached MCP Tool Declarations ======
 _cached_gemini_tools = None
@@ -138,10 +160,17 @@ async def _discover_mcp_tools():
                 for k, v in props.items():
                     _type_map = {
                         "string": "STRING", "integer": "INTEGER",
-                        "boolean": "BOOLEAN", "number": "NUMBER", "array": "ARRAY",
+                        "boolean": "BOOLEAN", "number": "NUMBER", "array": "ARRAY", "object": "OBJECT"
                     }
-                    type_str = _type_map.get(v.get("type"), "STRING")
-                    schema_props[k] = types.Schema(type=type_str, description=v.get("description", ""))
+                    type_str = _type_map.get(v.get("type", "string").lower(), "STRING")
+                    
+                    schema_kwargs = {"type": type_str, "description": v.get("description", "")}
+                    if type_str == "ARRAY":
+                        schema_kwargs["items"] = types.Schema(type="STRING")
+                    elif type_str == "OBJECT":
+                        schema_kwargs["properties"] = {"__fallback__": types.Schema(type="STRING")}
+                    
+                    schema_props[k] = types.Schema(**schema_kwargs)
                 
                 schema = types.Schema(type="OBJECT", properties=schema_props, required=req)
                 fn_decls.append(types.FunctionDeclaration(
@@ -219,7 +248,9 @@ async def _call_mcp_tool(tool_name: str, args: dict) -> str:
         return f"Tool execution failed: {str(e)}"
 
 
-async def react_loop_stream(user_input: str, campaign_id: str = "default", model_key: str = "flash", theater: str = "default", agent_mode: bool = True, sudo_pass: str = None) -> AsyncGenerator[str, None]:
+async def react_loop_stream(user_input: str, campaign_id: str = "default", model_key: str = "flash", theater: str = "default", agent_mode: bool = True, sudo_pass: str = None, target_ips: list = None) -> AsyncGenerator[str, None]:
+    _start_db_worker_if_needed()
+    
     def sse(event: str, data: dict) -> str:
         return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -249,9 +280,11 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
 
     # Risk-Aware Dynamic Cognitive Routing (D10 批复)
     # For Flash mode, risk can escalate thinking; other modes keep their preset.
+    import re
     if model_key == "flash":
         prompt_risk = classify_command(user_input)
-        if prompt_risk == "red" or "思考" in user_input or "反思" in user_input:
+        needs_think = bool(re.search(r'(?<!不)(?<!不用)(?<!不要)(思考|反思|深度分析)', user_input))
+        if prompt_risk == "red" or needs_think:
             thinking_level = "high"
         elif prompt_risk == "yellow":
             thinking_level = "medium"
@@ -290,8 +323,9 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             include_server_side_tool_invocations=include_server_tools
         )
             
-        dynamic_prompt = SYSTEM_PROMPT + f"\n\n[SYSTEM NOTIFICATION]\nThe Commander is currently active in Operation Theater '{theater}'. " \
-                                         f"All tools that accept an 'env' parameter MUST explicitly specify '{theater}' as the environment unless instructed otherwise.\n"
+        target_context = f"\n🎯 [LOCKED TARGETS]: The Commander has authorized action EXCLUSIVELY against: {', '.join(target_ips)}. Prioritize these assets!\n" if target_ips else ""
+        dynamic_prompt = SYSTEM_PROMPT + f"\n\n[SYSTEM NOTIFICATION]\nThe Commander is currently active in Operation Theater '{theater}'... {target_context}" \
+                                         f"\nAll tools that accept an 'env' parameter MUST explicitly specify '{theater}' as the environment unless instructed otherwise.\n"
 
         # Step 1.5: Memory-First History Load (D19 Ruling: 0ms for hot sessions)
         if campaign_id in _session_cache:
@@ -330,7 +364,12 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             max_retries = 3
             for attempt in range(max_retries):
                 try:
-                    response_stream = await chat.send_message_stream(current_input)
+                    # [修复 2] 在 Step 3 的 for 循环内部，动态剥夺高算力以快速消化底层情报
+                    dynamic_think = "low" if isinstance(current_input, list) else thinking_level
+                    override_config = types.GenerateContentConfig(
+                        thinking_config=types.ThinkingConfig(thinking_level=dynamic_think)
+                    )
+                    response_stream = await chat.send_message_stream(current_input, config=override_config)
                     
                     async for chunk in response_stream:
                         if chunk.function_calls:
@@ -346,7 +385,11 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                                 yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"\n\n```python\n# [AI Cloud Sandbox] Executing native python payload:\n{code}\n```\n"})
                             elif hasattr(p, "code_execution_result") and p.code_execution_result:
                                 out = getattr(p.code_execution_result, "output", "")
-                                yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"\n\n```text\n# [Sandbox Output]:\n{out}\n```\n"})
+                                
+                                # ✅ [防御点 1] 沙盒内部反撇号脱敏替换，防止闭合逃逸破坏外层 Markdown AST
+                                safe_out = out.replace("```", "'''")
+                                
+                                yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"\n\n```text\n# [Sandbox Output]:\n{safe_out}\n```\n"})
                     break  # Success, exit retry loop
                     
                 except Exception as api_err:
@@ -445,18 +488,31 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             # Force the model to summarize whatever it accumulated so far, explicitly overriding tools to an empty list
             try:
                 yield sse("RUN_STARTED", {"status": "正在将现有情报坍缩并强制提取最终结论..."})
-                final_stream = await chat.send_message_stream(
-                    "⚠️ 系统高优先指令：你已达到允许的工具调用次数硬上限。立即停止一切设想，必须使用纯文本，根据本轮所有的工具返回结果，给出目前最贴近真相的直接回答。严禁返回工具调用。"
+                
+                instruction = types.Part.from_text("⚠️ 强制熔断指令：请根据以上情报立即用纯文本进行最终总结，严禁调用工具。")
+                if isinstance(current_input, list):
+                    current_input.append(instruction)
+                else:
+                    current_input = instruction
+
+                override_config = types.GenerateContentConfig(
+                    tools=[], 
+                    tool_config=types.ToolConfig(function_calling_config=types.FunctionCallingConfig(mode="NONE"))
                 )
+                final_stream = await chat.send_message_stream(current_input, config=override_config)
+                
                 async for chunk in final_stream:
                     if chunk.text:
                         yield sse("TEXT_MESSAGE_CONTENT", {"delta": chunk.text})
             except Exception as loop_err:
                  yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"(强制总结失败: {str(loop_err)})"})
 
+    except Exception as e:
+        yield sse("error", {"message": f"执行总线异常: {str(e)}"})
+    finally:
         # Step 4: Update In-Memory Cache + Async Write-Behind to SQLite (D19 Ruling)
         try:
-            new_turns = chat._history[len(chat_history):] if chat._history else []
+            new_turns = chat._history[len(chat_history):] if ('chat' in locals() and chat._history) else []
             if new_turns:
                 # 1. 更新内存缓存（0ms，保留原生 types.Content 含 thoughtSignature）
                 if campaign_id not in _session_cache:
@@ -469,7 +525,5 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
         except Exception as e:
             audit_log_write("DB_ERROR_MCP", f"Failed to update session cache: {e}")
 
+        # Always yield RUN_FINISHED to unlock UI
         yield sse("RUN_FINISHED", {"interaction_id": campaign_id})
-                
-    except Exception as e:
-        yield sse("error", {"message": f"执行总线异常: {str(e)}"})
