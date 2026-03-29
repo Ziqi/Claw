@@ -111,41 +111,47 @@ def get_db():
 
 @app.get("/api/v1/stats")
 def get_stats():
-    """仪表盘统计概览 (已修复：按战区/env 隔离数据)"""
+    """仪表盘统计概览 — 基于最新扫描的数据（与 sync 资产列表保持一致）"""
     with get_db() as conn:
         env = get_current_env()
         
-        hosts = conn.execute(
-            "SELECT COUNT(DISTINCT a.ip) as c FROM assets a JOIN scans s ON a.scan_id = s.scan_id WHERE s.env = ?", 
+        # 先获取最新 scan_id，确保与 /sync 返回的资产列表一致
+        latest_scan = conn.execute(
+            "SELECT scan_id, timestamp, env FROM scans WHERE env = ? ORDER BY timestamp DESC LIMIT 1",
             (env,)
+        ).fetchone()
+        
+        if not latest_scan:
+            return {"hosts": 0, "ports": 0, "vulns": 0, "scans": 0, "latest_scan": None}
+        
+        scan_id = latest_scan["scan_id"]
+        
+        hosts = conn.execute(
+            "SELECT COUNT(DISTINCT ip) as c FROM assets WHERE scan_id = ?", 
+            (scan_id,)
         ).fetchone()["c"]
         
         ports = conn.execute(
-            "SELECT COUNT(*) as c FROM ports p JOIN scans s ON p.scan_id = s.scan_id WHERE s.env = ?", 
-            (env,)
+            "SELECT COUNT(*) as c FROM ports WHERE scan_id = ?", 
+            (scan_id,)
         ).fetchone()["c"]
         
         vulns = conn.execute(
-            "SELECT COUNT(*) as c FROM vulns v JOIN scans s ON v.scan_id = s.scan_id WHERE s.env = ?", 
-            (env,)
+            "SELECT COUNT(*) as c FROM vulns WHERE scan_id = ?", 
+            (scan_id,)
         ).fetchone()["c"]
         
         scans = conn.execute(
             "SELECT COUNT(*) as c FROM scans WHERE env = ?", 
             (env,)
         ).fetchone()["c"]
-        
-        latest = conn.execute(
-            "SELECT timestamp, env FROM scans WHERE env = ? ORDER BY timestamp DESC LIMIT 1",
-            (env,)
-        ).fetchone()
 
         return {
             "hosts": hosts,
             "ports": ports,
             "vulns": vulns,
             "scans": scans,
-            "latest_scan": dict(latest) if latest else None,
+            "latest_scan": {"timestamp": latest_scan["timestamp"], "env": latest_scan["env"]},
         }
 
 import hashlib
@@ -156,50 +162,53 @@ def sync_data(theater: str = Query("default", description="显式战区防串台
     with get_db() as conn:
         env = theater # 彻底抛弃 get_current_env() 隐式调用
         
-        # 1. 极速聚合核心特征
-        hosts = conn.execute("SELECT COUNT(DISTINCT a.ip) as c FROM assets a JOIN scans s ON a.scan_id = s.scan_id WHERE s.env = ?", (env,)).fetchone()["c"]
-        ports = conn.execute("SELECT COUNT(*) as c FROM ports p JOIN scans s ON p.scan_id = s.scan_id WHERE s.env = ?", (env,)).fetchone()["c"]
-        vulns = conn.execute("SELECT COUNT(*) as c FROM vulns v JOIN scans s ON v.scan_id = s.scan_id WHERE s.env = ?", (env,)).fetchone()["c"]
+        # 1. 先获取最新 scan_id（与资产列表数据源一致）
+        scan_id_row = conn.execute("SELECT scan_id, timestamp FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
+        
+        if not scan_id_row:
+            empty_stats = {"hosts": 0, "ports": 0, "vulns": 0, "scans": 0, "latest_scan": None}
+            return {"changed": True, "hash": "empty", "stats": empty_stats, "assets": []}
+        
+        scan_id = scan_id_row["scan_id"]
+        latest_ts = scan_id_row["timestamp"]
+        
+        # 2. 基于最新 scan_id 统计（与 /stats 和资产列表保持一致）
+        hosts = conn.execute("SELECT COUNT(DISTINCT ip) as c FROM assets WHERE scan_id = ?", (scan_id,)).fetchone()["c"]
+        ports = conn.execute("SELECT COUNT(*) as c FROM ports WHERE scan_id = ?", (scan_id,)).fetchone()["c"]
+        vulns = conn.execute("SELECT COUNT(*) as c FROM vulns WHERE scan_id = ?", (scan_id,)).fetchone()["c"]
         scans = conn.execute("SELECT COUNT(*) as c FROM scans WHERE env = ?", (env,)).fetchone()["c"]
         
-        latest_row = conn.execute("SELECT timestamp FROM scans WHERE env = ? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
-        latest_ts = latest_row["timestamp"] if latest_row else "empty"
-        
-        # 2. 生成当前战区的数据摘要 (Digest Hash)
+        # 3. 生成当前战区的数据摘要 (Digest Hash)
         current_hash = hashlib.md5(f"{hosts}-{ports}-{vulns}-{latest_ts}".encode()).hexdigest()
         
         stats = {
             "hosts": hosts, "ports": ports, "vulns": vulns, "scans": scans,
-            "latest_scan": {"timestamp": latest_ts} if latest_row else None
+            "latest_scan": {"timestamp": latest_ts}
         }
         
         # 【防雪崩短路】如果前端传来的 Hash 一致，直接拒绝下发全量大表
         if client_hash == current_hash:
             return {"changed": False, "hash": current_hash, "stats": stats}
             
-        # 3. 若数据有变，进行消除 N+1 的极速全量拉取
-        scan_id_row = conn.execute("SELECT scan_id FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
+        # 4. 若数据有变，进行消除 N+1 的极速全量拉取
+        # 批量查 assets
+        asset_rows = conn.execute("SELECT ip, os FROM assets WHERE scan_id = ? ORDER BY ip", (scan_id,)).fetchall()
+        # 批量查 ports，避免 for 循环里发 SQL
+        port_rows = conn.execute("SELECT ip, port, service, product, version FROM ports WHERE scan_id = ?", (scan_id,)).fetchall()
+        
+        ports_by_ip = {}
+        for p in port_rows:
+            ports_by_ip.setdefault(p["ip"], []).append(dict(p))
+
         assets = []
-        if scan_id_row:
-            scan_id = scan_id_row["scan_id"]
-            
-            # 批量查 assets
-            asset_rows = conn.execute("SELECT ip, os FROM assets WHERE scan_id = ? ORDER BY ip", (scan_id,)).fetchall()
-            # 批量查 ports，避免 for 循环里发 SQL
-            port_rows = conn.execute("SELECT ip, port, service, product, version FROM ports WHERE scan_id = ?", (scan_id,)).fetchall()
-            
-            ports_by_ip = {}
-            for p in port_rows:
-                ports_by_ip.setdefault(p["ip"], []).append(dict(p))
-                
-            for r in asset_rows:
-                ip = r["ip"]
-                assets.append({
-                    "ip": ip,
-                    "os": r["os"],
-                    "port_count": len(ports_by_ip.get(ip, [])),
-                    "ports": ports_by_ip.get(ip, [])
-                })
+        for r in asset_rows:
+            ip = r["ip"]
+            assets.append({
+                "ip": ip,
+                "os": r["os"],
+                "port_count": len(ports_by_ip.get(ip, [])),
+                "ports": ports_by_ip.get(ip, [])
+            })
                 
         return {
             "changed": True,
