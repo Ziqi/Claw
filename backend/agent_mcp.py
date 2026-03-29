@@ -113,7 +113,7 @@ def _load_history_from_db(campaign_id: str) -> list:
                     if isinstance(data, list):
                         chat_history.append(types.Content(
                             role="user" if len(chat_history) % 2 == 0 else "model",
-                            parts=[types.Part.from_text("[系统：旧版本多轮记忆由于格式失效已被冻结，若报错请开启全新对话]")]
+                            parts=[types.Part.from_text(text="[系统：旧版本多轮记忆由于格式失效已被冻结，若报错请开启全新对话]")]
                         ))
                         continue 
 
@@ -323,7 +323,7 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             include_server_tools = False
 
         # Agent 模式用 ANY（强制模型必须调用工具），Advisor 模式用 AUTO（可选）
-        fc_mode = "ANY" if agent_mode else "AUTO"
+        fc_mode = "AUTO"  # tools+tool_config are now always included in override_config, AUTO works correctly
         tool_config_obj = types.ToolConfig(
             function_calling_config=types.FunctionCallingConfig(mode=fc_mode)
             # 注意：绝对不能加 include_server_side_tool_invocations=True！
@@ -520,7 +520,7 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             try:
                 yield sse("RUN_STARTED", {"status": "正在将现有情报坍缩并强制提取最终结论..."})
                 
-                instruction = types.Part.from_text("⚠️ 强制熔断指令：请根据以上情报立即用纯文本进行最终总结，严禁调用工具。")
+                instruction = types.Part.from_text(text="⚠️ 强制熔断指令：请根据以上情报立即用纯文本进行最终总结，严禁调用工具。")
                 if isinstance(current_input, list):
                     current_input.append(instruction)
                 else:
