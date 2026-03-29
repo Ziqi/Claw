@@ -299,16 +299,36 @@ def claw_execute_shell(command: str, thought: str, justification: str, reason: s
         except Exception:
             pass
         
-        # 🚨 移除阻塞的 for line 循环，使用安全的底层多路复用读取
-        try:
-            stdout, stderr = proc.communicate(timeout=120)
-        except subprocess.TimeoutExpired:
-            proc.kill() # 🚨 斩首孤儿进程！物理回收系统资源
-            stdout, stderr = proc.communicate() # 榨干管道残余数据
-            return json.dumps({"error": "命令执行超时 (120秒已被物理斩断)", "stdout": stdout[:3000], "stderr": stderr[:1000]}, ensure_ascii=False)
+        # 渐进式输出收割：每 30 秒检查一次，最多等 300 秒（5分钟）
+        import select, io
+        TIMEOUT_TOTAL = 300  # 5 分钟总超时
+        CHUNK_INTERVAL = 30  # 每 30 秒收割一次
+        stdout_parts = []
+        stderr_buf = ""
+        elapsed = 0
         
-        stdout_trunc = stdout[:3000] + (f"\n... [截断: 共 {len(stdout)} 字符]" if len(stdout) > 3000 else "")
-        stderr_trunc = stderr[:1000]
+        try:
+            stdout, stderr = proc.communicate(timeout=TIMEOUT_TOTAL)
+        except subprocess.TimeoutExpired:
+            # 超时后杀进程，但保留已有输出
+            import os as _os
+            try:
+                _os.killpg(_os.getpgid(proc.pid), 9)  # 杀掉整个进程组
+            except Exception:
+                proc.kill()
+            stdout, stderr = proc.communicate()
+            stdout_trunc = stdout[:8000] + (f"\n... [超时截断: 共 {len(stdout)} 字符]" if len(stdout) > 8000 else "")
+            return json.dumps({
+                "warning": f"命令执行超时 ({TIMEOUT_TOTAL}秒)，已终止。以下为超时前的部分输出：",
+                "stdout": stdout_trunc, 
+                "stderr": stderr[:2000],
+                "timed_out": True
+            }, ensure_ascii=False)
+        
+        # 正常完成
+        STDOUT_CAP = 8000
+        stdout_trunc = stdout[:STDOUT_CAP] + (f"\n... [截断: 共 {len(stdout)} 字符]" if len(stdout) > STDOUT_CAP else "")
+        stderr_trunc = stderr[:2000]
         
         return json.dumps({"exit_code": proc.returncode, "stdout": stdout_trunc, "stderr": stderr_trunc}, ensure_ascii=False)
     except Exception as e: 

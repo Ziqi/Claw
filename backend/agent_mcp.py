@@ -379,7 +379,7 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
         yield sse("RUN_STARTED", {"status": f"Lynx 正在分析您的请求... (模型: {selected_model}, 推理: {thinking_level}, 模式: {mode_label}, 上下文: {cache_label})"})
         
         # Step 3: Multi-turn execution loop (max 15 steps safety limit)
-        max_steps = 15
+        max_steps = 30
         current_input = user_input
         for step in range(max_steps):
             tool_calls_batch = []
