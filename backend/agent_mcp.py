@@ -315,15 +315,17 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             gemini_tools = [types.Tool(function_declarations=filtered_decls)] if filtered_decls else []
             include_server_tools = False
         else:
-            # ON Mode (Agent): 自定义战术工具放最前面，提升模型主动调用倾向性
+            # ON Mode (Agent): 只使用自定义 function_declarations
+            # 🚨 严禁在此处混入 google_search 或 url_context！
+            # ANY 模式下内建工具与 function_declarations 冲突，
+            # 会导致模型的内部路由混乱，最终什么工具都不调用
             gemini_tools = base_tools.copy() if isinstance(base_tools, list) else list(base_tools)
-            # Google Search 和 URL Context 放在后面，避免模型优先使用云端工具而忽略本地战术工具
-            gemini_tools.append(types.Tool(google_search=types.GoogleSearch()))
-            gemini_tools.append(types.Tool(url_context=types.UrlContext()))
-            include_server_tools = True
+            include_server_tools = False
 
+        # Agent 模式用 ANY（强制模型必须调用工具），Advisor 模式用 AUTO（可选）
+        fc_mode = "ANY" if agent_mode else "AUTO"
         tool_config_obj = types.ToolConfig(
-            function_calling_config=types.FunctionCallingConfig(mode="AUTO")
+            function_calling_config=types.FunctionCallingConfig(mode=fc_mode)
             # 注意：绝对不能加 include_server_side_tool_invocations=True！
             # 该参数会让模型将所有工具执行责任推给“服务端”，
             # 导致模型不再主动发起 function_call，而是输出“我无法执行”的文本教学
@@ -355,6 +357,16 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
         if thinking_level and thinking_level != "minimal":
             config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=thinking_level)
 
+        # 🔍 诊断日志：打印实际发送给模型的工具清单
+        tool_names = []
+        for t in gemini_tools:
+            if t.function_declarations:
+                tool_names.extend([fd.name for fd in t.function_declarations])
+            if hasattr(t, 'google_search') and t.google_search: tool_names.append('google_search')
+            if hasattr(t, 'code_execution') and t.code_execution: tool_names.append('code_execution')
+            if hasattr(t, 'url_context') and t.url_context: tool_names.append('url_context')
+        print(f"[TOOL_DIAG] Model={selected_model}, AgentMode={agent_mode}, Tools={tool_names}", flush=True)
+
         client = genai.Client(api_key=API_KEY)
         chat = client.aio.chats.create(
             model=selected_model,
@@ -380,7 +392,10 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                     dynamic_think = "low" if isinstance(current_input, list) else thinking_level
                     
                     # 同样热修复思考层级问题，防止覆盖循环再次拉爆配置
-                    override_kwargs = {}
+                    override_kwargs = {
+                        "tools": gemini_tools,
+                        "tool_config": tool_config_obj,
+                    }
                     if dynamic_think and dynamic_think != "minimal":
                         override_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=dynamic_think)
                         
