@@ -180,7 +180,10 @@ async def _discover_mcp_tools():
             _cached_fn_decls = fn_decls
             _cached_gemini_tools = [
                 types.Tool(function_declarations=fn_decls),
-                types.Tool(code_execution=types.ToolCodeExecution())
+                # 🚨 严禁在此处添加 code_execution！
+                # code_execution 是 Gemini 云端 Python 沙盒，模型会优先使用它而非 claw_execute_shell。
+                # 但云端沙盒无法访问本地网络，模型发现后会退化为"我无法执行"的文本教学。
+                # 所有本地命令执行必须且只能通过 claw_execute_shell 工具！
             ]
     
     return _cached_gemini_tools
