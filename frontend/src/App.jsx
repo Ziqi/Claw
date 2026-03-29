@@ -1947,7 +1947,7 @@ function AiPanel({ isHqMode }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
-  const [model, setModel] = useState(MODELS[0])
+  const [model, setModel] = useState(MODELS[2])  // 默认 Think 引擎
   const [menuOpen, setMenuOpen] = useState(false)
   const [interactionId, setInteractionId] = useState(null)
   const [challengeMsg, setChallengeMsg] = useState(null)
