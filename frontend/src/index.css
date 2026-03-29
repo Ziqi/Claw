@@ -230,7 +230,7 @@ body {
 /* Indicator grid */
 .indicator-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 .ind-card {
@@ -240,9 +240,6 @@ body {
   min-width: 0;
   overflow: hidden;
 }
-.ind-card .m-row {
-  flex-wrap: wrap;
-}
 .ind-card-title {
   font-size: 10px;
   color: var(--term-muted);
@@ -251,9 +248,9 @@ body {
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 4px;
 }
-.m-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
-.m-row .lbl { color: var(--term-cyan); }
-.m-row .val { color: var(--term-text); font-weight: bold; }
+.m-row { display: flex; align-items: baseline; font-size: 11px; padding: 3px 0; gap: 8px; }
+.m-row .lbl { color: var(--term-cyan); white-space: nowrap; min-width: 72px; }
+.m-row .val { color: var(--term-text); font-weight: bold; margin-left: auto; text-align: right; }
 
 /* Data table */
 .data-table {
@@ -579,8 +576,5 @@ body {
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .spin { animation: spin 1s linear infinite; }
 
-/* OP Sidebar helper rows */
-.m-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #222; }
-.m-row .lbl { color: #666; }
-.m-row .val { font-weight: bold; }
+/* OP Sidebar helper rows — unified in .m-row above */
 .c-gold { color: #FF9900; }
