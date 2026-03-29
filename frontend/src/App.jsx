@@ -2379,7 +2379,7 @@ function AiPanel({ isHqMode }) {
                 >
                   {agentMode ? <Bot size={13} color="#FF9900" /> : <MessageSquare size={13} color="#30D158" />}
                   <span style={{ color: agentMode ? '#FF9900' : '#888' }}>
-                    [ AUTONOMY: {agentMode ? 'ON' : 'OFF'} ]
+                    AUTO
                   </span>
                 </div>
               </div>
