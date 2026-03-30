@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { Network } from 'vis-network'
-import { Terminal } from 'xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import { Radar, AlertTriangle, Crown, Signal, Search, ClipboardList, Swords, BarChart, Settings, RefreshCw, Globe, Crosshair, Loader2, Rocket, Zap, Building, Flame, FlaskConical, Skull, KeyRound, Monitor, ShieldAlert, Copy, X, Info, Bug, Lock, Target, Radio, FileText, Wrench, Maximize2, Minimize2, Square, PanelBottom, ArrowUpRight, Terminal as TerminalIcon, Archive, Bot, MessageSquare } from 'lucide-react'
+// [REMOVED in V9.3] Terminal/xterm imports removed - SSH into Kali for terminal
+import { Radar, AlertTriangle, Crown, Signal, Search, ClipboardList, Swords, BarChart, Settings, RefreshCw, Globe, Crosshair, Loader2, Rocket, Zap, Building, Flame, FlaskConical, Skull, KeyRound, Monitor, ShieldAlert, Copy, X, Info, Bug, Lock, Target, Radio, FileText, Wrench, Maximize2, Minimize2, Square, PanelBottom, ArrowUpRight, Terminal as TerminalIcon, Archive, Bot, MessageSquare, Trash2, Activity, Wifi } from 'lucide-react'
 import useStore from './store'
-import 'xterm/css/xterm.css'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import './index.css'
 
 const API = `http://${window.location.hostname}:8000/api/v1`
@@ -43,8 +43,20 @@ function HudBar({ onRefreshAssets }) {
   const [theaters, setTheaters] = useState([])
   const [currentTheater, setCurrentTheater] = useState('default')
   const [showTheaterMenu, setShowTheaterMenu] = useState(false)
+  const theaterMenuRef = useRef(null)
   const [showCreateTheater, setShowCreateTheater] = useState(false)
   const [showTheaterConfig, setShowTheaterConfig] = useState(false)
+  const [alignment, setAlignment] = useState(null)
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (theaterMenuRef.current && !theaterMenuRef.current.contains(e.target)) {
+        setShowTheaterMenu(false)
+      }
+    }
+    window.addEventListener('mousedown', handleClickOutside)
+    return () => window.removeEventListener('mousedown', handleClickOutside)
+  }, [])
   const sudoPassword = useStore(s => s.sudoPassword)
   const setSudoPassword = useStore(s => s.setSudoPassword)
   
@@ -72,6 +84,8 @@ function HudBar({ onRefreshAssets }) {
   useEffect(() => {
     window.__claw_current_theater = currentTheater
     useStore.getState().setCurrentTheater(currentTheater)
+    // Update alignment sensor on env change
+    fetch(`${API}/env/network_alignment`).then(r => r.json()).then(setAlignment).catch(() => {})
   }, [currentTheater])
 
   const switchTheater = (name) => {
@@ -110,17 +124,24 @@ function HudBar({ onRefreshAssets }) {
       <div className="hud-brand" style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
         <span style={{ fontFamily: 'Consolas, monospace', color: '#FF9900', marginRight: '6px', fontSize: '13px' }} onMouseOver={e => { const tip = e.currentTarget.parentElement.querySelector('.cat-tip'); if (tip) tip.style.display = 'block' }} onMouseOut={e => { const tip = e.currentTarget.parentElement.querySelector('.cat-tip'); if (tip) tip.style.display = 'none' }}>{'/\\_/\\'}</span>
         <span style={{ fontFamily: 'Consolas, monospace', color: '#00FFFF', marginRight: '6px', fontSize: '13px' }}>{'( o.o )'}</span>
-        CLAW V9.1
+        CLAW V9.3
         
         <div style={{ marginLeft: '12px', padding: '2px 6px', background: sudoPassword ? 'rgba(48,209,88,0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${sudoPassword ? '#30D158' : '#444'}`, borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
              onClick={() => {
-               const pwd = window.prompt("⚠️ 配置全局 Root (Sudo) 提权密码\n用于底层模块与 AI 渗透模块的自动化提权调用:", sudoPassword || "")
+               const pwd = window.prompt("[!] 配置全局 Root (Sudo) 提权密码\n用于 Kali 执行端底层模块的自动化提权调用:", sudoPassword || "")
                if (pwd !== null) setSudoPassword(pwd)
              }}
              title="全局提权钥匙环">
           <KeyRound size={12} color={sudoPassword ? '#30D158' : '#888'} /> 
           <span style={{ fontSize: '11px', color: sudoPassword ? '#30D158' : '#888' }}>{sudoPassword ? 'ROOT: ON' : 'ROOT: OFF'}</span>
         </div>
+
+        {alignment && alignment.aligned === false && (
+          <div style={{ marginLeft: '12px', padding: '2px 8px', background: 'rgba(255,153,0,0.15)', border: '1px solid #FF9900', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'help', animation: 'pulse 2s infinite' }} title={`本机网关 (${alignment.local_ips.join(', ')}) 与当前战区主频段 (${alignment.theater_subnets.join(', ')}) 疑似错位！\n请检查您的 VPN 连接或物理网络环境，谨防在公网对错落目标发射载荷。`}>
+            <AlertTriangle size={12} color="#FF9900" />
+            <span style={{ fontSize: '11px', color: '#FF9900', fontWeight: 'bold', letterSpacing: '0.5px' }}>拓扑偏离警告</span>
+          </div>
+        )}
 
         <div className="cat-tip" style={{ display: 'none', position: 'absolute', top: '100%', left: 0, marginTop: '8px', background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '16px 20px', zIndex: 9999, whiteSpace: 'pre', fontFamily: 'Consolas, monospace', fontSize: '13px', lineHeight: '1.4', boxShadow: '0 8px 24px rgba(0,0,0,0.8)', minWidth: '340px' }}>
           <span style={{ color: '#00FFFF' }}>{"         /\\_/\\\n"}</span>
@@ -131,7 +152,7 @@ function HudBar({ onRefreshAssets }) {
         </div>
       </div>
 
-      <div style={{ position: 'relative', marginLeft: '8px', borderLeft: '1px solid #333', paddingLeft: '12px' }}>
+      <div ref={theaterMenuRef} style={{ position: 'relative', marginLeft: '8px', borderLeft: '1px solid #333', paddingLeft: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => setShowTheaterMenu(o => !o)}>
             <span style={{ fontSize: '10px', color: '#666' }}>战区</span>
@@ -180,6 +201,7 @@ function HudBar({ onRefreshAssets }) {
         <span className="stat-label">扫描任务</span>
         <span className="stat-value c-gold">{stats?.scans ?? '—'}</span>
       </div>
+      <ProbeHealthIndicator />
       <div className="stat-item">
         <span className="stat-label">副官状态</span>
         <span className="stat-value c-up">在线监控中</span>
@@ -192,7 +214,7 @@ function HudBar({ onRefreshAssets }) {
         <button style={{ background: godMode ? 'rgba(255,59,48,0.15)' : 'rgba(48,209,88,0.1)', color: godMode ? '#FF3B30' : '#30D158', border: `1px solid ${godMode ? '#FF3B30' : '#30D158'}`, padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => {
           fetch(`${API}/scope`).then(r => r.json()).then(d => { setScopeList(d.scope); setGodMode(d.god_mode); setScopeInput(d.scope.join('\n')); setShowScope(true) })
         }}>
-          {godMode ? <>⚠ 上帝模式 (无限制)</> : <>🛡 Scope: {scopeList.length} 项</>}
+          {godMode ? <>[!] 上帝模式 (无限制)</> : <>Scope: {scopeList.length} 项</>}
         </button>
       </div>
       <div className="stat-item" style={{ cursor: 'pointer', borderLeft: '1px solid #333', paddingLeft: '16px' }}>
@@ -211,7 +233,7 @@ function HudBar({ onRefreshAssets }) {
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9998 }} onClick={() => setShowScope(false)} />
           <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '24px', zIndex: 9999, width: '440px', boxShadow: '0 8px 32px rgba(0,0,0,0.9)' }}>
             <div style={{ fontSize: '16px', color: '#00FFFF', fontWeight: 'bold', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>🛡 作战授权范围 (Scope)</span>
+              <span>[SCOPE] 作战授权范围</span>
               <span style={{ fontSize: '11px', color: godMode ? '#FF3B30' : '#30D158', background: godMode ? 'rgba(255,59,48,0.1)' : 'rgba(48,209,88,0.1)', padding: '2px 8px', borderRadius: '4px' }}>
                 {godMode ? '上帝模式: 无限制' : `限定 ${scopeList.length} 项`}
               </span>
@@ -380,7 +402,7 @@ function Sidebar({ onRefreshAssets }) {
 
   const critCount = assets.filter(a => a.ports.some(p => [445, 3389, 21].includes(p.port))).length
 
-  const mappedView = view === 'HQ' || view === 'VS' ? 'RC' : view === 'DP' ? 'AT' : view;
+  const mappedView = view === 'HQ' ? 'RC' : view === 'DP' ? 'AT' : view;
 
   if (mappedView === 'RC') {
     const isCritical = (a) => a.ports.some(p => [445, 3389, 21].includes(p.port))
@@ -597,7 +619,7 @@ function Sidebar({ onRefreshAssets }) {
 const VIEW_TABS = {
   RC: ['侦察态势'],
   AT: ['全局资产库'],
-  AM: ['作战兵器库 (Armory)', '云端战车 (Docker)'],
+  AM: ['作战兵器库 (Armory)'],
   C2: ['控制中心 (Sessions)', '监听器 (Listeners)'],
   VS: ['星图拓扑 (Network)', 'ATT&CK 杀伤链'],
 }
@@ -605,20 +627,36 @@ const VIEW_TABS = {
 function CampaignPipeline({ stats }) {
   const [openDropdown, setOpenDropdown] = useState(null)
   
+  // V9.3 C4ISR 4阶段侦察-研判管线 (去武器化)
   const steps = [
-    { icon: <Target size={16} />, label: '战区锚定', actions: ['探测全段存活主机 (Nmap)', '枚举 C 段网段分布', '生成子域结构树'] },
-    { icon: <Radio size={16} />, label: '射频嗅探', actions: ['扫描所有高危端口', '识别 HTTP/Web指纹', '提取服务端证书参数'] },
-    { icon: <Search size={16} />, label: '脆弱性指纹', actions: ['全自动化 Nuclei 猎潜', '执行 MSF 漏扫', '针对 SSH/RDP/SMB 弱口令爆破'] },
-    { icon: <Swords size={16} />, label: 'Alfa 注入', actions: ['部署 Sliver 远控节点', '下发生存免杀 Shellcode', '挂载代理隧道打入内网'] },
-    { icon: <FileText size={16} />, label: '战报生成', actions: ['导出资产 Markdown', '一键生成 PTES 攻防审计战报'] }
+    { icon: <Target size={16} />, label: '战区锚定', actions: [
+      '对目标子网发起存活探测 (fping/Nmap)',
+      '枚举 C 段网段分布与拓扑',
+      '识别网关与关键基础设施节点'
+    ]},
+    { icon: <Search size={16} />, label: '服务指纹', actions: [
+      '全端口 TCP/UDP 服务版本识别',
+      '提取 HTTP/HTTPS 证书与 Web 指纹',
+      '识别 SMB/SSH/RDP 等高危协议'
+    ]},
+    { icon: <Crosshair size={16} />, label: '威胁研判', actions: [
+      'AI 综合态势评估与攻击面分析',
+      '基于已知 CVE 的风险等级评估',
+      '生成优先侦察目标建议清单'
+    ]},
+    { icon: <FileText size={16} />, label: '战报输出', actions: [
+      '导出资产清单 (Markdown/CSV)',
+      '生成 PTES 格式渗透测试报告',
+      '多次扫描差异对比分析'
+    ]}
   ]
   
   // Dynamically compute the active stage based on current stats
-  let active = 1
+  let active = 0
   if (stats) {
-    if ((stats.hosts || 0) > 0) active = 2
-    if ((stats.ports || 0) > 0) active = 3
-    if ((stats.vulns || 0) > 0) active = 4
+    if ((stats.hosts || 0) > 0) active = 1
+    if ((stats.ports || 0) > 0) active = 2
+    // Stage 3 (威胁研判) and 4 (战报输出) are manual triggers
   }
 
   // Handle outside clicks
@@ -656,11 +694,11 @@ function CampaignPipeline({ stats }) {
               <span style={{ fontSize: '13px' }}>{st.label} ▾</span>
 
               {openDropdown === i && (
-                <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: '12px', background: 'rgba(10,10,10,0.95)', border: `1px solid ${i < active ? '#30D158' : '#00FFFF'}`, borderRadius: '6px', zIndex: 9999, width: '220px', boxShadow: '0 8px 32px rgba(0,0,0,0.9)', padding: '6px 0', textShadow: 'none', fontWeight: 'normal', color: '#D0D0D0', backdropFilter: 'blur(10px)' }} onClick={e => e.stopPropagation()}>
-                  <div style={{ padding: '6px 14px', fontSize: '10px', color: '#666', marginBottom: '4px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px' }}><Crosshair size={10} /> 智能体战术推演菜单</div>
+                <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: '12px', background: 'rgba(10,10,10,0.95)', border: `1px solid ${i < active ? '#30D158' : '#00FFFF'}`, borderRadius: '6px', zIndex: 9999, width: '260px', boxShadow: '0 8px 32px rgba(0,0,0,0.9)', padding: '6px 0', textShadow: 'none', fontWeight: 'normal', color: '#D0D0D0', backdropFilter: 'blur(10px)' }} onClick={e => e.stopPropagation()}>
+                  <div style={{ padding: '6px 14px', fontSize: '10px', color: '#666', marginBottom: '4px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px' }}><Crosshair size={10} /> AI Copilot 战术推演</div>
                   {st.actions.map((act, j) => (
                     <div key={j} style={{ padding: '10px 14px', fontSize: '12px', cursor: 'pointer', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(0,255,255,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'} onClick={() => {
-                        window.dispatchEvent(new CustomEvent('claw-exec-cmd', { detail: `请求对当前锁定资产启动: ${act}` }));
+                        window.dispatchEvent(new CustomEvent('claw-exec-cmd', { detail: act }));
                         setOpenDropdown(null);
                     }}>
                       <span style={{ color: '#FF9900' }}>▸</span> {act}
@@ -681,109 +719,9 @@ function CampaignPipeline({ stats }) {
   )
 }
 
-function AlfaRadarView() {
-  const rfTargets = useStore(s => s.rfTargets || [])
-  const toggleRfTarget = useStore(s => s.toggleRfTarget)
-  const clearRfTargets = useStore(s => s.clearRfTargets)
-  
-  const [bssids, setBssids] = useState([])
+// [REMOVED] AlfaRadarView — 旧版 SSE 组件已废弃，替换为 RadioRadarPanel (L885)
+// RadioRadarPanel 使用 /sensors/wifi/radar 轮询 SQLite，与 Kali 探针数据流对齐
 
-  useEffect(() => {
-    const ctrl = new AbortController()
-    
-    // 复用系统内已封装好的 fetchEventSource
-    import('@microsoft/fetch-event-source').then(({ fetchEventSource }) => {
-      fetchEventSource(`${API}/wifi/stream`, {
-        method: 'GET',
-        signal: ctrl.signal,
-        onmessage(ev) {
-          const data = JSON.parse(ev.data)
-          if (data.targets) {
-              // 过滤掉无效值，并按信号强度(PWR)动态排序
-              const valid = data.targets.filter(t => parseInt(t.pwr) > -95 && parseInt(t.pwr) < 0)
-              valid.sort((a, b) => parseInt(b.pwr) - parseInt(a.pwr))
-              setBssids(valid)
-          }
-        }
-      })
-    })
-    
-    return () => ctrl.abort()
-  }, [])
-
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto', background: '#050505', padding: '16px' }}>
-      <div style={{ paddingBottom: '16px', borderBottom: '1px solid #222', marginBottom: '16px' }}>
-        <div style={{ color: '#BF5AF2', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Radio size={16} /> ALFA 无线射频雷达 (Monitor Mode)
-        </div>
-        <div style={{ fontSize: '11px', color: '#666', marginTop: '6px' }}>
-          网卡: <span style={{ color: '#D0D0D0' }}>wlan1</span> | 型号: <span style={{ color: '#D0D0D0' }}>AWUS036ACM</span> | 状态: <span style={{ color: '#30D158', fontWeight: 'bold' }}>SNIFFING</span>
-        </div>
-      </div>
-
-      {rfTargets.length > 0 && (
-        <div style={{ background: 'rgba(191, 90, 242, 0.1)', borderBottom: '1px solid #BF5AF2', padding: '6px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderRadius: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ color: '#BF5AF2', fontWeight: 'bold', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Target size={14} /> 锁定的物理源 MAC ({rfTargets.length})
-            </span>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {rfTargets.map(mac => (
-                <span key={mac} style={{ background: 'rgba(191,90,242,0.2)', color: '#BF5AF2', border: '1px solid #BF5AF2', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => toggleRfTarget(mac)}>
-                  {mac} <X size={10} color="#BF5AF2" />
-                </span>
-              ))}
-            </div>
-          </div>
-          <button style={{ background: '#222', color: '#BF5AF2', border: '1px solid #BF5AF2', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={clearRfTargets}>
-            <X size={12} /> 清空队列
-          </button>
-        </div>
-      )}
-
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th style={{ width: '40px', textAlign: 'center' }}><Target size={14} color="#666" /></th>
-            <th>SSID (Network Name)</th>
-            <th>BSSID (MAC Address)</th>
-            <th>PWR (dBm)</th>
-            <th>CHANNEL</th>
-            <th>CRYPTO</th>
-          </tr>
-        </thead>
-        <tbody>
-          {bssids.map(t => {
-            const isSelected = rfTargets.includes(t.bssid)
-            return (
-              <tr key={t.bssid} style={{ cursor: 'pointer', background: isSelected ? 'rgba(191,90,242,0.05)' : 'transparent', borderLeft: isSelected ? '2px solid #BF5AF2' : 'none' }}>
-                <td style={{ textAlign: 'center' }} onClick={e => { e.stopPropagation(); toggleRfTarget(t.bssid); }}>
-                  <div style={{ width: '14px', height: '14px', border: `1px solid ${isSelected ? '#BF5AF2' : '#444'}`, background: isSelected ? '#BF5AF2' : 'transparent', borderRadius: '3px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {isSelected && <X size={10} color="#000" style={{ fontWeight: 'bold' }} />}
-                  </div>
-                </td>
-                <td style={{ color: t.enc === 'OPEN' ? '#FF3B30' : '#00FFFF' }}>{t.ssid}</td>
-                <td style={{ fontFamily: 'monospace', color: '#D0D0D0' }}>{t.bssid}</td>
-                <td style={{ color: parseInt(t.pwr) > -60 ? '#30D158' : '#FF9900' }}>{t.pwr}</td>
-                <td style={{ color: '#FF9900' }}>{t.ch}</td>
-                <td style={{ color: '#666' }}>{t.enc}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-      
-      <div style={{ marginTop: '24px', borderTop: '1px solid #222', paddingTop: '16px' }}>
-        <div style={{ color: '#FF9900', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px' }}>[ 战利品缓存栈 (Captured Material) ]</div>
-        <div style={{ background: '#111', padding: '12px', borderRadius: '6px', border: '1px solid #333', fontSize: '11px', color: '#999', lineHeight: '1.6' }}>
-          没有任何 EAPOL 或 WPA2 Handshake 被捕获。<br/>
-          请锁定目标热点后，呼叫副驾驶发射 <strong>Deauthentication (干扰/反认证)</strong> 阵列波，强制下属终端断链重连以剥离加密握手包片段。
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function WorkArea() {
   const stats = useStore(s => s.stats)
@@ -793,6 +731,29 @@ function WorkArea() {
   const onExecCommand = cmd => useStore.getState().setExternalCommand({ id: Date.now(), cmd })
 
   const [tab, setTab] = useState(0)
+
+  // V9.3: Mission Briefing Pipeline
+  const missionBriefing = useStore(s => s.missionBriefing)
+  const setMissionBriefing = useStore(s => s.setMissionBriefing)
+  const [missionInput, setMissionInput] = useState("")
+  const [missionPushStatus, setMissionPushStatus] = useState(null)
+  // Initialize input when briefing changes from outside (if any)
+  useEffect(() => { setMissionInput(missionBriefing) }, [missionBriefing])
+
+  const submitMission = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/v1/mission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ briefing: missionInput || "待命中... (Waiting for Commander Intent)" })
+      })
+      const data = await res.json()
+      setMissionBriefing(data.current_mission)
+      setMissionInput(data.current_mission)
+    } catch (e) {
+      console.error("Failed to push mission briefing:", e)
+    }
+  }
 
   // Global Multi-Select Hub
   const globalTargets = useStore(s => s.globalTargets)
@@ -809,6 +770,79 @@ function WorkArea() {
     <div className="activity-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
       {/* 🎯 [NEW] HUD Pipeline is exclusively rendered in HQ mode */}
       {view === 'HQ' && <CampaignPipeline stats={stats} />}
+      
+      {/* [V9.3] Commander Top-Down Intent Broadcaster — Enhanced */}
+      {(() => {
+        const INTENT_CHIPS = [
+          { label: '全域资产盘点', intent: '对所有目标子网发起存活探测与服务指纹识别，更新资产基线' },
+          { label: '高危端口猎杀', intent: '聚焦 445/3389/22/8080 等高危端口，识别暴露面与弱口令风险' },
+          { label: 'Web 攻击面分析', intent: '针对 Web 服务进行目录枚举、指纹识别、已知 CVE 匹配分析' },
+          { label: '内网横向侦察', intent: '以已控节点为跳板，对内网 C 段进行 ARP 探测与拓扑绘制' },
+          { label: '无线频谱审计', intent: '启动 ALFA 射频探针，捕获周围 AP 握手包与客户端关联信息' },
+          { label: '战报整理输出', intent: '停止主动探测，对已有情报进行汇总分析并生成 PTES 格式报告' },
+        ]
+        const isActive = missionInput && !missionInput.includes('待命中')
+        
+        const handleMissionSubmit = async () => {
+          await submitMission()
+          setMissionPushStatus('ok')
+          setTimeout(() => setMissionPushStatus(null), 2000)
+        }
+        
+        return (
+          <div style={{ background: '#1c1c1e', borderBottom: '1px solid #333', padding: '8px 16px', flexShrink: 0 }}>
+            {/* Row 1: Label + Input + Button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                {isActive && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#30D158', boxShadow: '0 0 6px #30D158', animation: 'pulse 2s infinite' }} />}
+                <span style={{ color: '#0A84FF', fontWeight: 'bold', fontSize: '12px' }}>
+                  {isActive ? 'ACTIVE BRIEFING' : 'MISSION BRIEFING'}
+                </span>
+              </div>
+              <input 
+                type="text" 
+                value={missionInput}
+                onChange={e => setMissionInput(e.target.value)}
+                placeholder="输入全局战略意图，分发至 AI Copilot 与 Kali 边缘探针..."
+                style={{ flex: 1, background: '#000', border: `1px solid ${isActive ? '#0A84FF' : '#333'}`, color: '#0A84FF', padding: '5px 10px', fontSize: '13px', outline: 'none', transition: 'border 0.3s' }}
+                onKeyDown={e => e.key === 'Enter' && handleMissionSubmit()}
+              />
+              <button 
+                onClick={handleMissionSubmit}
+                style={{ 
+                  background: missionPushStatus === 'ok' ? 'rgba(48, 209, 88, 0.2)' : 'rgba(10, 132, 255, 0.15)', 
+                  color: missionPushStatus === 'ok' ? '#30D158' : '#0A84FF', 
+                  border: `1px solid ${missionPushStatus === 'ok' ? '#30D158' : '#0A84FF'}`, 
+                  padding: '5px 14px', cursor: 'pointer', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 'bold',
+                  transition: 'all 0.3s'
+                }}
+              >
+                {missionPushStatus === 'ok' ? '✓ 已下发' : '全域推送'}
+              </button>
+            </div>
+            {/* Row 2: Quick Intent Chips */}
+            <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+              {INTENT_CHIPS.map((chip, i) => (
+                <button 
+                  key={i}
+                  onClick={() => setMissionInput(chip.intent)}
+                  style={{ 
+                    background: missionInput === chip.intent ? 'rgba(10,132,255,0.15)' : 'transparent', 
+                    color: missionInput === chip.intent ? '#0A84FF' : '#666', 
+                    border: `1px solid ${missionInput === chip.intent ? '#0A84FF' : '#333'}`, 
+                    padding: '3px 10px', fontSize: '10px', cursor: 'pointer', 
+                    transition: 'all 0.2s', letterSpacing: '0.3px'
+                  }}
+                  onMouseOver={e => { if (missionInput !== chip.intent) { e.currentTarget.style.color = '#999'; e.currentTarget.style.borderColor = '#555' }}}
+                  onMouseOut={e => { if (missionInput !== chip.intent) { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#333' }}}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
       
       {/* 🎯 [NEW] Persistent Target Pod */}
       {globalTargets.length > 0 && (
@@ -833,10 +867,7 @@ function WorkArea() {
 
       {view !== 'HQ' && (
         <div className="terminal-tab-bar">
-          {view === 'DP' && ['靶标资产', '战术武库', '云端战车', '远控节点'].map((t, i) => (
-            <button key={t} className={`terminal-tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>
-          ))}
-          {view === 'VS' && ['战区概览', '作战图谱'].map((t, i) => (
+          {view === 'DP' && ['靶标资产', 'Kali 工具手册'].map((t, i) => (
             <button key={t} className={`terminal-tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>
           ))}
         </div>
@@ -844,15 +875,258 @@ function WorkArea() {
       
       <div className="tab-content-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
         {view === 'HQ' && <ReconOverview stats={stats} assets={assets} asset={asset} onExecCommand={onExecCommand} />}
+        {view === 'RF' && <RadioRadarPanel onExecCommand={onExecCommand} />}
 
         {view === 'DP' && tab === 0 && <AssetTable assets={assets} onExecCommand={onExecCommand} selectedIp={selectedIp} />}
         {view === 'DP' && tab === 1 && <ArmoryViewTab assets={assets} selectedIp={selectedIp} onExecCommand={onExecCommand} />}
-        {view === 'DP' && tab === 2 && <DockerPanel />}
-        {view === 'DP' && tab === 3 && <SliverViewTab onExecCommand={onExecCommand} />}
 
-        {view === 'VS' && tab === 0 && <TheaterKanban assets={assets} theater={window.__claw_current_theater || 'default'} />}
-        {view === 'VS' && tab === 1 && <AttackMatrixView />}
 
+        {/* [REMOVED in V9.3] TheaterKanban (VS view) — 伪杀伤链看板已拆除，与 C4ISR 纯态势定位冲突 */}
+
+      </div>
+    </div>
+  )
+}
+
+// V9.3 Sprint 1: Probe Health Indicator for HudBar
+function ProbeHealthIndicator() {
+  const [health, setHealth] = useState(null)
+  useEffect(() => {
+    const fetchHealth = () => fetch(`${API}/sensors/health`).then(r => r.json()).then(d => setHealth(d.wifi_probe)).catch(() => {})
+    fetchHealth()
+    const t = setInterval(fetchHealth, 10000)
+    return () => clearInterval(t)
+  }, [])
+  const status = health?.status || 'offline'
+  const dotColor = status === 'online' ? '#30D158' : status === 'delayed' ? '#FF9900' : '#666'
+  const label = status === 'online' ? 'ONLINE' : status === 'delayed' ? 'DELAYED' : 'OFFLINE'
+  return (
+    <div className="stat-item">
+      <span className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: dotColor, boxShadow: status === 'online' ? `0 0 6px ${dotColor}` : 'none', animation: status === 'online' ? 'pulse 2s infinite' : 'none' }} />
+        ALFA 探针
+      </span>
+      <span className="stat-value" style={{ color: dotColor, fontSize: '11px' }}>{label} ({health?.nodes_count || 0})</span>
+    </div>
+  )
+}
+
+function RadioRadarPanel({ onExecCommand }) {
+  const [nodes, setNodes] = useState([])
+  const [lastUpdate, setLastUpdate] = useState('')
+  const [expandedBssid, setExpandedBssid] = useState(null)
+  const [rssiCache, setRssiCache] = useState({})
+  const [probeHealth, setProbeHealth] = useState(null)
+  const globalTargets = useStore(s => s.globalTargets || [])
+  const toggleGlobalTarget = useStore(s => s.toggleGlobalTarget)
+
+  useEffect(() => {
+    const fetchRadar = () => {
+      fetch(`${API}/sensors/wifi/radar`)
+        .then(res => res.json())
+        .then(data => {
+          const enriched = (data.active_nodes || []).map(node => {
+            // V9.3 Ghosting: calculate staleness from last_seen
+            let stale = 'live'
+            if (node.last_seen) {
+              const diff = (Date.now() - new Date(node.last_seen).getTime()) / 1000
+              if (diff > 300) stale = 'ghost'
+              else if (diff > 60) stale = 'fading'
+              else if (diff > 10) stale = 'mild'
+            }
+            return { ...node, stale }
+          })
+          setNodes(enriched)
+          setLastUpdate(new Date().toLocaleTimeString())
+          // V9.3: Auto-fetch RSSI for top 10 visible nodes
+          enriched.slice(0, 10).forEach(n => {
+            if (!rssiCache[n.bssid]) {
+              fetch(`${API}/sensors/wifi/rssi_history?bssid=${encodeURIComponent(n.bssid)}&limit=20`)
+                .then(r => r.json())
+                .then(d => setRssiCache(prev => ({ ...prev, [n.bssid]: d.history || [] })))
+                .catch(() => {})
+            }
+          })
+        })
+        .catch(console.error)
+    }
+    const fetchHealth = () => {
+      fetch(`${API}/sensors/health`).then(r => r.json()).then(d => setProbeHealth(d.wifi_probe)).catch(() => {})
+    }
+    fetchRadar()
+    fetchHealth()
+    const timer = setInterval(fetchRadar, 3000)
+    const healthTimer = setInterval(fetchHealth, 10000)
+    return () => { clearInterval(timer); clearInterval(healthTimer) }
+  }, [])
+
+  // V9.3: Fetch RSSI history for sparkline when a row is expanded
+  useEffect(() => {
+    if (expandedBssid && !rssiCache[expandedBssid]) {
+      fetch(`${API}/sensors/wifi/rssi_history?bssid=${encodeURIComponent(expandedBssid)}&limit=20`)
+        .then(r => r.json())
+        .then(d => setRssiCache(prev => ({ ...prev, [expandedBssid]: d.history || [] })))
+        .catch(() => {})
+    }
+  }, [expandedBssid])
+
+  // V9.3: Inline SVG Sparkline component
+  const Sparkline = ({ data }) => {
+    if (!data || data.length < 2) return <span style={{ color: '#666', fontSize: '10px' }}>数据不足</span>
+    const values = data.map(d => d.signal_strength)
+    const min = Math.min(...values), max = Math.max(...values)
+    const range = max - min || 1
+    const w = 120, h = 28
+    const points = values.map((v, i) => `${(i / (values.length - 1)) * w},${h - ((v - min) / range) * h}`).join(' ')
+    return (
+      <svg width={w} height={h} style={{ verticalAlign: 'middle' }}>
+        <polyline points={points} fill="none" stroke="#00FFFF" strokeWidth="1.5" opacity="0.8" />
+        <circle cx={(values.length - 1) / (values.length - 1) * w} cy={h - ((values[values.length - 1] - min) / range) * h} r="2.5" fill="#00FFFF" />
+      </svg>
+    )
+  }
+
+  // V9.3: Encryption color logic
+  const encColor = (enc) => {
+    if (!enc) return '#666'
+    const e = enc.toUpperCase()
+    if (e === 'OPN' || e.includes('WEP')) return '#FF3B30'
+    if (e.includes('WPA3')) return '#30D158'
+    if (e.includes('WPA2')) return '#FF9900'
+    return '#aaa'
+  }
+
+  // V9.3: Copy to clipboard helper
+  const copyCmd = (cmd, e) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(cmd).catch(() => {})
+    // Brief visual feedback via the button
+    const btn = e.currentTarget
+    const orig = btn.textContent
+    btn.textContent = '✓ 已复制'
+    setTimeout(() => { btn.textContent = orig }, 1200)
+  }
+
+  const healthDotColor = probeHealth ? (probeHealth.status === 'online' ? '#30D158' : probeHealth.status === 'delayed' ? '#FF9900' : '#666') : '#444'
+
+  // V9.3: Separate live / ghosted nodes
+  const liveNodes = nodes.filter(n => n.stale !== 'ghost')
+  const ghostNodes = nodes.filter(n => n.stale === 'ghost')
+  const [showGhosts, setShowGhosts] = useState(false)
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto' }}>
+      <div style={{ padding: '16px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <span style={{ color: '#00FFFF', fontSize: '14px', fontWeight: 'bold' }}>[RF] 态势感知雷达</span>
+          <span style={{ color: '#666', fontSize: '10px', marginLeft: '8px' }}>边缘探针 ALFA 网卡 | 3s 自动刷新</span>
+        </div>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <span style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: healthDotColor, boxShadow: probeHealth?.status === 'online' ? `0 0 6px ${healthDotColor}` : 'none' }} />
+            探针: {probeHealth?.status || 'unknown'} ({probeHealth?.nodes_count || 0} AP)
+          </span>
+          <span style={{ color: '#30D158', fontSize: '11px', fontFamily: 'monospace' }}>SYNC: {lastUpdate || '...'}</span>
+        </div>
+      </div>
+      
+      <div style={{ padding: '0 16px', flex: 1 }}>
+        {nodes.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#666', marginTop: '100px', fontFamily: 'monospace' }}>
+            <Radio size={48} opacity={0.2} style={{ marginBottom: '16px' }} />
+            <div>NO SIGNAL DETECTED</div>
+            <div style={{ fontSize: '11px', marginTop: '8px' }}>请确保 Kali 前线探针 <code>claw_wifi_sensor.py</code> 已上线并正在发送心跳</div>
+          </div>
+        ) : (
+          <>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ width: '140px' }}>信号 / RSSI</th>
+                <th>BSSID</th>
+                <th>ESSID</th>
+                <th>CH</th>
+                <th>加密</th>
+                <th>状态</th>
+                <th>Kali 参考</th>
+              </tr>
+            </thead>
+            <tbody>
+              {liveNodes.map(node => {
+                const pwr = node.power;
+                let color = '#30D158';
+                if (pwr > -60) color = '#FF3B30';
+                else if (pwr > -80) color = '#FF9900';
+                
+                const isSelected = globalTargets.includes(node.bssid);
+                const isExpanded = expandedBssid === node.bssid;
+                const staleOpacity = node.stale === 'fading' ? 0.35 : node.stale === 'mild' ? 0.6 : 1;
+                const staleBorder = node.stale === 'fading' ? '1px dashed #333' : 'none';
+                
+                return (
+                  <React.Fragment key={node.bssid}>
+                    <tr style={{ background: isSelected ? 'rgba(0, 255, 255, 0.1)' : 'transparent', cursor: 'pointer', transition: 'all 0.4s', opacity: staleOpacity, borderBottom: staleBorder }} onClick={() => { toggleGlobalTarget(node.bssid); setExpandedBssid(isExpanded ? null : node.bssid) }}>
+                      <td style={{ color: color, fontWeight: 'bold' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{isSelected ? '✓' : ''} {pwr}</span>
+                          <Sparkline data={rssiCache[node.bssid]} />
+                        </div>
+                      </td>
+                      <td style={{ color: '#00FFFF', fontFamily: 'monospace', fontSize: '11px' }}>{node.bssid}</td>
+                      <td style={{ color: '#fff' }}>{node.essid === '<HIDDEN>' ? <span style={{ color: '#666', fontStyle: 'italic' }}>隐藏网域</span> : node.essid}</td>
+                      <td style={{ color: '#aaa' }}>{node.channel}</td>
+                      <td><span style={{ color: encColor(node.encryption), background: `${encColor(node.encryption)}15`, padding: '2px 6px', fontSize: '10px', fontWeight: 'bold' }}>{node.encryption}</span></td>
+                      <td><span style={{ fontSize: '10px', color: node.handshake_captured ? '#30D158' : '#666' }}>{node.handshake_captured ? '[CAPTURED]' : '—'}</span></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button style={{ background: 'transparent', color: '#00FFFF', border: '1px solid #333', padding: '2px 8px', cursor: 'pointer', fontSize: '10px', transition: 'all 0.2s' }} onClick={(e) => copyCmd(`sudo airodump-ng --bssid ${node.bssid} -c ${node.channel} -w capture wlan0mon`, e)}>
+                            ▸ 锁频
+                          </button>
+                          <button style={{ background: 'transparent', color: '#FF9900', border: '1px solid #333', padding: '2px 8px', cursor: 'pointer', fontSize: '10px', transition: 'all 0.2s' }} onClick={(e) => copyCmd(`sudo aireplay-ng --deauth 10 -a ${node.bssid} wlan0mon`, e)}>
+                            ▸ Deauth
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr style={{ background: 'rgba(0,255,255,0.03)' }}>
+                        <td colSpan="7" style={{ padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', gap: '32px', alignItems: 'center', fontSize: '11px' }}>
+                            <div><span style={{ color: '#666' }}>制造商:</span> <span style={{ color: '#ccc' }}>{node.manufacturer || '未知'}</span></div>
+                            <div><span style={{ color: '#666' }}>客户端:</span> <span style={{ color: '#ccc' }}>{node.clients_count || 0}</span></div>
+                            <div><span style={{ color: '#666' }}>首次发现:</span> <span style={{ color: '#ccc' }}>{node.first_seen || '—'}</span></div>
+                            <div><span style={{ color: '#666' }}>最后活跃:</span> <span style={{ color: '#ccc' }}>{node.last_seen || '—'}</span></div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+
+          {/* V9.3 Ghosting: Collapsed archive for ghost nodes */}
+          {ghostNodes.length > 0 && (
+            <div style={{ margin: '8px 0', borderTop: '1px dashed #333', paddingTop: '8px' }}>
+              <div style={{ cursor: 'pointer', color: '#666', fontSize: '11px', padding: '4px 0', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => setShowGhosts(g => !g)}>
+                <span>{showGhosts ? '▼' : '▶'}</span>
+                <span>历史残影 ({ghostNodes.length} 个已断联 AP)</span>
+              </div>
+              {showGhosts && ghostNodes.map(node => (
+                <div key={node.bssid} style={{ display: 'flex', gap: '16px', padding: '4px 8px', opacity: 0.3, fontSize: '11px', fontFamily: 'monospace', borderBottom: '1px dashed #1a1a1a' }}>
+                  <span style={{ color: '#666' }}>{node.power} dBm</span>
+                  <span style={{ color: '#444' }}>{node.bssid}</span>
+                  <span style={{ color: '#555' }}>{node.essid}</span>
+                  <span style={{ color: '#444' }}>CH {node.channel}</span>
+                  <span style={{ color: '#555' }}>{node.encryption}</span>
+                  <span style={{ color: '#444', marginLeft: 'auto' }}>最后: {node.last_seen}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          </>
+        )}
       </div>
     </div>
   )
@@ -868,6 +1142,23 @@ function ReconOverview({ stats, assets, asset, onExecCommand }) {
           <span style={{ color: '#666', fontSize: '10px', marginLeft: '8px' }}>当前视图: 宏观量化指标与威胁热点分布</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button style={{ background: 'transparent', color: '#FF9900', border: '1px solid #FF9900', padding: '6px 16px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }} onClick={() => onExecCommand("请调用 tcpdump/tshark 监听并解析当前局域网内的 UDP/ARP 隐蔽广播探测数据包（约1分钟），不要主动发包，分析潜在的隐藏 IoT 设备或私有云节点。")} onMouseOver={e => e.currentTarget.style.background='rgba(255,153,0,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
+            <Radio size={14} /> 隐蔽广播嗅探
+          </button>
+          <button style={{ background: 'transparent', color: '#FF3B30', border: '1px solid #FF3B30', padding: '6px 16px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }} onClick={() => {
+            if (window.confirm("[!] 警告：系统将抹杀所有超过 48 小时未回应的机器。\n\n如果您最近 48 小时内没有重新发起过全域探测（点名盘点），\n此举可能会清空大盘！强烈建议清理前先跑一遍探测。\n\n确认执行 48H 静默残影物理剔除吗？")) {
+                fetch(`${API}/assets/cleanup`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({inactive_hours: 48}) })
+                  .then(r=>r.json()).then(d=>{
+                    if(d.status === 'ok') { 
+                      alert(`清理成功！共分离 ${d.deleted_count} 台物理离线/幽灵节点.`); 
+                      // Trigger data flush
+                      refreshAssets()
+                    }
+                }).catch(console.error);
+            }
+          }} onMouseOver={e => e.currentTarget.style.background='rgba(255,59,48,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
+            <Trash2 size={14} /> 清除 48H 残影
+          </button>
           <button style={{ background: 'rgba(0,255,255,0.1)', color: '#00FFFF', border: '1px solid #00FFFF', padding: '6px 16px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }} onClick={() => onExecCommand("调用探测模块扫描当前战区全网段的存活资产 (Nmap 智能嗅探)")} onMouseOver={e => e.currentTarget.style.background='rgba(0,255,255,0.2)'} onMouseOut={e => e.currentTarget.style.background='rgba(0,255,255,0.1)'}>
             <Zap size={14} /> 全域资产智能探测
           </button>
@@ -1080,8 +1371,8 @@ function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
             <th>指纹/OS</th>
             <th>端口数</th>
             <th>服务清单</th>
-            <th>杀伤链评级</th>
-            <th>快捷操作</th>
+            <th>威胁评级</th>
+            <th>AI 研判</th>
           </tr>
         </thead>
         <tbody>
@@ -1103,8 +1394,8 @@ function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
                   {a.ports.some(p => [445, 3389].includes(p.port)) ? '极危 (RED)' : '普通 (LOW)'}
                 </td>
                 <td onClick={e => e.stopPropagation()}>
-                  <button style={{ background: '#222', color: '#FF9900', border: '1px solid #333', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', transition: 'background 0.2s', whiteSpace: 'nowrap' }} onClick={() => onExecCommand(`请对目标资产 ${a.ip} 进行深度渗透和漏洞探测。如果存在高危端口，请直接尝试漏洞利用。`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}>
-                    AI 渗透
+                  <button style={{ background: '#222', color: '#FF9900', border: '1px solid #333', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', transition: 'background 0.2s', whiteSpace: 'nowrap' }} onClick={() => onExecCommand(`请对目标资产 ${a.ip} 进行安全态势研判分析：列出开放端口的风险等级、潜在攻击面、建议的侦察方向。`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}>
+                    AI 研判
                   </button>
                 </td>
               </tr>
@@ -1112,56 +1403,102 @@ function AssetTable({ assets, onExecCommand, onSelectAsset, selectedIp }) {
                 <tr key={a.ip + '_detail'}>
                   <td colSpan="7" style={{ padding: 0 }}>
                     <div style={{ background: 'rgba(0,255,255,0.03)', padding: '12px 16px', borderTop: '1px dashed #333', borderBottom: '1px dashed #333' }}>
-                      <div style={{ display: 'flex', gap: '24px', marginBottom: '12px' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '11px', color: '#FF9900', marginBottom: '8px', fontWeight: 'bold' }}>-- 端口详情 --</div>
-                          <table style={{ width: '100%', fontSize: '11px' }}>
-                            <thead><tr style={{ color: '#666' }}><th style={{ textAlign: 'left', padding: '2px 8px' }}>端口</th><th style={{ textAlign: 'left', padding: '2px 8px' }}>服务</th><th style={{ textAlign: 'left', padding: '2px 8px' }}>产品</th><th style={{ textAlign: 'left', padding: '2px 8px' }}>版本</th></tr></thead>
-                            <tbody>
-                              {a.ports.map(p => (
-                                <tr key={p.port}>
-                                  <td style={{ color: [445, 3389, 21].includes(p.port) ? '#FF3B30' : '#00FFFF', padding: '2px 8px' }}>{p.port}</td>
-                                  <td style={{ color: '#D0D0D0', padding: '2px 8px' }}>{p.service}</td>
-                                  <td style={{ color: '#999', padding: '2px 8px' }}>{p.product || '未知'}</td>
-                                  <td style={{ color: '#999', padding: '2px 8px' }}>{p.version || '未知'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        <div style={{ width: '260px', flexShrink: 0 }}>
-                          <div style={{ fontSize: '11px', color: '#FF9900', marginBottom: '8px', fontWeight: 'bold' }}>-- 武器选择 --</div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '8px' }}>
-                            {/* Smart suggestions based on ports */}
-                            {a.ports.some(p => [80, 443, 8080, 8443].includes(p.port)) && <>
-                              <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', textAlign: 'left', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => onExecCommand(`使用 Nuclei 对 ${a.ip} 进行 Web 漏洞扫描`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}><Search size={11} /> Nuclei 漏洞扫描</button>
-                              <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', textAlign: 'left', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => onExecCommand(`使用 Nikto 对 ${a.ip} 进行 Web 服务安全扫描`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}><Globe size={11} /> Nikto Web 扫描</button>
-                              <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', textAlign: 'left', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => onExecCommand(`使用 SQLMap 对 ${a.ip} 的 Web 服务进行 SQL 注入检测`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}><Bug size={11} /> SQLMap 注入检测</button>
-                            </>}
-                            {a.ports.some(p => p.port === 445) && <>
-                              <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', textAlign: 'left', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => onExecCommand(`使用 Impacket 对 ${a.ip} 进行 SMB 枚举和横向移动探测`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}><Lock size={11} /> Impacket SMB</button>
-                              <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', textAlign: 'left', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => onExecCommand(`使用 enum4linux 对 ${a.ip} 进行 Windows/Samba 信息枚举`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}><ClipboardList size={11} /> enum4linux 枚举</button>
-                            </>}
-                            {a.ports.some(p => p.port === 22) &&
-                              <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', textAlign: 'left', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => onExecCommand(`使用 Hydra 对 ${a.ip}:22 进行 SSH 弱口令暴破`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}><KeyRound size={11} /> Hydra SSH 暴破</button>
-                            }
-                            {a.ports.some(p => p.port === 3389) &&
-                              <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', textAlign: 'left', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => onExecCommand(`检查 ${a.ip} 的 RDP 是否存在 BlueKeep (CVE-2019-0708) 漏洞`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}><Monitor size={11} /> RDP BlueKeep</button>
-                            }
-                            {/* Universal tools */}
-                            <button style={{ background: '#222', color: '#FF3B30', border: '1px solid #333', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', textAlign: 'left', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => onExecCommand(`使用 Metasploit (msfconsole) 对 ${a.ip} 进行全面漏洞利用扫描`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}><Skull size={11} /> Metasploit 扫描</button>
-                            <button style={{ background: '#222', color: '#FF9900', border: '1px solid #333', padding: '5px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', textAlign: 'left', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => onExecCommand(`对 ${a.ip} 进行全面的深度安全分析，综合所有可用工具`)} onMouseOver={e => e.currentTarget.style.background = '#333'} onMouseOut={e => e.currentTarget.style.background = '#222'}><Crosshair size={11} /> AI 全面分析</button>
-                          </div>
-                          {/* More weapons dropdown */}
-                          <details style={{ fontSize: '10px' }}>
-                            <summary style={{ color: '#666', cursor: 'pointer', padding: '4px 0' }}>更多武器 ▾</summary>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
-                              {[['Nmap 深扫', 'nmap -sV -sC -O'], ['Gobuster 目录', 'gobuster dir'], ['FFuf Fuzzer', 'ffuf'], ['Hashcat 破解', 'hashcat'], ['Responder 投毒', 'responder'], ['Binwalk 固件', 'binwalk'], ['Socat 隧道', 'socat']].map(([label, cmd]) => (
-                                <button key={label} style={{ background: '#1a1a1a', color: '#999', border: '1px solid #222', padding: '4px 8px', borderRadius: '3px', cursor: 'pointer', fontSize: '9px', textAlign: 'left', transition: 'all 0.2s' }} onClick={() => onExecCommand(`使用 ${label} (${cmd}) 对 ${a.ip} 进行操作`)} onMouseOver={e => { e.currentTarget.style.color = '#00FFFF'; e.currentTarget.style.borderColor = '#333' }} onMouseOut={e => { e.currentTarget.style.color = '#999'; e.currentTarget.style.borderColor = '#222' }}>{label}</button>
-                              ))}
-                            </div>
-                          </details>
-                        </div>
+                      {/* Section 1: Port Details (full width) */}
+                      <div style={{ marginBottom: '12px' }}>
+                        <div style={{ fontSize: '11px', color: '#FF9900', marginBottom: '8px', fontWeight: 'bold' }}>-- 端口详情 --</div>
+                        <table style={{ width: '100%', fontSize: '11px' }}>
+                          <thead><tr style={{ color: '#666' }}><th style={{ textAlign: 'left', padding: '2px 8px' }}>端口</th><th style={{ textAlign: 'left', padding: '2px 8px' }}>服务</th><th style={{ textAlign: 'left', padding: '2px 8px' }}>产品</th><th style={{ textAlign: 'left', padding: '2px 8px' }}>版本</th></tr></thead>
+                          <tbody>
+                            {a.ports.map(p => (
+                              <tr key={p.port}>
+                                <td style={{ color: [445, 3389, 21].includes(p.port) ? '#FF3B30' : '#00FFFF', padding: '2px 8px' }}>{p.port}</td>
+                                <td style={{ color: '#D0D0D0', padding: '2px 8px' }}>{p.service}</td>
+                                <td style={{ color: '#999', padding: '2px 8px' }}>{p.product || '未知'}</td>
+                                <td style={{ color: '#999', padding: '2px 8px' }}>{p.version || '未知'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Section 2: Kali Reference Commands (grid with descriptions + copy toast) */}
+                      <div style={{ fontSize: '11px', color: '#FF9900', marginBottom: '8px', fontWeight: 'bold' }}>-- Kali 执行端参考指令 --</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '6px' }}>
+                        {/* Context-aware suggestions based on detected ports */}
+                        {a.ports.some(p => [80, 443, 8080, 8443].includes(p.port)) && <>
+                          {[{icon: Search, name: 'Nuclei', desc: '基于模板的批量漏洞扫描', cmd: `nuclei -u http://${a.ip} -severity medium,high,critical`},
+                            {icon: Globe, name: 'Nikto', desc: 'Web 服务器配置缺陷检测', cmd: `nikto -h http://${a.ip}`},
+                            {icon: Bug, name: 'SQLMap', desc: 'SQL 注入自动化检测', cmd: `sqlmap -u "http://${a.ip}/" --batch --crawl=2`}].map(t => {
+                            const Icon = t.icon;
+                            return <button key={t.name} style={{ background: '#111', border: '1px solid #222', borderRadius: '4px', padding: '8px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                              onClick={(e) => { navigator.clipboard.writeText(t.cmd); const b = e.currentTarget; b.style.borderColor = '#00FFFF'; const orig = b.querySelector('.cmd-hint').textContent; b.querySelector('.cmd-hint').textContent = '✓ 已复制到剪贴板'; setTimeout(() => { b.style.borderColor = '#222'; b.querySelector('.cmd-hint').textContent = orig }, 1200) }}
+                              onMouseOver={e => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.background = '#151515' }}
+                              onMouseOut={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.background = '#111' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#00FFFF', fontSize: '11px', fontWeight: 'bold' }}><Icon size={11} /> {t.name}</div>
+                              <div style={{ color: '#666', fontSize: '9px' }}>{t.desc}</div>
+                              <div className="cmd-hint" style={{ color: '#444', fontSize: '9px', fontFamily: 'monospace', marginTop: '2px' }}>$ {t.cmd.substring(0, 40)}...</div>
+                            </button>
+                          })}
+                        </>}
+                        {a.ports.some(p => p.port === 445) && <>
+                          {[{icon: Lock, name: 'Impacket SMB', desc: '匿名/凭据 SMB 连接探测', cmd: `impacket-smbclient ${a.ip} -no-pass`},
+                            {icon: ClipboardList, name: 'enum4linux', desc: '域用户/共享/策略枚举', cmd: `enum4linux -a ${a.ip}`}].map(t => {
+                            const Icon = t.icon;
+                            return <button key={t.name} style={{ background: '#111', border: '1px solid #222', borderRadius: '4px', padding: '8px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                              onClick={(e) => { navigator.clipboard.writeText(t.cmd); const b = e.currentTarget; b.style.borderColor = '#00FFFF'; const orig = b.querySelector('.cmd-hint').textContent; b.querySelector('.cmd-hint').textContent = '✓ 已复制到剪贴板'; setTimeout(() => { b.style.borderColor = '#222'; b.querySelector('.cmd-hint').textContent = orig }, 1200) }}
+                              onMouseOver={e => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.background = '#151515' }}
+                              onMouseOut={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.background = '#111' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#00FFFF', fontSize: '11px', fontWeight: 'bold' }}><Icon size={11} /> {t.name}</div>
+                              <div style={{ color: '#666', fontSize: '9px' }}>{t.desc}</div>
+                              <div className="cmd-hint" style={{ color: '#444', fontSize: '9px', fontFamily: 'monospace', marginTop: '2px' }}>$ {t.cmd}</div>
+                            </button>
+                          })}
+                        </>}
+                        {a.ports.some(p => p.port === 22) &&
+                          <button style={{ background: '#111', border: '1px solid #222', borderRadius: '4px', padding: '8px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                            onClick={(e) => { navigator.clipboard.writeText(`hydra -L users.txt -P pass.txt ssh://${a.ip}`); const b = e.currentTarget; b.style.borderColor = '#00FFFF'; const orig = b.querySelector('.cmd-hint').textContent; b.querySelector('.cmd-hint').textContent = '✓ 已复制到剪贴板'; setTimeout(() => { b.style.borderColor = '#222'; b.querySelector('.cmd-hint').textContent = orig }, 1200) }}
+                            onMouseOver={e => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.background = '#151515' }}
+                            onMouseOut={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.background = '#111' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#00FFFF', fontSize: '11px', fontWeight: 'bold' }}><KeyRound size={11} /> Hydra SSH</div>
+                            <div style={{ color: '#666', fontSize: '9px' }}>SSH 登录凭据在线爆破</div>
+                            <div className="cmd-hint" style={{ color: '#444', fontSize: '9px', fontFamily: 'monospace', marginTop: '2px' }}>{`$ hydra ... ssh://${a.ip}`}</div>
+                          </button>
+                        }
+                        {a.ports.some(p => p.port === 3389) &&
+                          <button style={{ background: '#111', border: '1px solid #222', borderRadius: '4px', padding: '8px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                            onClick={(e) => { navigator.clipboard.writeText(`nmap --script rdp-vuln-ms12-020 -p 3389 ${a.ip}`); const b = e.currentTarget; b.style.borderColor = '#00FFFF'; const orig = b.querySelector('.cmd-hint').textContent; b.querySelector('.cmd-hint').textContent = '✓ 已复制到剪贴板'; setTimeout(() => { b.style.borderColor = '#222'; b.querySelector('.cmd-hint').textContent = orig }, 1200) }}
+                            onMouseOver={e => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.background = '#151515' }}
+                            onMouseOut={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.background = '#111' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#00FFFF', fontSize: '11px', fontWeight: 'bold' }}><Monitor size={11} /> RDP 漏洞检测</div>
+                            <div style={{ color: '#666', fontSize: '9px' }}>MS12-020 远程桌面漏洞扫描</div>
+                            <div className="cmd-hint" style={{ color: '#444', fontSize: '9px', fontFamily: 'monospace', marginTop: '2px' }}>{`$ nmap --script rdp-vuln... ${a.ip}`}</div>
+                          </button>
+                        }
+                        {/* Universal tools - always shown */}
+                        <button style={{ background: '#111', border: '1px solid #222', borderRadius: '4px', padding: '8px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                          onClick={(e) => { navigator.clipboard.writeText(`nmap -sV -sC -O ${a.ip}`); const b = e.currentTarget; b.style.borderColor = '#00FFFF'; const orig = b.querySelector('.cmd-hint').textContent; b.querySelector('.cmd-hint').textContent = '✓ 已复制到剪贴板'; setTimeout(() => { b.style.borderColor = '#222'; b.querySelector('.cmd-hint').textContent = orig }, 1200) }}
+                          onMouseOver={e => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.background = '#151515' }}
+                          onMouseOut={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.background = '#111' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#30D158', fontSize: '11px', fontWeight: 'bold' }}><Radar size={11} /> Nmap 深度扫描</div>
+                          <div style={{ color: '#666', fontSize: '9px' }}>端口 + 服务版本 + OS 指纹</div>
+                          <div className="cmd-hint" style={{ color: '#444', fontSize: '9px', fontFamily: 'monospace', marginTop: '2px' }}>{`$ nmap -sV -sC -O ${a.ip}`}</div>
+                        </button>
+                        <button style={{ background: '#111', border: '1px solid #222', borderRadius: '4px', padding: '8px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                          onClick={(e) => { navigator.clipboard.writeText(`msfconsole -q -x "use auxiliary/scanner/portscan/tcp; set RHOSTS ${a.ip}; run; exit"`); const b = e.currentTarget; b.style.borderColor = '#FF3B30'; const orig = b.querySelector('.cmd-hint').textContent; b.querySelector('.cmd-hint').textContent = '✓ 已复制到剪贴板'; setTimeout(() => { b.style.borderColor = '#222'; b.querySelector('.cmd-hint').textContent = orig }, 1200) }}
+                          onMouseOver={e => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.background = '#151515' }}
+                          onMouseOut={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.background = '#111' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#FF3B30', fontSize: '11px', fontWeight: 'bold' }}><Skull size={11} /> Metasploit</div>
+                          <div style={{ color: '#666', fontSize: '9px' }}>MSF 辅助模块端口扫描</div>
+                          <div className="cmd-hint" style={{ color: '#444', fontSize: '9px', fontFamily: 'monospace', marginTop: '2px' }}>$ msfconsole -q -x "..."</div>
+                        </button>
+                        <button style={{ background: '#111', border: '1px solid #FF990030', borderRadius: '4px', padding: '8px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                          onClick={() => onExecCommand(`请对目标资产 ${a.ip} 进行安全态势研判分析：列出开放端口的风险等级、潜在攻击面、建议的侦察方向。`)}
+                          onMouseOver={e => { e.currentTarget.style.borderColor = '#FF9900'; e.currentTarget.style.background = '#151515' }}
+                          onMouseOut={e => { e.currentTarget.style.borderColor = '#FF990030'; e.currentTarget.style.background = '#111' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#FF9900', fontSize: '11px', fontWeight: 'bold' }}><Crosshair size={11} /> AI 研判分析</div>
+                          <div style={{ color: '#666', fontSize: '9px' }}>Gemini 综合态势评估与建议</div>
+                          <div className="cmd-hint" style={{ color: '#FF990060', fontSize: '9px', marginTop: '2px' }}>▸ 发送至 AI Copilot 面板</div>
+                        </button>
                       </div>
                     </div>
                   </td>
@@ -1195,155 +1532,223 @@ function PortMatrix({ asset }) {
   )
 }
 
-// ========== TERMINAL PANEL ==========
-function XTermConsole() {
-  const containerRef = useRef(null)
+// [REMOVED in V9.3] XTermConsole — SSH 进 Kali 用原生终端更好
 
-  useEffect(() => {
-    if (!containerRef.current) return
-    let ws = null;
-    let ro = null;
-    const fitAddon = new FitAddon()
-    const terminal = new Terminal({
-      theme: { background: '#000', foreground: '#00FFFF', cursor: '#FF9900' },
-      fontFamily: 'Consolas, monospace',
-      fontSize: 14
-    })
-    terminal.loadAddon(fitAddon)
-
-    const initId = setTimeout(() => {
-      try {
-        terminal.open(containerRef.current)
-        fitAddon.fit()
-      } catch (e) {}
-
-      ws = new WebSocket(`ws://${window.location.hostname}:8000/api/v1/terminal`)
-      ws.onopen = () => {
-        terminal.writeln('\x1b[33m✧ Eavesdropping Shell / PTY Bridge Connected \x1b[0m\r\n')
-        ws.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }))
-      }
-
-      ro = new ResizeObserver(() => {
-        try {
-          fitAddon.fit()
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'resize', cols: terminal.cols, rows: terminal.rows }))
-          }
-        } catch (e) { }
-      })
-      ro.observe(containerRef.current)
-
-      ws.onmessage = (ev) => {
-        const msg = JSON.parse(ev.data)
-        if (msg.type === 'output') terminal.write(msg.data)
-      }
-
-      terminal.onData(data => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'input', data }))
-        }
-      })
-    }, 100)
-
-    return () => {
-      clearTimeout(initId)
-      if (ro) ro.disconnect()
-      if (ws) ws.close()
-      terminal.dispose()
-    }
-  }, [])
-
-  return <div ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden' }} />
-}
 
 function ArmoryViewTab({ assets, selectedIp, onExecCommand }) {
   // Global Multi-Select Hub
   const globalTargets = useStore(s => s.globalTargets)
+  const [expanded, setExpanded] = useState(null) // track expanded card key
 
   const armoryData = [
     {
       cat: '侦察 (Recon)', color: '#00FFFF', mods: [
-        { label: '存活探测', desc: 'fping/ping 目标存活心跳扫描', cmd: 'make fast' },
-        { label: 'Nmap 深扫', desc: '全端口 TCP/UDP 指纹探测', cmd: 'nmap -sV -O' },
-        { label: '服务识别', desc: '低频协议报文特征提取', cmd: 'make probe' },
-        { label: '结果解析', desc: 'Nmap XML 解析写入数据库', cmd: 'make parse' },
-        { label: '幽灵侦察', desc: '被动侦察降低 IDS 触发', cmd: 'make ghost_recon' },
-        { label: 'Gobuster', desc: '目录/DNS/VHost 高速枚举', cmd: 'gobuster dir' },
-        { label: 'FFuf', desc: 'Web Fuzzer 路径与参数爆破', cmd: 'ffuf' },
-        { label: 'enum4linux', desc: 'Windows/Samba 信息枚举', cmd: 'enum4linux' },
+        { label: '存活探测', desc: 'fping/ping 目标存活心跳扫描', cmd: 'make fast',
+          usage: '快速判定目标 IP/子网内哪些主机在线。适合渗透初期大范围筛选。',
+          input: '目标 IP 或 CIDR 子网 (如 192.168.1.0/24)',
+          output: '存活主机列表 → 自动写入 claw.db assets 表',
+          ttp: 'T1018 Remote System Discovery' },
+        { label: 'Nmap 深扫', desc: '全端口 TCP/UDP 指纹探测', cmd: 'nmap -sV -sC -O',
+          usage: '对单个目标进行深度端口扫描 + 服务版本识别 + OS 指纹检测。耗时较长但信息最全。',
+          input: '目标 IP (如 192.168.1.100)',
+          output: 'XML 扫描报告 → 用 make parse 导入数据库 → HQ 大屏可视',
+          ttp: 'T1046 Network Service Discovery' },
+        { label: '服务识别', desc: '低频协议报文特征提取', cmd: 'make probe',
+          usage: '对已发现端口进行细粒度协议握手探测，获取 Banner 和版本号。',
+          input: '已有扫描结果中的 IP:Port 列表',
+          output: '服务版本详情更新到 ports 表的 product/version 字段',
+          ttp: 'T1046 Network Service Discovery' },
+        { label: '结果解析', desc: 'Nmap XML 解析写入数据库', cmd: 'make parse',
+          usage: '将 Nmap 生成的 XML 输出文件解析并批量导入 CLAW 资产大盘。',
+          input: 'CatTeam_Loot/ 下的 .xml 扫描文件',
+          output: '资产、端口、OS 信息落库 → HQ 指挥座舱实时刷新',
+          ttp: 'T1018 Remote System Discovery' },
+        { label: 'Gobuster', desc: '目录/DNS/VHost 高速枚举', cmd: 'gobuster dir -u http://<TARGET> -w /usr/share/wordlists/dirb/common.txt',
+          usage: '对 Web 服务进行目录遍历，发现隐藏路径如 /admin、/backup 等。',
+          input: '目标 URL + 字典文件路径',
+          output: '发现的有效路径列表（HTTP 200/301/403 等）',
+          ttp: 'T1595.003 Wordlist Scanning' },
+        { label: 'FFuf', desc: 'Web Fuzzer 路径与参数爆破', cmd: 'ffuf -u http://<TARGET>/FUZZ -w /usr/share/wordlists/dirb/common.txt',
+          usage: 'Fuzz 测试 URL 路径、POST 参数、Header 值等，适合发现隐匿接口。',
+          input: '带 FUZZ 占位的 URL + 字典',
+          output: '匹配到的有效路径/参数及其响应大小',
+          ttp: 'T1595.003 Wordlist Scanning' },
+        { label: 'enum4linux', desc: 'Windows/Samba 信息枚举', cmd: 'enum4linux -a',
+          usage: '枚举 Windows 域/Samba 共享的用户、组、策略、共享目录等信息。',
+          input: '目标 IP（需开放 139/445 端口）',
+          output: '域用户列表、共享目录、密码策略等情报',
+          ttp: 'T1087 Account Discovery' },
       ]
     },
     {
       cat: '漏洞利用 (Exploit)', color: '#FF3B30', mods: [
-        { label: 'Metasploit', desc: 'MSF 6.4 世界级渗透框架', cmd: 'msfconsole' },
-        { label: 'Nuclei', desc: '模板驱动漏洞批量扫描', cmd: 'nuclei' },
-        { label: 'Nikto', desc: 'Web 服务器安全扫描器', cmd: 'nikto' },
-        { label: 'SQLMap', desc: 'SQL 注入自动化检测利用', cmd: 'sqlmap' },
-        { label: 'Web 审计', desc: 'XSS/RCE 专项漏洞审计', cmd: 'make web' },
-        { label: '定制 Exploit', desc: '目标定制化漏洞利用脚本', cmd: 'make exploit' },
-        { label: '代理穿透', desc: '认证绕过 Payload 生成器', cmd: 'make proxy-unlock' },
+        { label: 'Nuclei', desc: '模板驱动漏洞批量扫描', cmd: 'nuclei -u http://<TARGET>',
+          usage: '基于 YAML 模板的快速漏洞扫描器，支持 CVE/CNVD 等数千种检测。',
+          input: '目标 URL 或 URL 列表文件',
+          output: '漏洞匹配结果（含严重等级、CVE 编号、修复建议）',
+          ttp: 'T1190 Exploit Public-Facing Application' },
+        { label: 'Nikto', desc: 'Web 服务器安全扫描器', cmd: 'nikto -h http://<TARGET>',
+          usage: '检测 Web 服务器配置缺陷、过时版本、默认页面、XSS 等。',
+          input: '目标 URL',
+          output: '安全缺陷条目列表（含 OSVDB 编号）',
+          ttp: 'T1595.002 Vulnerability Scanning' },
+        { label: 'SQLMap', desc: 'SQL 注入自动化检测利用', cmd: 'sqlmap -u "http://<TARGET>/page?id=1"',
+          usage: '自动检测并利用 SQL 注入漏洞，支持数据库提取和 OS Shell。',
+          input: '含可疑参数的 URL 或 HTTP 请求文件',
+          output: '注入类型判定 + 数据库表/列/数据提取结果',
+          ttp: 'T1190 Exploit Public-Facing Application' },
+        { label: 'Metasploit', desc: 'MSF 世界级渗透框架', cmd: 'msfconsole',
+          usage: '集成漏洞利用、Payload 生成、后渗透模块的全链路渗透平台。[!] 交互式工具，需在终端手动使用。',
+          input: '手动在 MSF 控制台内选择模块并配置 RHOSTS/LPORT 等',
+          output: '成功利用后获得 Meterpreter/Shell 会话',
+          ttp: 'T1203 Exploitation for Client Execution' },
       ]
     },
     {
       cat: '密码破解 (Cracking)', color: '#FF9900', mods: [
-        { label: 'Hashcat', desc: 'GPU 加速哈希破解引擎', cmd: 'hashcat' },
-        { label: 'John', desc: 'John the Ripper 密码破解', cmd: 'john' },
-        { label: 'Hydra', desc: '在线多协议暴力破解', cmd: 'hydra' },
-        { label: 'Responder', desc: 'LLMNR/NBT-NS 投毒抓哈希', cmd: 'responder' },
-        { label: 'Crunch', desc: '自定义字典生成器', cmd: 'crunch' },
-        { label: 'Wordlists', desc: 'RockYou + SecLists 字典库', cmd: 'ls /usr/share/wordlists/' },
+        { label: 'Hashcat', desc: 'GPU 加速哈希破解引擎', cmd: 'hashcat -m 2500 capture.hccapx /usr/share/wordlists/rockyou.txt',
+          usage: '利用 GPU 并行计算暴力破解各种哈希格式（WPA、NTLM、SHA 等）。',
+          input: '哈希文件 + 字典文件 (或掩码规则)',
+          output: '明文密码（如果命中字典）',
+          ttp: 'T1110.002 Password Cracking' },
+        { label: 'John', desc: 'John the Ripper 密码破解', cmd: 'john --wordlist=/usr/share/wordlists/rockyou.txt',
+          usage: 'CPU 密码破解，支持自动检测哈希格式。适合快速尝试少量哈希。',
+          input: '包含哈希的文件（如 /etc/shadow 格式）',
+          output: '已破解的用户名:密码对',
+          ttp: 'T1110.002 Password Cracking' },
+        { label: 'Hydra', desc: '在线多协议暴力破解', cmd: 'hydra -l admin -P /usr/share/wordlists/rockyou.txt ssh://<TARGET>',
+          usage: '在线爆破登录接口，支持 SSH/FTP/HTTP/SMB 等 50+ 协议。[!] 会产生大量登录日志。',
+          input: '目标服务地址 + 用户名 + 字典',
+          output: '成功登录的用户名:密码组合',
+          ttp: 'T1110.001 Password Guessing' },
+        { label: 'Responder', desc: 'LLMNR/NBT-NS 投毒抓哈希', cmd: 'sudo responder -I eth0',
+          usage: '在局域网内毒化名称解析请求，捕获 NTLMv2 哈希。需要 root 权限。',
+          input: '监听网卡接口名 (如 eth0)',
+          output: 'NTLMv2 哈希 → 存入 Responder/logs/ → 转交 Hashcat 破解',
+          ttp: 'T1557.001 LLMNR/NBT-NS Poisoning' },
       ]
     },
     {
-      cat: '横向移动 (Pivot)', color: '#FF3B30', mods: [
-        { label: 'Impacket', desc: 'PsExec/SMBExec 获取 Shell', cmd: 'impacket-psexec' },
-        { label: '凭据搜刮', desc: 'SAM/SYSTEM/LSA 注册表导出', cmd: 'make loot' },
-        { label: 'Kerberoast', desc: 'SPN TGS 提取与离线破解', cmd: 'make kerberoast' },
-        { label: 'SMBClient', desc: 'SMB 共享枚举与文件操作', cmd: 'smbclient' },
-        { label: '幽灵点火', desc: '持久化植入与隐蔽通道', cmd: 'make ghost_ignition' },
-        { label: 'Socat/Netcat', desc: '隧道转发与反弹 Shell', cmd: 'socat/nc' },
+      cat: '横向移动 (Pivot)', color: '#9D00FF', mods: [
+        { label: 'Impacket', desc: 'PsExec/SMBExec 获取 Shell', cmd: 'impacket-psexec domain/user:pass@<TARGET>',
+          usage: '利用已获取的凭据通过 SMB 在远程 Windows 主机执行命令。',
+          input: '域/用户名:密码@目标IP',
+          output: '远程交互式 CMD Shell',
+          ttp: 'T1021.002 Remote Services: SMB' },
+        { label: 'Kerberoast', desc: 'SPN TGS 提取与离线破解', cmd: 'impacket-GetUserSPNs domain/user:pass -dc-ip <DC_IP> -request',
+          usage: '请求域内 SPN 对应的 TGS 票据，导出后离线破解服务账户密码。',
+          input: '域凭据 + DC IP',
+          output: 'Kerberos TGS 哈希 → 转交 Hashcat -m 13100 破解',
+          ttp: 'T1558.003 Kerberoasting' },
+        { label: 'SMBClient', desc: 'SMB 共享枚举与文件操作', cmd: 'smbclient -L //<TARGET> -U user',
+          usage: '列出远程 SMB 共享目录并进行文件上传下载操作。',
+          input: '目标 IP + 用户凭据',
+          output: '共享列表 + 文件内容',
+          ttp: 'T1021.002 Remote Services: SMB' },
       ]
     },
     {
       cat: '无线与固件 (Wireless/IoT)', color: '#30D158', mods: [
-        { label: 'Aircrack-ng', desc: 'WiFi WEP/WPA 破解套件', cmd: 'aircrack-ng' },
-        { label: 'Wifite', desc: '无线审计自动化工具', cmd: 'wifite' },
-        { label: 'Binwalk', desc: '固件逆向分析与提取', cmd: 'binwalk' },
+        { label: 'Aircrack-ng', desc: 'WiFi WEP/WPA 破解套件', cmd: 'aircrack-ng -w /usr/share/wordlists/rockyou.txt capture.cap',
+          usage: '对抓取到的 WiFi 握手包进行离线字典破解。需先用 airodump-ng 抓包。',
+          input: '.cap/.pcap 握手包文件 + 字典',
+          output: 'WiFi 明文密码（如果命中字典）',
+          ttp: 'T1110.002 Password Cracking' },
+        { label: 'Wifite', desc: '无线审计自动化工具', cmd: 'sudo wifite',
+          usage: '全自动 WiFi 渗透：扫描 → 抓握手 → 破解，一键完成。需要监听网卡。',
+          input: '无线监听网卡（自动检测）',
+          output: '已破解的 WiFi ESSID + 密码',
+          ttp: 'T1110 Brute Force' },
+        { label: 'Binwalk', desc: '固件逆向分析与提取', cmd: 'binwalk -e firmware.bin',
+          usage: '从嵌入式设备固件中提取文件系统、密钥、配置文件等。',
+          input: '固件二进制文件 (.bin/.img)',
+          output: '提取出的文件系统目录树',
+          ttp: 'T1592.002 Gather Victim Host Information: Hardware' },
       ]
     },
     {
       cat: 'AI 参谋部 + 报告', color: '#FF9900', mods: [
-        { label: 'AI 攻击研判', desc: '大模型靶标分析与链路推演', cmd: 'make ai-analyze' },
-        { label: 'AI 血猎犬', desc: 'AD 域图谱分析与路径推演', cmd: 'make bloodhound' },
-        { label: 'Lynx 战术问答', desc: '高权限红队 AI 评估引擎', cmd: 'make ask-lynx' },
-        { label: '渗透报告', desc: '基于审计日志自动生成报告', cmd: 'make report' },
-        { label: '差异对比', desc: '多次扫描差异分析', cmd: 'make diff' },
-        { label: 'Webhook', desc: '关键事件推送外部平台', cmd: 'make webhook' },
+        { label: 'AI 攻击研判', desc: '大模型靶标分析与链路推演', cmd: 'make ai-analyze',
+          usage: '调用 Gemini 对当前战区的资产和端口进行威胁评估和攻击路径推演。',
+          input: '当前战区 claw.db 中的资产数据',
+          output: 'AI 生成的攻击路径推荐报告',
+          ttp: 'TA0043 Reconnaissance' },
+        { label: '渗透报告', desc: '基于审计日志自动生成报告', cmd: 'make report',
+          usage: '聚合当前战区的扫描结果、漏洞发现、利用记录，生成结构化渗透测试报告。',
+          input: 'claw.db + agent_audit.log 数据',
+          output: 'Markdown/PDF 格式渗透报告',
+          ttp: 'N/A' },
+        { label: '差异对比', desc: '多次扫描差异分析', cmd: 'make diff',
+          usage: '比较两次扫描结果之间的差异：新增主机、消失端口、变更服务等。',
+          input: '两个 scan_id (自动选取最近两次)',
+          output: '差异报告（新增/删除/变更项）',
+          ttp: 'N/A' },
       ]
     },
   ]
 
+  const copyCmd = (cmd, e) => {
+    const target = selectedIp || globalTargets[0] || '<TARGET_IP>'
+    const fullCmd = cmd.replace(/<TARGET>/g, target).replace(/<TARGET_IP>/g, target).replace(/<DC_IP>/g, target)
+    navigator.clipboard.writeText(fullCmd).catch(() => {})
+    const btn = e.currentTarget
+    const orig = btn.textContent
+    btn.textContent = '✓ 已复制'
+    btn.style.color = '#00FFFF'
+    setTimeout(() => { btn.textContent = orig; btn.style.color = '' }, 1200)
+  }
+
   return (
     <div style={{ flex: 1, padding: '16px', overflowY: 'auto', minHeight: 0, boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <span style={{ fontSize: '16px', color: '#00FFFF', fontWeight: 'bold' }}>全域武器库阵列</span>
+        <span style={{ fontSize: '16px', color: '#00FFFF', fontWeight: 'bold' }}>Kali 执行端 · 工具手册 (V9.3)</span>
         <span style={{ fontSize: '10px', color: '#666' }}>
-          {armoryData.reduce((s, g) => s + g.mods.length, 0)} 模块就绪 · 点击卡片调用 AI 执行 · 锁定管线: <span style={{ color: globalTargets.length > 0 ? '#FF3B30' : '#00FFFF' }}>{globalTargets.length > 0 ? `${globalTargets.length} 靶向并发` : (selectedIp || '全局泛扫')}</span>
+          {armoryData.reduce((s, g) => s + g.mods.length, 0)} 模块已装填 · 点击卡片查看用法 · <span style={{ color: '#FF9900' }}>点 [COPY] 复制命令到 Kali 终端执行</span>
         </span>
       </div>
       {armoryData.map(group => (
         <div key={group.cat} style={{ marginBottom: '20px' }}>
           <div style={{ color: group.color, fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', padding: '4px 10px', background: `${group.color}15`, borderRadius: '4px', display: 'inline-block' }}>{group.cat}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
-            {group.mods.map(m => (
-              <div key={m.label} style={{ background: '#111', border: '1px solid #222', borderRadius: '4px', padding: '10px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }} onClick={() => {
-                alert(`⚠️ 指控官约束:【${m.label}】模块已在战备舱注册。\n\n按照 V9.1 Hacker Copilot 规程，如果需要发起实际渗透打击，请返回 [指挥座舱]，交给 Lynx 大模型副官为您装配参数。`);
-              }} onMouseOver={e => { e.currentTarget.style.borderColor = group.color; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }} onMouseOut={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.background = '#111' }}>
-                <div style={{ fontSize: '12px', color: group.color, fontWeight: 'bold', marginBottom: '4px' }}>{m.label}</div>
-                <div style={{ fontSize: '10px', color: '#666', lineHeight: '1.4' }}>{m.desc}</div>
-                <div style={{ fontSize: '9px', color: '#00FFFF', marginTop: '10px', paddingTop: '6px', borderTop: '1px dashed #333' }}>+ 参数配置详情 (点击查阅)</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
+            {group.mods.map(m => {
+              const isOpen = expanded === m.label
+              return (
+              <div key={m.label} style={{ background: isOpen ? '#0d1117' : '#111', border: `1px solid ${isOpen ? group.color + '60' : '#222'}`, borderRadius: '4px', padding: '10px', cursor: 'pointer', transition: 'all 0.2s' }}
+                onClick={() => setExpanded(isOpen ? null : m.label)}
+                onMouseOver={e => { if (!isOpen) { e.currentTarget.style.borderColor = group.color + '40'; e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}}
+                onMouseOut={e => { if (!isOpen) { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.background = '#111' }}}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '12px', color: group.color, fontWeight: 'bold' }}>{m.label}</div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); copyCmd(m.cmd, e) }}
+                    style={{ background: '#222', color: '#888', border: '1px solid #333', padding: '2px 8px', fontSize: '10px', cursor: 'pointer', borderRadius: '3px', transition: 'color 0.2s', whiteSpace: 'nowrap' }}
+                    onMouseOver={e => e.currentTarget.style.color = '#00FFFF'}
+                    onMouseOut={e => e.currentTarget.style.color = '#888'}
+                  >▸ COPY</button>
+                </div>
+                <div style={{ fontSize: '10px', color: '#666', lineHeight: '1.4', marginTop: '4px' }}>{m.desc}</div>
+
+                {isOpen && (
+                  <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #333', fontSize: '11px', lineHeight: '1.6', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div><span style={{ color: '#00FFFF', fontWeight: 'bold' }}>▶ 用法：</span><span style={{ color: '#aaa' }}>{m.usage}</span></div>
+                    <div><span style={{ color: '#30D158', fontWeight: 'bold' }}>▸ 输入：</span><span style={{ color: '#aaa' }}>{m.input}</span></div>
+                    <div><span style={{ color: '#FF9900', fontWeight: 'bold' }}>◂ 输出：</span><span style={{ color: '#aaa' }}>{m.output}</span></div>
+                    {m.ttp && m.ttp !== 'N/A' && (
+                      <div><span style={{ color: '#9D00FF', fontWeight: 'bold' }}>✧ ATT&CK：</span><span style={{ color: '#777' }}>{m.ttp}</span></div>
+                    )}
+                    <div style={{ marginTop: '4px', padding: '6px 8px', background: '#0a0a0a', border: '1px solid #222', borderRadius: '3px', fontFamily: 'monospace', fontSize: '10px', color: '#00FFFF', wordBreak: 'break-all' }}>
+                      $ {m.cmd}
+                    </div>
+                  </div>
+                )}
+
+                {!isOpen && (
+                  <div style={{ fontSize: '9px', color: '#444', marginTop: '8px', fontFamily: 'monospace' }}>$ {m.cmd}</div>
+                )}
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       ))}
@@ -1351,52 +1756,8 @@ function ArmoryViewTab({ assets, selectedIp, onExecCommand }) {
   )
 }
 
-function SliverViewTab({ onExecCommand }) {
-  const [sessions, setSessions] = useState([])
-  const [refreshing, setRefreshing] = useState(false)
-  const fetchSessions = () => {
-    setRefreshing(true)
-    fetch(`${API}/sliver/sessions`).then(r => r.json()).then(d => setSessions(d.sessions || [])).catch(console.error).finally(() => setRefreshing(false))
-  }
-  useEffect(() => { fetchSessions() }, [])
-  return (
-    <div style={{ flex: 1, padding: '24px', overflowY: 'auto', minHeight: 0, boxSizing: 'border-box' }}>
-      <div style={{ fontSize: '18px', color: '#FF3B30', fontWeight: 'bold', borderBottom: '1px solid #333', paddingBottom: '12px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>C2 控制中心 (Sliver Sessions)</span>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', transition: 'all 0.2s' }} onClick={fetchSessions} disabled={refreshing} onMouseOver={e => e.currentTarget.style.borderColor = '#00FFFF'} onMouseOut={e => e.currentTarget.style.borderColor = '#333'}>
-            <RefreshCw size={12} className={refreshing ? 'spin' : ''} /> 刷新
-          </button>
-          <span style={{ fontSize: '10px', color: '#FF9900', background: 'rgba(255,153,0,0.1)', padding: '2px 8px', borderRadius: '4px', fontWeight: 'normal' }}>MOCK 演示数据</span>
-        </div>
-      </div>
-      <div style={{ fontSize: '10px', color: '#666', marginBottom: '16px' }}>远程控制面板：显示通过 Sliver 信标成功上线的被控主机。当前为模拟数据，V8.3 将对接真实 Sliver Server。</div>
-      <table className="data-table">
-        <thead>
-          <tr><th>ID / Node</th><th>主机名</th><th>OS</th><th>内网 IP</th><th>权限 (User)</th><th>最后心跳</th><th>操作</th></tr>
-        </thead>
-        <tbody>
-          {sessions.map(s => (
-            <tr key={s.id}>
-              <td style={{ color: '#00FFFF', fontFamily: 'Consolas', fontWeight: 'bold' }}>{s.id}</td>
-              <td style={{ color: '#D0D0D0' }}>{s.name}</td>
-              <td style={{ color: '#999' }}>{s.os}</td>
-              <td style={{ color: '#30D158' }}>{s.ip}</td>
-              <td style={{ color: s.user.toLowerCase().includes('system') || s.user === 'root' ? '#FF3B30' : '#FF9900' }}>{s.user}</td>
-              <td style={{ color: '#666' }}>{s.last_checkin}</td>
-              <td>
-                <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', transition: 'all 0.2s' }} onClick={() => onExecCommand(`利用 Sliver 远控向 session ${s.id} (${s.ip}) 凭证节点下发信息收集和维持指令`)} onMouseOver={e => e.currentTarget.style.background = 'rgba(0,255,255,0.1)'} onMouseOut={e => e.currentTarget.style.background = '#222'}>
-                  <Rocket size={12} style={{ verticalAlign: 'middle' }} /> X-Pivot 横向扩展
-                </button>
-              </td>
-            </tr>
-          ))}
-          {sessions.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', color: '#666', padding: '16px' }}>暂无上线的主机 / Waiting for beacon...</td></tr>}
-        </tbody>
-      </table>
-    </div>
-  )
-}
+// [REMOVED in V9.3] SliverViewTab — 无实际 C2 数据源
+
 
 // ========== VISUALIZATION PANELS ==========
 function A2UIForgeModal({ isOpen, onClose, targetIp, targetOs, targetPorts }) {
@@ -1478,7 +1839,7 @@ function A2UIForgeModal({ isOpen, onClose, targetIp, targetOs, targetPorts }) {
                </div>
                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                  <div style={{ color: '#30D158', fontSize: '11px', marginBottom: '8px' }}>[ A2UI 渲染验收靶面 (Interactive HTML) ]</div>
-                 <iframe srcDoc={result.html} style={{ width: '100%', border: '1px solid #333', background: '#fff', minHeight: '400px' }} title="Live Render" sandbox="allow-scripts allow-same-origin"/>
+                 <iframe srcDoc={result.html} style={{ width: '100%', border: '1px solid #333', background: '#fff', minHeight: '400px' }} title="Live Render" sandbox="allow-scripts"/>
                </div>
              </div>
           )}
@@ -1541,10 +1902,6 @@ function CognitiveGraphRenderer({ targetIp }) {
 
 function TheaterKanban({ assets, theater }) {
   const [selectedAsset, setSelectedAsset] = useState(null)
-  const [forgeTarget, setForgeTarget] = useState(null)
-  const [armoryOpen, setArmoryOpen] = useState(false)
-  const [osintOpen, setOsintOpen] = useState(false)
-
   // Global Multi-Select Hub
   const globalTargets = useStore(s => s.globalTargets)
   const toggleGlobalTarget = useStore(s => s.toggleGlobalTarget)
@@ -1597,17 +1954,17 @@ function TheaterKanban({ assets, theater }) {
         {isSelected && (
           <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #333' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-               <div style={{ color: '#FF9900', fontSize: '11px' }}>[ A2UI 大模型路径推演 (Powered by Pydantic) ]</div>
+               <div style={{ color: '#FF9900', fontSize: '11px' }}>[ 攻击路径推演 ]</div>
                <button 
-                 onClick={(e) => { e.stopPropagation(); setForgeTarget(a); }}
+                 onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`nmap -sV -sC -O ${a.ip}`); const b = e.currentTarget; b.textContent = '✓ Nmap 命令已复制'; setTimeout(() => b.textContent = '▸ 复制 Nmap 深扫命令', 1200) }}
                  style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: 0 }}>
-                 <Monitor size={10} /> ▸ 锻造 A2UI 钓鱼靶面
+                 ▸ 复制 Nmap 深扫命令
                </button>
             </div>
             <div style={{ background: '#111', padding: '12px', color: '#666', fontSize: '10px', border: '1px solid #222', borderRadius: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <CognitiveGraphRenderer targetIp={a.ip} />
             </div>
-            <div style={{ marginTop: '8px', color: '#444', fontSize: '9px', textAlign: 'right' }}>Powered by Gemini 3.1 Pro ✖️ Structured Output</div>
+            <div style={{ marginTop: '8px', color: '#444', fontSize: '9px', textAlign: 'right' }}>Powered by Gemini 3.1 Pro // Structured Output</div>
           </div>
         )}
       </div>
@@ -1624,14 +1981,6 @@ function TheaterKanban({ assets, theater }) {
             <Crosshair size={14} /> 战役火控授权 ({globalTargets.length} 节点就绪)
             <X size={14} color="#666" style={{ cursor: 'pointer', marginLeft: 'auto' }} onClick={clearGlobalTargets} />
           </span>
-          
-          <button onClick={() => setArmoryOpen(true)} style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30', border: '1px solid #FF3B30', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,59,48,0.2)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,59,48,0.1)'}>
-            <Wrench size={14} /> 发射全量渗透矩阵
-          </button>
-
-          <button onClick={() => setOsintOpen(true)} style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Skull size={14} /> 执行近源 OSINT 脱水
-          </button>
         </div>
       )}
 
@@ -1682,253 +2031,20 @@ function TheaterKanban({ assets, theater }) {
 
         </div>
       </div>
-      {forgeTarget && (
-        <A2UIForgeModal 
-          isOpen={!!forgeTarget} 
-          onClose={() => setForgeTarget(null)} 
-          targetIp={forgeTarget.ip} 
-          targetOs={forgeTarget.os || 'Unknown OS'} 
-          targetPorts={forgeTarget.ports || []} 
-        />
-      )}
-      {armoryOpen && (
-        <TacticalArmoryModal 
-          isOpen={armoryOpen} 
-          onClose={() => setArmoryOpen(false)} 
-          targets={Array.from(multiSelected)} 
-          theater={theater} 
-        />
-      )}
-      {osintOpen && (
-        <OsintTerminalModal 
-          isOpen={osintOpen} 
-          onClose={() => setOsintOpen(false)} 
-          targets={Array.from(multiSelected)} 
-        />
-      )}
+      {/* [REMOVED in V9.3] A2UIForgeModal - /agent/forge 端点已删除 */}
     </>
   )
 }
 
-function OsintTerminalModal({ isOpen, onClose, targets }) {
-  const [log, setLog] = useState([])
-  const [dict, setDict] = useState(null)
-  
-  useEffect(() => {
-    if (!isOpen) return
-    setLog(['[SYS] 正在向司令部申请派发 OSINT 幽灵特工...'])
-    setDict(null)
-    
-    // 创建中断器，支持长官中途关闭弹窗撤销打击
-    const ctrl = new AbortController()
 
-    import('@microsoft/fetch-event-source').then(({ fetchEventSource }) => {
-      fetchEventSource(`${API}/agent/osint/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targets }),
-        signal: ctrl.signal,
-        onmessage(ev) {
-          const data = JSON.parse(ev.data)
-          if (data.type === 'log') {
-            // 真实流式追加特工日志
-            setLog(l => [...l, data.msg])
-          } else if (data.type === 'done') {
-            // 接收靶向字典
-            setLog(l => [...l, '-----------------------------'])
-            setDict(data.dictionary)
-            ctrl.abort() // 任务达成，主动切断神经元连接
-          } else if (data.type === 'error') {
-            setLog(l => [...l, `[ERROR] ${data.msg}`])
-            ctrl.abort()
-          }
-        },
-        onerror(err) {
-          setLog(l => [...l, `[SYS ERROR] 战术链路断裂: ${err.message}`])
-          throw err // 阻止底层疯狂重连
-        }
-      })
-    })
 
-    return () => ctrl.abort() // UI 销毁时，切断底层请求
-  }, [isOpen, targets])
-
-  if (!isOpen) return null
-
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-      <div style={{ width: '800px', height: '500px', background: '#050505', border: '1px solid #00FFFF', boxShadow: '0 0 30px rgba(0,255,255,0.2)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '12px 20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111' }}>
-          <div style={{ color: '#00FFFF', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Crosshair size={16} /> 语义凭证靶向锻造 (Semantic Dictionary)
-          </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer' }}><X size={16} /></button>
-        </div>
-        <div style={{ flex: 1, padding: '20px', overflowY: 'auto', fontFamily: 'Consolas, monospace', fontSize: '12px', color: '#30D158' }}>
-          {log.map((line, i) => <div key={i} style={{ marginBottom: '6px' }}>{line}</div>)}
-          {dict && (
-            <div style={{ marginTop: '20px', padding: '16px', border: '1px dashed #00FFFF', background: 'rgba(0,255,255,0.05)' }}>
-              <div style={{ color: '#FF9900', marginBottom: '12px', fontWeight: 'bold' }}>// 已生成跨域定制化弱口令 (符合 Pydantic Schema):</div>
-              <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: '#fff' }}>
-                {JSON.stringify(dict, null, 2)}
-              </pre>
-              <div style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
-                <button onClick={() => navigator.clipboard.writeText(dict.join('\\n'))} style={{ background: '#222', border: '1px solid #00FFFF', color: '#00FFFF', padding: '6px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}><Copy size={14}/> 复制字典 (Copy to Clipboard)</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function TacticalArmoryModal({ isOpen, onClose, targets, theater }) {
-  const [activeStage, setActiveStage] = useState(0)
-  const [runningJob, setRunningJob] = useState(null)
-  
-  const sudoPassword = useStore(s => s.sudoPassword)
-  const setSudoPassword = useStore(s => s.setSudoPassword)
-
-  const stages = [
-    { name: '① 侦察 (Recon)', icon: <Radar size={24} />, steps: [{ id: 'passive', label: '被动嗅探 (tcpdump)', cmd: './catteam.sh 1' }, { id: 'active', label: '主动探活 (nmap -sn)', cmd: './catteam.sh 2' }] },
-    { name: '② 扫描 (Scan)', icon: <Search size={24} />, steps: [{ id: 'port', label: '全端口发现 (make probe)', cmd: './catteam.sh 3' }] },
-    { name: '③ 审计 (Audit)', icon: <ClipboardList size={24} />, steps: [{ id: 'web', label: 'Web指纹清扫 (make audit)', cmd: './catteam.sh 4' }, { id: 'nuclei', label: 'Nuclei 深度漏洞扫描', cmd: './catteam.sh 5' }] },
-    { name: '④ 攻击 (Exploit)', icon: <Swords size={24} />, steps: [{ id: 'poison', label: '投毒陷阱 (Responder)', cmd: './catteam.sh 6' }, { id: 'crack', label: '算力破解 (Hashcat)', cmd: './catteam.sh 7' }, { id: 'lateral', label: '横向移动 (Impacket)', cmd: './catteam.sh 8' }, { id: 'ad', label: 'AD域攻击 (Kerberoast)', cmd: './catteam.sh 10' }] },
-    { name: '⑤ 报告 (Report)', icon: <BarChart size={24} />, steps: [{ id: 'report', label: '生成渗透战报', cmd: './catteam.sh 11' }, { id: 'diff', label: '资产变化检测', cmd: './catteam.sh 12' }] }
-  ]
-
-  useEffect(() => {
-    const handleFinished = () => {
-      setRunningJob(null)
-      if (window.__claw_refresh_assets) window.__claw_refresh_assets()
-    }
-    window.addEventListener('CLAW_OP_FINISHED', handleFinished)
-    return () => window.removeEventListener('CLAW_OP_FINISHED', handleFinished)
-  }, [])
-
-  const executeStep = async (step) => {
-    try {
-      let pwd = sudoPassword
-      if (!pwd) {
-        pwd = window.prompt("⚠️ 此战术底层需提权 (Root)\n请解锁授权:")
-        if (!pwd) return
-        setSudoPassword(pwd)
-      }
-      const evt = new CustomEvent('CLAW_SWITCH_CONSOLE_TAB', { detail: 'output' })
-      window.dispatchEvent(evt)
-
-      const res = await fetch(`${API}/ops/run`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: step.cmd, theater, sudo_pass: pwd, target_ips: targets }) // Passing specifically selected targets
-      })
-      const data = await res.json()
-      if (data.job_id) {
-        setRunningJob(data.job_id)
-        setTimeout(() => {
-          const logEvt = new CustomEvent('CLAW_START_SSE_LOG', { detail: { job_id: data.job_id, theater } })
-          window.dispatchEvent(logEvt)
-        }, 300)
-      }
-      onClose() // Auto-close modal to watch the logs
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, backdropFilter: 'blur(4px)' }}>
-      <div style={{ width: '900px', background: '#050505', border: '1px solid #333', borderRadius: 0, padding: 0, display: 'flex', flexDirection: 'column', boxShadow: '0 10px 40px rgba(0,0,0,0.9)' }}>
-        
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111' }}>
-          <div style={{ color: '#FF3B30', fontSize: '15px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Wrench size={18} /> 情境实体火控中心 (The Tactical Armory)
-          </div>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer' }}><X size={18} /></button>
-        </div>
-
-        <div style={{ padding: '20px', overflowY: 'auto' }}>
-          <div style={{ color: '#00FFFF', fontSize: '12px', marginBottom: '24px' }}>
-            已锁定 <span style={{ background: '#222', padding: '2px 6px', color: '#FF9900' }}>{targets.length}</span> 个目标主机: {targets.join(', ')}
-          </div>
-
-          <div style={{ display: 'flex', gap: '16px', marginBottom: '32px' }}>
-            {stages.map((st, idx) => (
-              <div key={idx} onClick={() => setActiveStage(idx)} style={{ flex: 1, cursor: 'pointer', padding: '12px', background: activeStage === idx ? 'rgba(255,59,48,0.1)' : '#111', border: `1px solid ${activeStage === idx ? '#FF3B30' : '#333'}`, borderRadius: '6px', textAlign: 'center', transition: 'all 0.2s', position: 'relative' }}>
-                <div style={{ fontSize: '24px', marginBottom: '8px', color: activeStage === idx ? '#FF3B30' : '#999' }}>{st.icon}</div>
-                <div style={{ fontSize: '13px', color: activeStage === idx ? '#FF3B30' : '#999', fontWeight: activeStage === idx ? 'bold' : 'normal' }}>{st.name}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ background: '#0A0A0A', border: '1px solid #333', borderRadius: '8px', padding: '24px' }}>
-            <div style={{ fontSize: '15px', color: '#00FFFF', fontWeight: 'bold', marginBottom: '20px' }}>指令集：{stages[activeStage].name}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-              {stages[activeStage].steps.map(s => (
-                <div key={s.id} style={{ background: '#111', border: '1px solid #222', borderRadius: '6px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: '14px', color: '#E0E0E0', fontWeight: 'bold', marginBottom: '6px' }}>{s.label}</div>
-                    <div style={{ fontSize: '11px', color: '#666', fontFamily: 'Consolas, monospace' }}>{s.cmd} [针对 {targets.length} 台]</div>
-                  </div>
-                  <button style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30', border: '1px solid #FF3B30', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }} onClick={() => executeStep(s)}>
-                    ▶ 发射
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function AttackMatrixView() {
-  const [data, setData] = useState({ matrix: {}, active: [] })
-  const [selectedTech, setSelectedTech] = useState(null)
-  useEffect(() => { fetch(`${API}/attack_matrix`).then(r => r.json()).then(setData).catch(console.error) }, [])
-  return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto' }}>
-      <div style={{ padding: '8px 16px', fontSize: '10px', color: '#666', borderBottom: '1px solid #222' }}>
-        MITRE ATT&CK 杀伤链：安全行业标准攻击分类框架。红色高亮 = 当前行动已覆盖的攻击阶段。点击查看技术说明。
-      </div>
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '16px', flex: 1, alignItems: 'flex-start' }}>
-        {Object.entries(data.matrix).map(([tactic, techniques]) => (
-          <div key={tactic} style={{ minWidth: '140px', flex: 1 }}>
-            <div style={{ background: '#111', borderTop: '2px solid #FF9900', padding: '8px', color: '#FF9900', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>{tactic}</div>
-            {techniques.map(t => {
-              const isActive = data.active.includes(t)
-              return (
-                <div key={t} style={{ padding: '8px 4px', marginBottom: '6px', fontSize: '11px', color: isActive ? '#000' : '#888', background: isActive ? '#FF3B30' : selectedTech === t ? 'rgba(0,255,255,0.1)' : 'rgba(255,255,255,0.02)', borderRadius: '2px', textAlign: 'center', cursor: 'pointer', border: isActive ? '1px solid #FF3B30' : selectedTech === t ? '1px solid #00FFFF' : '1px solid #222', fontWeight: isActive ? 'bold' : 'normal', transition: 'all 0.3s' }} onClick={() => setSelectedTech(selectedTech === t ? null : t)}>
-                  {t}
-                </div>
-              )
-            })}
-          </div>
-        ))}
-      </div>
-      {selectedTech && (
-        <div style={{ padding: '12px 16px', borderTop: '1px solid #333', background: '#0A0A0A', fontSize: '11px' }}>
-          <span style={{ color: '#00FFFF', fontWeight: 'bold' }}>{selectedTech}</span>
-          <span style={{ color: '#666', marginLeft: '8px' }}>
-            {data.active.includes(selectedTech) ? <><Zap size={12} style={{ verticalAlign: 'middle' }} /> 已在本次行动中使用</> : '未覆盖 — 可作为下一步战术方向'}
-          </span>
-        </div>
-      )}
-    </div>
-  )
-}
+// [REMOVED in V9.3] AttackMatrixView — 无数据驱动，纯静态展示
 
 // ========== AI COPILOT PANEL ==========
 const MODELS = [
-  { key: 'lite', label: 'Flash-Lite', color: '#B0B0B0', desc: '首选: 极速吞吐抗并发' },
-  { key: 'flash', label: 'Flash', color: '#00FFFF', desc: '常规响应' },
-  { key: 'think', label: 'Think', color: '#30D158', desc: 'Flash 深度推理' },
-  { key: 'pro', label: 'Pro 3.1', color: '#FF9900', desc: '大模型均衡' },
-  { key: 'deep', label: 'Deep Think', color: '#FF3B30', desc: '最强推理' },
+  { key: 'flash', label: 'Flash', color: '#00FFFF', desc: '极速执行 (自动升级思考)' },
+  { key: 'think', label: 'Think', color: '#30D158', desc: '深度推理分析' },
+  { key: 'pro', label: 'Pro', color: '#FF9900', desc: '最强模型' },
 ]
 
 function AiPanel({ isHqMode }) {
@@ -1947,7 +2063,7 @@ function AiPanel({ isHqMode }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
-  const [model, setModel] = useState(MODELS[2])  // 默认 Think 引擎
+  const [model, setModel] = useState(MODELS[0])  // 默认 Flash 引擎
   const [menuOpen, setMenuOpen] = useState(false)
   const [interactionId, setInteractionId] = useState(null)
   const [challengeMsg, setChallengeMsg] = useState(null)
@@ -2017,7 +2133,7 @@ function AiPanel({ isHqMode }) {
     let toolCalls = []
 
     setMessages(prev => [...prev, {
-      role: 'ai', text: '', tools: [], model: model.label, thinking: true,
+      role: 'ai', text: '', tools: [], model: model.label, thinking: true, startTs: Date.now(),
     }])
 
     const ctrl = new AbortController()
@@ -2062,7 +2178,9 @@ function AiPanel({ isHqMode }) {
               scrollBottom()
               break
             case 'TOOL_CALL_START':
-              toolCalls.push({ name: data.name, args: data.args, risk: data.risk_level || 'green', status: 'running' })
+              toolCalls.push({ id: data.id || Math.random().toString(36).substr(2, 9), name: data.name, args: data.args, risk: data.risk_level || 'green', status: 'running' })
+              // V9.3: 同步推送到 OUTPUT LOGS 监控台
+              window.dispatchEvent(new CustomEvent('CLAW_MCP_LOG', { detail: { level: 'SYS', text: `[MCP] ${data.risk_level?.toUpperCase() || 'GREEN'} >> ${data.name}(${JSON.stringify(data.args || {}).substring(0, 120)})` } }))
               setMessages(prev => {
                 const msgs = [...prev]; const last = msgs[msgs.length - 1]
                 if (last?.role === 'ai') { last.tools = [...toolCalls]; last.thinking = false }
@@ -2074,6 +2192,10 @@ function AiPanel({ isHqMode }) {
               const tc = toolCalls.findLast(t => t.name === data.name)
               if (tc) { tc.status = data.status; tc.preview = data.preview }
               if (data.requires_approval) setChallengeMsg({ command: tc?.args?.command || tc?.args?.module || tc?.args?.sql || '未知高危操作' })
+              // V9.3: 推送工具执行结果到 OUTPUT LOGS
+              const statusIcon = data.status === 'success' ? '+' : 'x';
+              const previewText = data.preview ? `\n${data.preview}` : '';
+              window.dispatchEvent(new CustomEvent('CLAW_MCP_LOG', { detail: { level: data.status === 'success' ? 'OUT' : 'ERR', text: `[${statusIcon}] ${data.name} → ${data.status}${previewText}` } }))
               setMessages(prev => {
                 const msgs = [...prev]; const last = msgs[msgs.length - 1]
                 if (last?.role === 'ai') last.tools = [...toolCalls]
@@ -2095,7 +2217,7 @@ function AiPanel({ isHqMode }) {
               if (data.interaction_id) setInteractionId(data.interaction_id)
               setMessages(prev => {
                 const msgs = [...prev]; const last = msgs[msgs.length - 1]
-                if (last?.role === 'ai') { last.thinking = false; last.done = true }
+                if (last?.role === 'ai') { last.thinking = false; last.done = true; last.endTs = Date.now() }
                 return msgs
               })
               setStreaming(false)
@@ -2148,7 +2270,18 @@ function AiPanel({ isHqMode }) {
     }
   }
 
-  const stopStream = () => { if (abortRef.current) abortRef.current.abort(); setStreaming(false) }
+  const stopStream = () => {
+    if (abortRef.current) abortRef.current.abort()
+    setStreaming(false)
+    // 同时杀掉后端可能正在运行的子进程
+    fetch(`http://${window.location.hostname}:8000/api/v1/agent/cancel`, { method: 'POST', body: JSON.stringify({}) }).catch(() => {})
+    // 标记最后一条 AI 消息为已完成
+    setMessages(prev => {
+      const msgs = [...prev]; const last = msgs[msgs.length - 1]
+      if (last?.role === 'ai') { last.thinking = false; last.done = true; last.endTs = Date.now() }
+      return msgs
+    })
+  }
   sendRef.current = sendMessage
   const asset = selectedIp ? assets.find(a => a.ip === selectedIp) : null;
   let dynamicChips = [
@@ -2312,14 +2445,26 @@ function AiPanel({ isHqMode }) {
               <div key={i} className="msg-user">{m.text}</div>
             ) : (
               <div key={i} className="msg-ai">
-                <div className="ai-identity">✧ {m.model || model.label} 引擎</div>
+                <div className="ai-identity" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>✧ {m.model || model.label} 引擎</span>
+                  {m.endTs && m.startTs && <span style={{ color: '#666', fontSize: '10px' }}>Worked for {Math.round((m.endTs - m.startTs) / 1000)}s</span>}
+                </div>
                 {m.thinking && (
-                  <div className="thinking-indicator">
-                    <span className="thinking-dot"></span>
+                  <div className="thinking-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <Loader2 size={12} className="spin" style={{ color: '#00FFFF' }} />
                     <span style={{ color: '#888', fontSize: '12px' }}>{m.thinkingStatus || 'Lynx 正在思考...'}</span>
                   </div>
                 )}
-                {m.tools?.map((tc, j) => <ToolCallCard key={j} tool={tc} />)}
+                {m.tools?.length > 0 && (
+                  <details open={m.tools.some(t => t.status === 'running')} style={{ marginBottom: '12px' }}>
+                    <summary style={{ outline: 'none', cursor: 'pointer', fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Bot size={12} /> {m.tools.some(t => t.status === 'running') ? `Executing ${m.tools.length} commands...` : `Explored ${m.tools.length} commands`}
+                    </summary>
+                    <div style={{ paddingLeft: '8px', borderLeft: '2px solid #222', marginTop: '6px' }}>
+                      {m.tools.map((tc, j) => <ToolCallCard key={j} tool={tc} />)}
+                    </div>
+                  </details>
+                )}
                 {m.text && <StreamingText text={m.text} done={m.done} isError={m.isError} />}
               </div>
             )
@@ -2406,14 +2551,39 @@ function ToolCallCard({ tool }) {
     claw_query_db: '数据库查询',
     claw_read_file: '文件读取',
     claw_list_assets: '资产列举',
-    claw_execute_shell: '命令执行',
+    claw_execute_shell: '执行命令',
     claw_run_module: '模块调用',
     claw_sliver_execute: '远控指令',
     claw_delegate_agent: 'A2A 子智能体委派',
   }
   const cnName = TOOL_CN[tool.name] || ''
+  const isRunning = tool.status === 'running'
+  
+  // 主动拉取活动日志
+  const [activeLog, setActiveLog] = useState('')
+  useEffect(() => {
+    if (!isRunning) return
+    const timer = setInterval(() => {
+      fetch(`http://${window.location.hostname}:8000/api/v1/agent/active_log`)
+        .then(r => r.json())
+        .then(d => { if (d.log) setActiveLog(d.log) })
+        .catch(() => {})
+    }, 800)
+    return () => clearInterval(timer)
+  }, [isRunning])
+  const [cancelling, setCancelling] = useState(false)
+
+  const handleCancel = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCancelling(true)
+    try {
+      await fetch(`http://${window.location.hostname}:8000/api/v1/agent/cancel`, { method: 'POST', body: JSON.stringify({}) })
+    } catch(err) {}
+  }
+
   return (
-    <details style={{
+    <details open={isRunning || tool.status === 'error' || tool.status === 'failed'} style={{
       background: 'rgba(255,255,255,0.03)', border: '1px solid #222',
       borderLeft: `3px solid ${riskColor}`,
       borderRadius: '4px', padding: '8px 10px', margin: '6px 0',
@@ -2425,8 +2595,9 @@ function ToolCallCard({ tool }) {
         </span>
         <span style={{ color: '#00FFFF' }}>{tool.name}</span>
         {cnName && <span style={{ color: '#666', fontSize: '10px' }}>({cnName})</span>}
-        <span style={{ color: (tool.status === 'ok' || tool.status === 'success') ? '#30D158' : (tool.status === 'error' || tool.status === 'failed') ? '#FF3B30' : '#D0D0D0', fontSize: '10px', marginLeft: 'auto' }}>
-          {tool.status === 'running' ? <><Loader2 size={11} className="spin" /> 执行中...</> : (tool.status === 'ok' || tool.status === 'success') ? '> 完成' : (tool.status === 'error' || tool.status === 'failed') ? 'x 失败' : tool.status}
+        <span style={{ color: (tool.status === 'ok' || tool.status === 'success') ? '#30D158' : (tool.status === 'error' || tool.status === 'failed') ? '#FF3B30' : '#D0D0D0', fontSize: '10px', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {isRunning ? <><Loader2 size={11} className="spin" /> 运行中</> : (tool.status === 'ok' || tool.status === 'success') ? '> 完成' : (tool.status === 'error' || tool.status === 'failed') ? 'x 失败' : tool.status === 'blocked' ? '⏸ 待审批' : tool.status}
+          {isRunning && <button onClick={handleCancel} disabled={cancelling} style={{ background: cancelling ? '#333' : 'transparent', border: `1px solid ${cancelling ? '#666' : '#FF3B30'}`, color: cancelling ? '#666' : '#FF3B30', borderRadius: '4px', padding: '2px 8px', fontSize: '10px', cursor: cancelling ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>{cancelling ? 'Cancelling...' : 'Cancel'}</button>}
         </span>
       </summary>
       <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #333' }}>
@@ -2435,7 +2606,16 @@ function ToolCallCard({ tool }) {
             <span style={{ color: '#999' }}>{k}:</span> <span style={{ color: '#D0D0D0' }}>{v}</span>
           </div>
         ))}
-        {tool.preview && (
+        {/* Inline Terminal Block for active execution */}
+        {(isRunning && activeLog) && (
+          <div style={{ marginTop: '8px' }}>
+            <div style={{ color: '#00FFFF', background: '#050505', border: '1px solid #333', padding: '8px', borderRadius: '4px', whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto', fontSize: '11px', lineHeight: '1.4', fontFamily: 'Consolas', userSelect: 'text' }}>
+              {activeLog}
+            </div>
+          </div>
+        )}
+        {/* Preview for finished execution */}
+        {(!isRunning && tool.preview) && (
           <div style={{ marginTop: '8px' }}>
             <div style={{ color: '#30D158', background: 'rgba(48,209,88,0.1)', padding: '8px', borderRadius: '4px', whiteSpace: 'pre-wrap', maxHeight: '300px', overflowY: 'auto', fontSize: '11px', lineHeight: '1.5', cursor: 'text', userSelect: 'text' }}>
               {tool.preview}
@@ -2578,11 +2758,29 @@ function StreamingText({ text, done, isError }) {
           )
         }
         return (
-          <span key={i}>
-            {seg.content.split('\n').map((line, j) => (
-              <span key={j}>{line}{j < seg.content.split('\n').length - 1 && <br />}</span>
-            ))}
-          </span>
+          <div key={i} className="markdown-body" style={{ margin: '8px 0', lineHeight: '1.6' }}>
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h1: ({node, ...props}) => <h1 style={{fontSize: '16px', color: '#FF9900', marginTop: '16px', marginBottom: '8px', borderBottom: '1px solid #333', paddingBottom: '4px'}} {...props} />,
+                h2: ({node, ...props}) => <h2 style={{fontSize: '14px', color: '#00FFFF', marginTop: '14px', marginBottom: '6px'}} {...props} />,
+                h3: ({node, ...props}) => <h3 style={{fontSize: '13px', color: '#D0D0D0', marginTop: '12px', marginBottom: '4px'}} {...props} />,
+                strong: ({node, ...props}) => <strong style={{color: '#FFF'}} {...props} />,
+                ul: ({node, ...props}) => <ul style={{paddingLeft: '16px', margin: '4px 0', listStyleType: 'disc'}} {...props} />,
+                ol: ({node, ...props}) => <ol style={{paddingLeft: '16px', margin: '4px 0', listStyleType: 'decimal'}} {...props} />,
+                li: ({node, ...props}) => <li style={{marginBottom: '4px'}} {...props} />,
+                table: ({node, ...props}) => <div style={{overflowX: 'auto'}}><table className="data-table" style={{margin: '12px 0'}} {...props} /></div>,
+                tr: ({node, ...props}) => <tr {...props} />,
+                th: ({node, ...props}) => <th {...props} />,
+                td: ({node, ...props}) => <td {...props} />,
+                p: ({node, ...props}) => <p style={{margin: '8px 0', lineHeight: '1.6'}} {...props} />,
+                a: ({node, ...props}) => <a href={props.href} target="_blank" rel="noreferrer" style={{color: '#00FFFF', textDecoration: 'underline'}} {...props} />,
+                code: ({node, inline, ...props}) => inline ? <code style={{background: '#1A1A1A', padding: '2px 4px', color: '#FF9900', borderRadius: '3px'}} {...props} /> : <code {...props} />
+              }}
+            >
+              {seg.content}
+            </ReactMarkdown>
+          </div>
         )
       })}
       {!done && segments.length > 0 && segments[segments.length-1].type === 'text' && <span className="typing-cursor"></span>}
@@ -2590,98 +2788,9 @@ function StreamingText({ text, done, isError }) {
   )
 }
 
-// ========== DOCKER PANEL ==========
-function DockerPanel() {
-  const [data, setData] = useState({ images: [], containers: [] })
-  const [loading, setLoading] = useState(true)
-  const [actionStatus, setActionStatus] = useState(null)
+// [REMOVED in V9.3] DockerPanel — Kali VM 替代 Docker
 
-  const fetchStatus = () => {
-    fetch(`${API}/docker/status`).then(r => r.json()).then(d => { setData(d); setLoading(false) }).catch(e => { setLoading(false) })
-  }
 
-  useEffect(() => { fetchStatus() }, [])
-
-  const handleAction = (action, name) => {
-    setActionStatus(`${action === 'start' ? '启动' : action === 'stop' ? '停止' : '重启'}中...`)
-    fetch(`${API}/docker/${action}/${name}`, { method: 'POST' })
-      .then(r => r.json()).then(d => {
-        setActionStatus(d.error ? `✗ ${d.error}` : `✓ ${action} 完成`)
-        setTimeout(() => { fetchStatus(); setActionStatus(null) }, 2000)
-      }).catch(e => { setActionStatus(`✗ ${e.message}`); setTimeout(() => setActionStatus(null), 3000) })
-  }
-
-  if (loading) return <div style={{ color: '#666', padding: '24px' }}>正在查询 Docker 状态...</div>
-
-  return (
-    <div style={{ flex: 1, padding: '24px', overflowY: 'auto', minHeight: 0, boxSizing: 'border-box' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <div>
-          <span style={{ fontSize: '16px', color: '#FF9900', fontWeight: 'bold' }}>云端战车 (Docker Arsenal)</span>
-          <span style={{ fontSize: '10px', color: '#666', marginLeft: '8px' }}>{data.images?.length || 0} 镜像 · {data.containers?.length || 0} 容器</span>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {actionStatus && <span style={{ fontSize: '11px', color: '#30D158' }}>{actionStatus}</span>}
-          <button style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', borderRadius: '4px', padding: '4px 12px', fontSize: '11px', cursor: 'pointer' }} onClick={fetchStatus}>🔄 刷新</button>
-        </div>
-      </div>
-
-      {/* Containers */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ fontSize: '12px', color: '#00FFFF', fontWeight: 'bold', marginBottom: '8px', borderBottom: '1px solid #222', paddingBottom: '4px' }}>容器 (Containers)</div>
-        {(!data.containers || data.containers.length === 0) ? (
-          <div style={{ color: '#666', fontSize: '12px', padding: '8px' }}>无运行容器</div>
-        ) : (
-          <table className="data-table">
-            <thead><tr><th>名称</th><th>镜像</th><th>状态</th><th>操作</th></tr></thead>
-            <tbody>
-              {data.containers.map(c => (
-                <tr key={c.id}>
-                  <td style={{ color: '#00FFFF', fontWeight: 'bold' }}>{c.name}</td>
-                  <td style={{ color: '#D0D0D0' }}>{c.image}</td>
-                  <td>
-                    <span style={{ color: c.running ? '#30D158' : '#FF9900', background: c.running ? 'rgba(48,209,88,0.1)' : 'rgba(255,153,0,0.1)', padding: '2px 8px', borderRadius: '4px', fontSize: '10px' }}>
-                      {c.running ? '● 运行中' : '○ 已停止'}
-                    </span>
-                    <span style={{ color: '#666', fontSize: '10px', marginLeft: '6px' }}>{c.status}</span>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      {!c.running && <button style={{ background: 'rgba(48,209,88,0.1)', color: '#30D158', border: '1px solid #333', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer' }} onClick={() => handleAction('start', c.name)}>▶ 启动</button>}
-                      {c.running && <button style={{ background: 'rgba(255,59,48,0.1)', color: '#FF3B30', border: '1px solid #333', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer' }} onClick={() => handleAction('stop', c.name)}>⏹ 停止</button>}
-                      <button style={{ background: '#222', color: '#FF9900', border: '1px solid #333', borderRadius: '4px', padding: '3px 8px', fontSize: '10px', cursor: 'pointer' }} onClick={() => handleAction('restart', c.name)}>🔄 重启</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Images */}
-      <div>
-        <div style={{ fontSize: '12px', color: '#FF9900', fontWeight: 'bold', marginBottom: '8px', borderBottom: '1px solid #222', paddingBottom: '4px' }}>镜像库 (Images)</div>
-        <table className="data-table">
-          <thead><tr><th>镜像名称</th><th>ID</th><th>大小</th><th>构建时间</th></tr></thead>
-          <tbody>
-            {(data.images || []).map(img => (
-              <tr key={img.id}>
-                <td style={{ color: img.name.includes('arsenal') ? '#FF3B30' : img.name.includes('dvwa') ? '#FF9900' : '#D0D0D0', fontWeight: img.name.includes('v4') ? 'bold' : 'normal' }}>
-                  {img.name}
-                  {img.name.includes(':v4') && <span style={{ marginLeft: '6px', fontSize: '9px', color: '#30D158', background: 'rgba(48,209,88,0.1)', padding: '1px 6px', borderRadius: '3px' }}>LATEST</span>}
-                </td>
-                <td style={{ color: '#666', fontFamily: 'Consolas' }}>{img.id}</td>
-                <td style={{ color: '#00FFFF' }}>{img.size}</td>
-                <td style={{ color: '#666' }}>{img.created}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
 
 const ALL_MODULES = [
   '00-armory', '01-recon', '02-probe', '02.5-parse', '03-audit', '04-phantom', '05-cracker',
@@ -2739,9 +2848,19 @@ function OutputConsole() {
       }
     }
 
+    // V9.3: 同时监听来自 AI Copilot 的 MCP 工具调用日志
+    const handleMcpLog = (e) => {
+      const { text, level } = e.detail || {}
+      if (text) {
+        setLogs(prev => [...prev.slice(-499), { time: new Date().toLocaleTimeString(), level: level || 'OUT', msg: text }])
+      }
+    }
+
     window.addEventListener('CLAW_START_SSE_LOG', handleStartLog)
+    window.addEventListener('CLAW_MCP_LOG', handleMcpLog)
     return () => {
       window.removeEventListener('CLAW_START_SSE_LOG', handleStartLog)
+      window.removeEventListener('CLAW_MCP_LOG', handleMcpLog)
       if (abortRef.current) abortRef.current.abort()
     }
   }, [])
@@ -2770,15 +2889,23 @@ function OutputConsole() {
   }, [logs])
 
   return (
-    <div ref={containerRef} style={{ color: '#D0D0D0', fontSize: '11px', fontFamily: 'Consolas, monospace', padding: '4px', overflowY: 'auto', height: '100%', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
-      <div style={{ color: '#FF9900', marginBottom: '8px' }}>--- 作战控制台输出 (Operation Output) ---</div>
-      {!activeJob && <div style={{ color: '#666' }}>等待执行作战指令... (在「OP 作战」面板点击执行模块)</div>}
+    <div ref={containerRef} style={{ background: '#050505', color: '#D0D0D0', fontSize: '12px', fontFamily: '"Cascadia Code", Consolas, monospace', padding: '12px 16px', overflowY: 'auto', height: '100%', lineHeight: '1.6', whiteSpace: 'pre-wrap', letterSpacing: '0.2px' }}>
+      <div style={{ color: '#00FFFF', fontWeight: 'bold', borderBottom: '1px dashed #333', paddingBottom: '8px', marginBottom: '12px' }}>
+        ✧ MCP 工具调用监控台 (Tool Execution Monitor)
+      </div>
+      {!activeJob && logs.length === 0 && (
+        <div style={{ color: '#666', fontStyle: 'italic', marginTop: '12px' }}>
+          等待 AI Copilot 调用 MCP 工具... (在右侧 Copilot 面板发送指令)
+        </div>
+      )}
       {logs.map((l, i) => (
-        <div key={i} style={{ marginBottom: '2px' }}>
-          <span style={{ color: l.level === 'SYS' ? '#00FFFF' : l.level === 'ERR' ? '#FF3B30' : '#666', marginRight: '8px' }}>
-            {l.level === 'OUT' ? '' : `[${l.level}]`}
+        <div key={i} style={{ display: 'flex', marginBottom: '4px' }}>
+          <span style={{ color: l.level === 'SYS' ? '#00FFFF' : l.level === 'ERR' ? '#FF3B30' : '#888', marginRight: '10px', minWidth: '40px', userSelect: 'none' }}>
+            {l.level === 'OUT' ? '  |' : `[${l.level}]`}
           </span>
-          <span style={{ color: l.level === 'ERR' ? '#FF3B30' : l.level === 'SYS' ? '#00FFFF' : '#D0D0D0' }}>{l.msg}</span>
+          <span style={{ color: l.level === 'ERR' ? '#FF6B6B' : l.level === 'SYS' ? '#00FFFF' : '#C0C0C0', wordBreak: 'break-all' }}>
+            {l.msg}
+          </span>
         </div>
       ))}
     </div>
@@ -2913,9 +3040,7 @@ function FloatingConsole({ isDocked, setIsDocked }) {
         onMouseDown={isDocked ? startTerminalDrag : undefined}
       >
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} onMouseDown={e => e.stopPropagation()}>
-          {[['xterm', 'XTERM CONSOLE'], ['output', 'OUTPUT'], ['debug', 'DEBUG CONSOLE']].map(([k, label]) => (
-            <span key={k} data-console-tab={consoleTab === k ? k : undefined} style={{ cursor: 'pointer', padding: '4px 0', color: consoleTab === k ? '#00FFFF' : '#666', fontWeight: consoleTab === k ? 'bold' : 'normal', borderBottom: consoleTab === k ? '2px solid #00FFFF' : '2px solid transparent', transition: 'all 0.2s' }} onClick={() => setConsoleTab(k)}>{label}</span>
-          ))}
+          <span style={{ cursor: 'pointer', padding: '4px 0', color: '#00FFFF', fontWeight: 'bold', borderBottom: '2px solid #00FFFF', letterSpacing: '0.5px' }}>OUTPUT LOGS</span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }} onMouseDown={e => e.stopPropagation()}>
           {isDocked ? (
@@ -2931,24 +3056,8 @@ function FloatingConsole({ isDocked, setIsDocked }) {
         </div>
       </div>
       {/* Body */}
-      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: '8px' }}>
-        {consoleTab === 'xterm' && <MemoXTerm />}
-        {consoleTab === 'output' && <OutputConsole />}
-        {consoleTab === 'debug' && (
-          <div style={{ color: '#666', fontSize: '12px', fontFamily: 'Consolas, monospace', padding: '8px', overflowY: 'auto', height: '100%' }}>
-            <div style={{ color: '#00FFFF', fontWeight: 'bold', marginBottom: '12px' }}>系统连接状态</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30D158', display: 'inline-block' }}></span><span>后端 API: {API}</span></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30D158', display: 'inline-block' }}></span><span>Agent: Gemini 3 Flash (MCP)</span></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FF9900', display: 'inline-block' }}></span><span>HITL: Enabled (RED 操作需审批)</span></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00FFFF', display: 'inline-block' }}></span><span>WebSocket (PTY): ws://localhost:8000/api/v1/terminal</span></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#30D158', display: 'inline-block' }}></span><span>Scope: God Mode (无限制)</span></div>
-            </div>
-            <div style={{ marginTop: '16px', paddingTop: '8px', borderTop: '1px solid #222', color: '#444', fontSize: '10px' }}>
-              当前战区: {window.__claw_current_theater || 'default'} | 资产: {stats?.hosts ?? '?'} 台 | 端口: {stats?.ports ?? '?'} 个
-            </div>
-          </div>
-        )}
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#050505' }}>
+        <OutputConsole />
       </div>
     </div>
   )
@@ -2956,7 +3065,7 @@ function FloatingConsole({ isDocked, setIsDocked }) {
 
 
 // ========== MAIN APP ==========
-const MemoXTerm = React.memo(XTermConsole)
+// [REMOVED in V9.3] MemoXTerm 已删除
 
 function App() {
   const currentTheater = useStore(state => state.currentTheater)
@@ -3065,7 +3174,7 @@ function App() {
           
           <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
             <div className="activity-bar">
-              {[['HQ', TerminalIcon, '指挥座舱'], ['RF', Radio, '无线电场'], ['DP', Archive, '数字兵站'], ['VS', Globe, '全域透视']].map(([k, Icon, label]) => (
+              {[['HQ', TerminalIcon, '指挥座舱'], ['RF', Radio, '无线电场'], ['DP', Archive, '数字兵站']].map(([k, Icon, label]) => (
                 <div key={k} className={`activity-icon ${view === k ? 'active' : ''}`} onClick={() => setView(k)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                   <Icon size={20} strokeWidth={1.5} />
                   <div style={{ fontSize: '10px' }}>{label}</div>
@@ -3077,11 +3186,7 @@ function App() {
             <Sidebar onRefreshAssets={refreshAssets} />
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, borderRight: '1px solid #333' }}>
-              {view === 'RF' ? (
-                <AlfaRadarView />
-              ) : (
-                <WorkArea />
-              )}
+              <WorkArea />
               
               {/* Terminal renders natively inside flex column when Docked, keeping scroll bars constrained */}
               {isDocked && <FloatingConsole isDocked={isDocked} setIsDocked={setIsDocked} />}

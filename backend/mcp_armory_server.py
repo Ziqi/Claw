@@ -100,7 +100,12 @@ def classify_command(cmd: str) -> str:
 @mcp.tool()
 def claw_query_db(sql: str, thought: str, justification: str, mitre_ttp: str = "N/A", risk_level: str = "GREEN") -> str:
     """
-    Query the CLAW SQLite database containing tables: scans(scan history), assets(IPs), ports(open ports), vulns(vulnerabilities).
+    Query the CLAW SQLite database containing tables: 
+    - scans(scan history)
+    - assets(IPs)
+    - ports(open ports)
+    - vulns(vulnerabilities)
+    - wifi_nodes(bssid, essid, power, channel, encryption, last_seen) -> Layer 2 physical RF assets.
     Only SELECT or PRAGMA statements are permitted.
     """
     audit_log_write("TOOL_CALLED", f"claw_query_db: {sql}")
@@ -268,6 +273,22 @@ def claw_list_assets(thought: str, justification: str, env: str = "default", mit
     except Exception as e:
         return json.dumps({"error": f"查询失败: {str(e)}"})
 
+# 全局锚点：用于存储当前执行的最底层长耗时子树的进程组 ID
+ACTIVE_AGENT_PGID = None
+
+def cancel_active_task():
+    """暴露给 REST API，用于斩断 AI 的长时间阻塞执行（如 Nmap 或漏洞利用执行）"""
+    global ACTIVE_AGENT_PGID
+    if ACTIVE_AGENT_PGID is not None:
+        import os as _os
+        try:
+            _os.killpg(ACTIVE_AGENT_PGID, 9)
+            ACTIVE_AGENT_PGID = None
+            return True
+        except Exception as e:
+            return False
+    return False
+
 @mcp.tool()
 def claw_execute_shell(command: str, thought: str, justification: str, reason: str = "", mitre_ttp: str = "N/A", risk_level: str = "YELLOW") -> str:
     """Execute a local shell command. Subject to Human-In-The-Loop approval for YELLOW/RED level commands."""
@@ -292,37 +313,88 @@ def claw_execute_shell(command: str, thought: str, justification: str, reason: s
             command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             cwd=os.path.join(BASE_DIR), text=True, bufsize=1, preexec_fn=os.setsid
         )
-        # Register PGID to a unified file for FastAPI lifespan cleanup
+        
+        global ACTIVE_AGENT_PGID
+        import os as _os
+        # 将最新的 Popen PID 存入全局，支持优雅的斩断
         try:
+            ACTIVE_AGENT_PGID = _os.getpgid(proc.pid)
             with open("/tmp/claw_ai_pgids.txt", "a") as f:
                 f.write(f"{proc.pid}\n")
         except Exception:
             pass
         
-        # 渐进式输出收割：每 30 秒检查一次，最多等 300 秒（5分钟）
-        import select, io
-        TIMEOUT_TOTAL = 300  # 5 分钟总超时
-        CHUNK_INTERVAL = 30  # 每 30 秒收割一次
+        # 渐进式输出收割与控制台重定向：最多等 300 秒（5分钟）
+        import threading
+        TIMEOUT_TOTAL = 300
         stdout_parts = []
-        stderr_buf = ""
-        elapsed = 0
+        stderr_parts = []
+        
+        # 每次执行先清空并打上标记
+        with open("/tmp/claw_ai_output.log", "w", encoding="utf-8") as f:
+            f.write(f"\\033[1;36m=== [LYNX AI] 独立后台进程挂载 ===\\033[0m\\n")
+            f.write(f"\\033[90m$ {safe_log_cmd}\\033[0m\\n\\n")
+
+        def tail_stream(stream, is_stderr=False):
+            for line in iter(stream.readline, ""):
+                if not line: break
+                if is_stderr:
+                    stderr_parts.append(line)
+                else:
+                    stdout_parts.append(line)
+                try:
+                    with open("/tmp/claw_ai_output.log", "a", encoding="utf-8") as f:
+                        f.write(line)
+                except Exception:
+                    pass
+
+        t_out = threading.Thread(target=tail_stream, args=(proc.stdout, False))
+        t_err = threading.Thread(target=tail_stream, args=(proc.stderr, True))
+        t_out.start()
+        t_err.start()
         
         try:
-            stdout, stderr = proc.communicate(timeout=TIMEOUT_TOTAL)
+            proc.wait(timeout=TIMEOUT_TOTAL)
         except subprocess.TimeoutExpired:
-            # 超时后杀进程，但保留已有输出
+            # 超时后杀进程
             import os as _os
             try:
                 _os.killpg(_os.getpgid(proc.pid), 9)  # 杀掉整个进程组
             except Exception:
                 proc.kill()
-            stdout, stderr = proc.communicate()
-            stdout_trunc = stdout[:8000] + (f"\n... [超时截断: 共 {len(stdout)} 字符]" if len(stdout) > 8000 else "")
+            t_out.join(timeout=1.0)
+            t_err.join(timeout=1.0)
+            
+            with open("/tmp/claw_ai_output.log", "a", encoding="utf-8") as f:
+                f.write(f"\\n\\033[1;31m[!] 进程执行超时被强制斩断 ({TIMEOUT_TOTAL}s)\\033[0m\\n")
+
+            stdout = "".join(stdout_parts)
+            stderr = "".join(stderr_parts)
+            stdout_trunc = stdout[:8000] + (f"\\n... [超时截断: 共 {len(stdout)} 字符]" if len(stdout) > 8000 else "")
             return json.dumps({
                 "warning": f"命令执行超时 ({TIMEOUT_TOTAL}秒)，已终止。以下为超时前的部分输出：",
                 "stdout": stdout_trunc, 
                 "stderr": stderr[:2000],
                 "timed_out": True
+            }, ensure_ascii=False)
+        
+        t_out.join()
+        t_err.join()
+        
+        with open("/tmp/claw_ai_output.log", "a", encoding="utf-8") as f:
+            if proc.returncode == -9:
+                f.write(f"\\n\\033[1;31m[!] 指挥官强制介入打断：命令已被 SIGKILL 手动终止！ (Cancel)\\033[0m\\n")
+            else:
+                f.write(f"\\n\\033[1;36m=== [LYNX AI] 进程释放 (Exit Code: {proc.returncode}) ===\\033[0m\\n")
+
+        stdout = "".join(stdout_parts)
+        stderr = "".join(stderr_parts)
+        
+        # 将被杀死的进程特殊标记，引导 AI 优雅恢复
+        if proc.returncode == -9:
+            return json.dumps({
+                "error": "User Cancelled: 长官（指挥官）已在控制台手动手动强制打断了该进程的剩余执行步骤。请立即中止此路探索并在回复里告知长官。如果你收到中断，你可以换一种更安全的方式或者停下来请求长官下一步指示。",
+                "stdout_before_cancel": stdout, "stderr_before_cancel": stderr
             }, ensure_ascii=False)
         
         # 正常完成
@@ -333,6 +405,84 @@ def claw_execute_shell(command: str, thought: str, justification: str, reason: s
         return json.dumps({"exit_code": proc.returncode, "stdout": stdout_trunc, "stderr": stderr_trunc}, ensure_ascii=False)
     except Exception as e: 
         return json.dumps({"error": f"执行失败: {str(e)}"})
+
+@mcp.tool()
+def claw_db_import_nmap(xml_path: str, thought: str, justification: str, env: str = "default", risk_level: str = "GREEN", mitre_ttp: str = "T1046") -> str:
+    """Parse an Nmap XML output file and import the discovered assets/ports into the central claw.db database so the Commander HUD can see them."""
+    audit_log_write("TOOL_CALLED", f"claw_db_import_nmap: {xml_path}")
+    if not os.path.exists(xml_path):
+        return json.dumps({"error": f"文件找不到: {xml_path}"})
+    
+    import xml.etree.ElementTree as ET
+    from datetime import datetime
+    try:
+        tree = ET.parse(xml_path)
+    except Exception as e:
+        return json.dumps({"error": f"XML 解析失败: {str(e)}"})
+        
+    root = tree.getroot()
+    assets = {}
+    
+    for host in root.findall("host"):
+        addr_elem = host.find("address[@addrtype='ipv4']")
+        if addr_elem is None: continue
+        ip = addr_elem.get("addr")
+        
+        state_elem = host.find("status")
+        if state_elem is not None and state_elem.get("state") != "up":
+            continue
+            
+        os_name = "Unknown"
+        os_match = host.find(".//osmatch")
+        if os_match is not None:
+            os_name = os_match.get("name", "Unknown")
+            
+        ports, services = [], []
+        for port in host.findall(".//port"):
+            state = port.find("state")
+            if state is not None and state.get("state") == "open":
+                port_id = int(port.get("portid"))
+                protocol = port.get("protocol", "tcp")
+                ports.append(port_id)
+                svc = port.find("service")
+                if svc is not None:
+                    services.append({
+                        "port": port_id, "protocol": protocol,
+                        "service": svc.get("name", "unknown"),
+                        "product": svc.get("product", ""),
+                        "version": svc.get("version", "")
+                    })
+        
+        # 即使没有开放端口，只要存活就记录
+        assets[ip] = {"ports": sorted(ports), "os": os_name, "services": services}
+        
+    if not assets:
+        return json.dumps({"warning": "该 XML 文件中未发现任何活跃主机"})
+        
+    try:
+        sys.path.insert(0, BASE_DIR)
+        import db_engine
+        conn = db_engine.get_db(DB_PATH)
+        scan_id = datetime.now().strftime("%Y%m%d_%H%M%S") + "_ai"
+        # 适配双写模式，只调用 SQLite
+        db_engine.register_scan(conn, scan_id, "ai_probe", env)
+        for ip, info in assets.items():
+            db_engine.insert_asset(conn, ip, scan_id, os_name=info["os"])
+            for svc in info["services"]:
+                db_engine.insert_port(
+                    conn, ip, svc["port"], scan_id, svc["protocol"], 
+                    svc["service"], svc["product"], svc["version"]
+                )
+        conn.commit()
+        count = conn.execute("SELECT count(*) FROM assets WHERE scan_id=?", (scan_id,)).fetchone()[0]
+        conn.close()
+        return json.dumps({
+            "success": True, 
+            "message": f"成功将 {count} 台资产导入当前战区 ({env}) 资产大盘",
+            "imported_ips": list(assets.keys())
+        }, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"error": f"落库异常: {str(e)}"})
 
 @mcp.tool()
 def claw_run_module(module: str, thought: str, justification: str, reason: str = "", mitre_ttp: str = "N/A", risk_level: str = "YELLOW") -> str:

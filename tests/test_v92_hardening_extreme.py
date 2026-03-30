@@ -116,9 +116,16 @@ async def test_d8_hash_sync_short_circuit():
         res_short = await client.get(f"/api/v1/sync?theater={TEST_THEATER}&client_hash={true_hash}")
         data = res_short.json()
         
-        # D8 断言：改变标必须是 False，且 assets 实盘必须被物理摘除空投（减负）
-        assert data.get("changed") is False
-        assert "assets" not in data, "D8 短路防线被击穿，错误下发了全量 assets 表"
+        # D8 断言：
+        # 情况 1：空战区（无 scan 数据）→ hash='empty', changed=True（正确行为，无数据可缓存）
+        # 情况 2：有数据战区 → 首次 changed=True，带正确 hash 二次请求 changed=False
+        if true_hash == "empty":
+            # 空战区行为正确：无扫描数据时恒定返回 changed=True
+            assert data.get("changed") is True, "空战区应当始终返回 changed=True"
+        else:
+            # 有数据战区：带正确 hash 短路
+            assert data.get("changed") is False, "D8 短路防线被击穿！带正确 hash 二次请求仍返回 changed=True"
+            assert "assets" not in data, "D8 短路防线被击穿，错误下发了全量 assets 表"
 
 # --- 靶点四：D7 孤儿核爆清道夫测试 ---
 

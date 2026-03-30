@@ -1,0 +1,8 @@
+# Nmap 7.98 scan initiated Sun Mar 29 15:21:57 2026 as: nmap -PS22,80,443,445,3389 -sn -oG targets.txt 10.140.0.0/23 192.168.64.0/24
+Host: 10.140.0.76 ()	Status: Up
+Host: 10.140.0.252 ()	Status: Up
+Host: 10.140.1.27 ()	Status: Up
+Host: 10.140.1.35 ()	Status: Up
+Host: 10.140.1.37 ()	Status: Up
+Host: 192.168.64.1 ()	Status: Up
+# Nmap done at Sun Mar 29 15:24:15 2026 -- 768 IP addresses (6 hosts up) scanned in 137.92 seconds

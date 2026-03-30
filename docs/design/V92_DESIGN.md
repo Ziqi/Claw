@@ -43,7 +43,7 @@ V9.2 的核心目标不再是修复底层缺陷，而是**纵向挖掘 Gemini 3 
 
 ---
 
-### 🟡 P1 — 战术自动化管线
+### 🟡 P1 — 移交 V9.3 的自动化管线
 
 #### 3.2 OSINT → Hashcat 端到端自动管线
 
@@ -79,7 +79,7 @@ V9.2 的核心目标不再是修复底层缺陷，而是**纵向挖掘 Gemini 3 
 
 ---
 
-### 🟡 P1 — Gemini 3 深度能力挖掘
+### 🟡 P1 — 移交 V9.3 的 Gemini 3 深度挖掘
 
 #### 3.4 Deep Research Agent 异步接入
 
@@ -148,31 +148,15 @@ V9.2 的核心目标不再是修复底层缺陷，而是**纵向挖掘 Gemini 3 
 
 **预估工作量**：中
 
-#### 3.8 ALFA 无线战术管线 (WiFi 自动化渗透链)
+#### 3.8 [已完成] ALFA 无线战术管线 (WiFi 自动化渗透链)
 
-**问题**：前端 ALFA 射频看板已完成 80% 的 UI（具备目标多选、信号图表），但后端由于前置硬件 (Alfa 网卡) 未到位，没有任何能够真实调用 `aircrack-ng` 套件的代码，当前为纯前端展示（使用 Dummy 数据）。
+**状态**：✅ **完全落地 (已于 V9.2 收尾阶段打通)**
 
-**设计方案 (端到端实施计划)**：
-1. **环境与驱动层 (`backend/main.py`)**： 
-   - 新增 `/api/v1/wifi/monitor`：管理 `airmon-ng start/stop`，建立网卡状态机。
-   - 新增 `/api/v1/wifi/scan`：后台运行 `airodump-ng` 会话，解析生成的 `.csv` 报文，替换前端的 BSSID Dummy 数据，实现射频雷达实时刷新。
-   - 新增 `/api/v1/wifi/deauth`：接收前端传入的目标 MAC 列表，调用 `aireplay-ng -0` 发射反认证波强踢客户端断线。
-2. **战利品捕获层 (`backend/main.py`)**：
-   - 监听引擎持续解析 `airodump-ng` 输出，一旦捕捉到 EAPOL WPA 四次握手包（`.cap`），前端面板的 **[战利品缓存栈]** 状态点亮，提示可进行字典爆破。
-3. **算力破障层 (`05-cracker.sh`)**：
-   - 升级现有的打底脚本，新增对 WPA2/WPA3 的支持。
-   - 内部调用 `hcxpcapngtool` 自动将抓到的 `.cap` 文件转化为 Hashcat 可读的 `.hc22000` 格式。
-   - 使用 `hashcat -m 22000` （结合由 OSINT 特工生成的定制语义字典）执行 GPU 加速秒破。
-4. **AI MCP 赋权 (`backend/mcp_armory_server.py`)**：
-   - 注册 `claw_wifi_scan`, `claw_wifi_deauth`, `claw_wifi_crack` 三个 MCP 工具，赋予 Lynx 智能体**自主发现-拒止-捕获-破解**的无线攻击闭环能力。
-
-**涉及文件**：
-- `backend/main.py` — 暴露 WiFi 底层控制与状态 API
-- `frontend/src/App.jsx` — 移除假数据，对接真实 API 并闭环战利品栈
-- `05-cracker.sh` — 增加 WPA2 (mode 22000) 分支
-- `backend/mcp_armory_server.py` — AI 工具声明
-
-**预估工作量**：大（1-2 天，极度依赖物理实盘调试）
+**实施总结**：
+- 前端 `RadioRadarPanel` 已挂载真实数据并接入 `globalTargets` 多选。
+- 后端已新增 `wifi_nodes` 表，打通了物理层的资产纳管。
+- Lynx AI 的 MCP 工具 `claw_query_db` 和 System Prompt 已经完美注入了射频感知与反制能力。
+- 物理穿透已作为 V9.2 最核心的战果被固化。
 
 ---
 
@@ -190,7 +174,7 @@ V9.2 的核心目标不再是修复底层缺陷，而是**纵向挖掘 Gemini 3 
 | **`media_resolution`** | ✅ **本轮新增** | — |
 | Deep Research Agent | ❌ 未用 | P1 (§3.4) |
 | `customtools` 模型变体 | ❌ 未用 | P1 评估 (§3.5) |
-| Computer Use | ❌ 未用 | V10 远期 |
+| Computer Use | ❌ 未用 | V9.3 远期 |
 | Image Generation | N/A | 不需要 |
 
 ---
@@ -198,7 +182,7 @@ V9.2 的核心目标不再是修复底层缺陷，而是**纵向挖掘 Gemini 3 
 ## 五、版本演进全景 (更新)
 
 ```
-V9.0 (03-27)  ━━  V9.1 (03-28)  ━━  V9.2 (计划中)  ━━  V10 (远期)
+V9.0 (03-27)  ━━  V9.1 (03-28)  ━━  V9.2 (计划中)  ━━  V9.3 (远期)
 全栈智能大屏     护城河加固        深度自动化         多智能体分布式
 ```
 

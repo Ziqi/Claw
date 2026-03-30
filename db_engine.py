@@ -60,6 +60,32 @@ CREATE TABLE IF NOT EXISTS mcp_messages (
     content TEXT, 
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS wifi_nodes (
+    bssid TEXT PRIMARY KEY,
+    essid TEXT,
+    power INTEGER,
+    channel INTEGER,
+    encryption TEXT,
+    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+    first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+    status TEXT DEFAULT 'LIVE',
+    password TEXT,
+    cracked_at DATETIME,
+    channel_locked BOOLEAN DEFAULT 0,
+    capture_file TEXT,
+    handshake_captured BOOLEAN DEFAULT 0,
+    clients_count INTEGER DEFAULT 0,
+    manufacturer TEXT
+);
+
+CREATE TABLE IF NOT EXISTS wifi_rssi_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bssid TEXT NOT NULL,
+    signal_strength INTEGER,
+    recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bssid) REFERENCES wifi_nodes(bssid)
+);
 """
 
 

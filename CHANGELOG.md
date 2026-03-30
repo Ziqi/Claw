@@ -1,10 +1,59 @@
-# 📝 CatTeam 更新日志
+# CatTeam 更新日志
 
 ---
 
-## [V9.2 / A2.2] — 2026-03-29 🚀 Deep Autonomy (Planned)
+## [V9.3 / A3.0] -- 2026-03-31 Electro-Phantom Sprint 1 (态势感知增强)
+> **Sprint 1 完成：WiFi 雷达从静态表格升级为动态态势感知大屏。Docker 正式退役，全面切换至 Kali VM 原生架构。**
 
-*(Pre-flight pending Alfa interface integration)*
+### 态势感知增强 (Sprint 1)
+- **RSSI Sparkline 微折线图**: WiFi 雷达面板的信号列新增内联 SVG 折线图，前 10 个 AP 自动批量获取 RSSI 历史数据并实时绘制。
+- **AP Ghosting 残影动画**: 基于 `last_seen` 计算时间差，>10s 半透明、>60s 虚线淡出、>5min 移入底部"历史残影"可折叠区域。
+- **探针健康状态灯 (HudBar)**: 新增 `ALFA 探针` 指示器，实时显示 ONLINE/DELAYED/OFFLINE + AP 计数。
+- **探针健康状态灯 (雷达面板)**: 标题栏同步显示探针状态圆点。
+
+### 指挥交互升级 (Mission Briefing)
+- **战术意图 Chips**: 新增 6 个预制标签，一键填充输入框。
+- **推送成功反馈**: 按钮从"全域推送"变为绿色"已下发"，2 秒后恢复。
+- **活跃状态指示**: "ACTIVE BRIEFING" + 绿色脉冲呼吸灯。
+
+### CampaignPipeline 重构 5->4 阶段
+- 战区锚定 -> 服务指纹 -> 威胁研判 -> 战报输出。移除"Weapon 注入"阶段。
+
+### OUTPUT LOGS -> MCP 工具调用监控台
+- AI Copilot 的 TOOL_CALL_START / TOOL_CALL_RESULT 同步推送至面板。
+
+### 全域视觉合规 + Docker 退役
+- Emoji 全面清除，替换为 ASCII 符号。
+- Dockerfile / docker-compose / Docker 标签页删除。Docker Desktop 已卸载，释放 4.57 GB。
+
+### Bug 修复
+- React Hooks 违规修复 (Mission Briefing useState)
+- fastmcp 依赖安装，MCP Worker 恢复
+
+---
+
+## [V9.3 / A2.2] — 2026-03-30 🧹 Electro-Phantom (The Final Purge)
+> **系统定位回归：彻底卸载了“危险框架”的历史包袱，进化为纯粹的态势感知指令塔。攻击能力全量下放至离线终端人工执行。**
+
+### 🛡️ 架构脱敏与端点根除 (Egress of Offensive Automation)
+- **根除自动化火力流 (`/api/v1/ops/run`)**: 从 FastAPI 核心管线彻底切断并物理删除了调用长寿命 `subprocess.Popen` 及关联 `ACTIVE_JOBS` 的挂起调度池，斩断了云端直接发起本地系统攻击指令的神经元。
+- **清除多模态钓鱼锻造场 (`/api/v1/agent/forge`)**: 拆除了使用 Playwright 和 Gemini 组合自举生成以假乱真的 A2UI Web 欺骗登录页的高危微服务闭环。
+- **拆卸自动提纯字典 (`/api/v1/agent/osint/stream`)**: 移除了高危的目标设备弱口令流式生成器与下发机制。
+
+### 🛸 前端雷达净化 (HUD De-militarization)
+- **拔除悬浮火控挂架 (`TacticalArmoryModal`)**: 将 36 种原生存取操作能力从 WebUI 中物理剥离，严守“只看雷达不发炮”原则。
+- **卸载极客 OSINT 终端 (`OsintTerminalModal`)**: 去除了步进式 Hacker 行动字幕和字典注入窗口的组件渲染路径。
+- **修复与瘦身**: 剔除了上述危险模块的引爆源后，通过严格的 Linter 验证，根绝了因移除节点导致的前端 React 闭合标签失效、变量重复声明等编译障碍，目前产物更清爽、轻量。
+## [V9.2 / A2.2] — 2026-03-29 🚀 Deep Autonomy (Released)
+
+### 📡 射频战术管线 (ALFA Wireless Integration)
+- **底层网卡感知**: 新增了 `wifi_nodes` 表，打通了物理层无线资产（BSSID）的数据流，使其能与现有 IP 资产被统一纳管在相同的态势感知平台内。
+- **全案武器库覆盖**: 将 ALFA 网卡雷达面板从虚拟数据正式切入真实状态机。Lynx 智能体现在可以根据多模态扫描图谱主动为所选 BSSID 调取对应的脱机攻击策略（如 Deauth 断网或破解）。
+- **MCP 认知升级**: 在 `mcp_armory_server.py` 中更新了工具指引，为 AI 建立基于 MAC 地址的电磁识别和底层查询规则。
+
+### 🎯 全局标靶锁定池 (Global Target Reticle)
+- **多选阵列打通**: 彻底修复了战术沙盒中的“单选限制”缺陷。重构了前端 `globalTargets` 状态流，成功在每次的对答回合里将整个标靶数组注入大模型的强制系统级上下文。
+- **并发火力规划**: 现在指挥官可以批量选中目标群发任务，AI 将正确理解并循环、批量下发代码级行动。
 
 ---
 
@@ -47,14 +96,14 @@
 - **Sliver C2 原生集成**: 超纲介入公网远控，编写了原生的 React 面板。
 - **兵工厂落盘固化**: A2UI 从预览概念变为了实体持久化（`/forge/save`）。
 
-### 🚨 4. 未执行开发与历史核心欠债 (Missed & Historical Debt)
-- **全局多选管线断裂 (Multi-Select Void)**: 独立武装页依设计要求而建，但由于数个大版本一直延宕了**跨页面的全局多选状态（Multi-Select）**的发育，导致目前的武库被迫陷入极为僵硬的“单节点跳页开火”困局。此项 P0 级欠债成为阻碍连贯 C2 体验的最大门槛！
-- **ToolCodeExecution 代码沙箱**: 后端大模型注册表 `agent_mcp.py` 中彻底遗漏挂载该关键沙箱环境！
-- **A2UI 视觉自我纠错**: Playwright 无头浏览器截图回传验证链路未能开发。
+### 🚨 4. V9.0 时期未执行开发与历史核心欠债 (现已于 V9.2 修复)
+- **全局多选管线断裂**: `✅ 已于 V9.2 修复`，恢复了跨页面的标靶多选锁定。
+- **ToolCodeExecution 代码沙箱**: `✅ 已于 V9.1 修复`，挂载核心沙箱环境。
+- **A2UI 视觉自我纠错**: Playwright 链路视效优化。
 
 ---
 
-## [V9.0 / A2.1] — 2026-03-27 ⭐ 全栈智能指挥大盘 (Phase 15 & 16)
+## [V9.0 / A2.1] — 2026-03-27 ⭐ 全栈智能大盘 (Phase 15 & 16)
 
 ### 🛸 界面重构：指挥官的战术沙盒 (The Commander's HUD)
 - **全局战术管线 (CampaignPipeline)**: 废除分散的菜单与页面。将整个渗透进程凝聚在顶部发光管线 (`战区锚定` → `射频嗅探` → `脆弱性指纹` → `Alfa 注入` → `战报生成`)。并且去除了违规 Emoji，替换为 `lucide-react` SVG 标准合规版。

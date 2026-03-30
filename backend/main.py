@@ -83,6 +83,7 @@ def get_db():
     global _DB_INITIALIZED
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")  # P1-1 修复：补齐 D6 导师裁定的 WAL 防锁（db_engine/agent_mcp 已有，此处遗漏）
     
     if not _DB_INITIALIZED:
         from db_engine import SCHEMA
@@ -96,6 +97,24 @@ def get_db():
                 conn.execute("INSERT OR IGNORE INTO environments (name) SELECT DISTINCT env FROM scans")
             except Exception:
                 pass
+            # wifi_nodes 表已迁入 db_engine.py SCHEMA 统管 (V9.3)
+            # 自动迁移：为旧 wifi_nodes 表添加 V9.3 新字段
+            _v93_columns = [
+                ("first_seen", "DATETIME DEFAULT CURRENT_TIMESTAMP"),
+                ("status", "TEXT DEFAULT 'LIVE'"),
+                ("password", "TEXT"),
+                ("cracked_at", "DATETIME"),
+                ("channel_locked", "BOOLEAN DEFAULT 0"),
+                ("capture_file", "TEXT"),
+                ("handshake_captured", "BOOLEAN DEFAULT 0"),
+                ("clients_count", "INTEGER DEFAULT 0"),
+                ("manufacturer", "TEXT"),
+            ]
+            for col_name, col_type in _v93_columns:
+                try:
+                    conn.execute(f"ALTER TABLE wifi_nodes ADD COLUMN {col_name} {col_type}")
+                except sqlite3.OperationalError:
+                    pass  # 列已存在，安全跳过
             conn.commit()
             _DB_INITIALIZED = True
         except sqlite3.OperationalError as e:
@@ -155,6 +174,151 @@ def get_stats():
         }
 
 import hashlib
+from datetime import datetime
+
+class WifiIngestPayload(BaseModel):
+    bssid: str
+    essid: str = ""
+    power: int = -100
+    channel: int = 1
+    encryption: str = "OPN"
+
+# 探针认证密钥（防止任意来源伪造遥测数据）
+SENSOR_AUTH_TOKEN = os.environ.get("CLAW_SENSOR_TOKEN", "claw-sensor-2026")
+
+# V9.3 全局指挥官意图 (联邦通信基座) — 持久化至 mission.txt
+MISSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'CatTeam_Loot', 'mission.txt')
+
+def _load_mission_from_file():
+    """启动时从磁盘恢复上一次的指挥意图"""
+    try:
+        if os.path.exists(MISSION_FILE):
+            with open(MISSION_FILE, 'r') as f:
+                content = f.read().strip()
+                if content:
+                    return content
+    except Exception:
+        pass
+    return "待命中... (Waiting for Commander Intent)"
+
+CURRENT_MISSION_BRIEFING = _load_mission_from_file()
+
+class MissionPayload(BaseModel):
+    briefing: str
+
+@app.post("/api/v1/mission")
+def update_mission_briefing(payload: MissionPayload):
+    """(V9.3) 移动端/大屏指挥官下发战略简报 — 同步落盘"""
+    global CURRENT_MISSION_BRIEFING
+    CURRENT_MISSION_BRIEFING = payload.briefing
+    # 持久化：写入 mission.txt，与 Kali 探针 claw_wifi_sensor.py 共享同一文件
+    try:
+        os.makedirs(os.path.dirname(MISSION_FILE), exist_ok=True)
+        with open(MISSION_FILE, 'w') as f:
+            f.write(payload.briefing)
+    except Exception as e:
+        print(f"[WARN] Mission briefing persist failed: {e}")
+    return {"status": "ok", "current_mission": CURRENT_MISSION_BRIEFING}
+
+@app.post("/api/v1/sensors/wifi/ingest")
+def ingest_wifi_telemetry(payload: List[WifiIngestPayload], request: Request):
+    """Edge Sensor 遥测摄入接口（将 ALFA 网卡捕获的数据流持久化）"""
+    # 认证校验：检查 Authorization 头
+    auth_header = request.headers.get("Authorization", "")
+    expected = f"Bearer {SENSOR_AUTH_TOKEN}"
+    if auth_header != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized sensor. Invalid or missing token.")
+    
+    with get_db() as conn:
+        for ap in payload:
+            conn.execute(
+                '''INSERT INTO wifi_nodes (bssid, essid, power, channel, encryption, last_seen)
+                   VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                   ON CONFLICT(bssid) DO UPDATE SET 
+                     essid=excluded.essid,
+                     power=excluded.power,
+                     channel=excluded.channel,
+                     encryption=excluded.encryption,
+                     last_seen=CURRENT_TIMESTAMP''',
+                (ap.bssid, ap.essid, ap.power, ap.channel, ap.encryption)
+            )
+            # V9.3: 同时写入 RSSI 历史表（Sparkline 数据源）
+            conn.execute(
+                '''INSERT INTO wifi_rssi_history (bssid, signal_strength)
+                   VALUES (?, ?)''',
+                (ap.bssid, ap.power)
+            )
+        conn.commit()
+    return {
+        "status": "ok", 
+        "ingested": len(payload),
+        "top_intent": CURRENT_MISSION_BRIEFING
+    }
+
+@app.get("/api/v1/sensors/wifi/radar")
+def get_wifi_radar():
+    """获取全域战术频谱雷达图（5分钟内活跃的AP + V9.3 扩展字段）"""
+    with get_db() as conn:
+        rows = conn.execute(
+            '''SELECT bssid, essid, power, channel, encryption, last_seen,
+                      status, handshake_captured, clients_count, manufacturer
+               FROM wifi_nodes 
+               WHERE datetime(last_seen) >= datetime('now', '-5 minute')
+               ORDER BY power DESC'''
+        ).fetchall()
+        
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "active_nodes": [dict(r) for r in rows]
+        }
+
+# V9.3: RSSI 历史查询（Sparkline 折线图数据源）
+@app.get("/api/v1/sensors/wifi/rssi_history")
+def get_rssi_history(bssid: str = Query(..., description="目标 AP 的 BSSID"), limit: int = Query(20, description="返回数据点数")):
+    """获取指定 AP 的信号强度历史（用于前端 Sparkline 微型折线图）"""
+    with get_db() as conn:
+        rows = conn.execute(
+            '''SELECT signal_strength, recorded_at FROM wifi_rssi_history
+               WHERE bssid = ? ORDER BY recorded_at DESC LIMIT ?''',
+            (bssid, limit)
+        ).fetchall()
+        return {"bssid": bssid, "history": [dict(r) for r in reversed(rows)]}
+
+# V9.3: 探针健康检测（基于 wifi_nodes 最新时间推算）
+@app.get("/api/v1/sensors/health")
+def get_sensor_health():
+    """探针健康状态：基于 wifi_nodes 表最新 last_seen 时间推算"""
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT MAX(last_seen) as latest, COUNT(*) as total FROM wifi_nodes"
+        ).fetchone()
+        
+        latest = row["latest"] if row else None
+        total = row["total"] if row else 0
+        
+        # 判断探针状态
+        status = "offline"
+        if latest:
+            from datetime import datetime as dt
+            try:
+                last_dt = dt.fromisoformat(latest)
+                diff = (dt.now() - last_dt).total_seconds()
+                if diff < 30:
+                    status = "online"
+                elif diff < 120:
+                    status = "delayed"
+                else:
+                    status = "offline"
+            except Exception:
+                status = "unknown"
+        
+        return {
+            "wifi_probe": {
+                "status": status,
+                "last_heartbeat": latest,
+                "nodes_count": total
+            }
+        }
 
 @app.get("/api/v1/sync")
 def sync_data(theater: str = Query("default", description="显式战区防串台"), client_hash: str = Query(None)):
@@ -169,13 +333,12 @@ def sync_data(theater: str = Query("default", description="显式战区防串台
             empty_stats = {"hosts": 0, "ports": 0, "vulns": 0, "scans": 0, "latest_scan": None}
             return {"changed": True, "hash": "empty", "stats": empty_stats, "assets": []}
         
-        scan_id = scan_id_row["scan_id"]
         latest_ts = scan_id_row["timestamp"]
         
-        # 2. 基于最新 scan_id 统计（与 /stats 和资产列表保持一致）
-        hosts = conn.execute("SELECT COUNT(DISTINCT ip) as c FROM assets WHERE scan_id = ?", (scan_id,)).fetchone()["c"]
-        ports = conn.execute("SELECT COUNT(*) as c FROM ports WHERE scan_id = ?", (scan_id,)).fetchone()["c"]
-        vulns = conn.execute("SELECT COUNT(*) as c FROM vulns WHERE scan_id = ?", (scan_id,)).fetchone()["c"]
+        # 2. 基于聚合快照统计
+        hosts = conn.execute("SELECT COUNT(DISTINCT a.ip) as c FROM assets a JOIN scans s ON a.scan_id = s.scan_id WHERE s.env = ?", (env,)).fetchone()["c"]
+        ports = conn.execute("SELECT COUNT(DISTINCT p.ip || ':' || p.port) as c FROM ports p JOIN scans s ON p.scan_id = s.scan_id WHERE s.env = ?", (env,)).fetchone()["c"]
+        vulns = conn.execute("SELECT COUNT(*) as c FROM vulns v JOIN scans s ON v.scan_id = s.scan_id WHERE s.env = ?", (env,)).fetchone()["c"]
         scans = conn.execute("SELECT COUNT(*) as c FROM scans WHERE env = ?", (env,)).fetchone()["c"]
         
         # 3. 生成当前战区的数据摘要 (Digest Hash)
@@ -190,24 +353,22 @@ def sync_data(theater: str = Query("default", description="显式战区防串台
         if client_hash == current_hash:
             return {"changed": False, "hash": current_hash, "stats": stats}
             
-        # 4. 若数据有变，进行消除 N+1 的极速全量拉取
-        # 批量查 assets
-        asset_rows = conn.execute("SELECT ip, os FROM assets WHERE scan_id = ? ORDER BY ip", (scan_id,)).fetchall()
-        # 批量查 ports，避免 for 循环里发 SQL
-        port_rows = conn.execute("SELECT ip, port, service, product, version FROM ports WHERE scan_id = ?", (scan_id,)).fetchall()
+        # 4. 若数据有变，进行极速全量聚合拉取
+        query = "SELECT a.ip, a.os, MAX(s.timestamp) as last_seen, a.scan_id FROM assets a JOIN scans s ON a.scan_id = s.scan_id WHERE s.env=? GROUP BY a.ip"
+        asset_rows = conn.execute(query, (env,)).fetchall()
         
-        ports_by_ip = {}
-        for p in port_rows:
-            ports_by_ip.setdefault(p["ip"], []).append(dict(p))
-
         assets = []
         for r in asset_rows:
-            ip = r["ip"]
+            # 根据 MAX 聚合推导出的精准 scan_id 拉取对应快照端口
+            port_rows = conn.execute(
+                "SELECT port, service, product, version FROM ports WHERE ip=? AND scan_id=?",
+                (r["ip"], r["scan_id"])
+            ).fetchall()
             assets.append({
-                "ip": ip,
+                "ip": r["ip"],
                 "os": r["os"],
-                "port_count": len(ports_by_ip.get(ip, [])),
-                "ports": ports_by_ip.get(ip, [])
+                "port_count": len(port_rows),
+                "ports": [dict(p) for p in port_rows]
             })
                 
         return {
@@ -217,52 +378,75 @@ def sync_data(theater: str = Query("default", description="显式战区防串台
             "assets": assets
         }
 
-
 @app.get("/api/v1/assets")
 def list_assets(
-    scan_id: str = Query(None, description="指定 scan_id，默认最新"),
+    scan_id: str = Query(None, description="指定 scan_id，默认当前战区全局聚合快照"),
     search: str = Query(None, description="搜索 IP 或 OS"),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=200),
 ):
-    """资产列表（分页+搜索）"""
+    """资产列表（分页+搜索）：已升级为增量全域快照聚合模式"""
     with get_db() as conn:
-        # 获取 scan_id (按当前 env 过滤)
+        env = get_current_env()
+        
         if not scan_id:
-            env = get_current_env()
-            row = conn.execute("SELECT scan_id FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
-            if not row:
-                return {"assets": [], "total": 0, "env": env}
-            scan_id = row["scan_id"]
+            # 战区模式：跨单次查询，提取每个IP的最新鲜记录
+            query = "SELECT a.ip, a.os, MAX(s.timestamp) as last_seen, a.scan_id FROM assets a JOIN scans s ON a.scan_id = s.scan_id WHERE s.env=?"
+            params = [env]
+            if search:
+                query += " AND (a.ip LIKE ? OR a.os LIKE ?)"
+                params.extend([f"%{search}%", f"%{search}%"])
+            query += " GROUP BY a.ip"
+            
+            # Count the total groups (IPs)
+            count_query = f"SELECT COUNT(*) as c FROM ({query})"
+            total = conn.execute(count_query, params).fetchone()["c"]
 
-        # 查询资产
-        query = "SELECT ip, os FROM assets WHERE scan_id = ?"
-        params = [scan_id]
-        if search:
-            query += " AND (ip LIKE ? OR os LIKE ?)"
-            params.extend([f"%{search}%", f"%{search}%"])
+            # Pagination
+            query += " ORDER BY a.ip LIMIT ? OFFSET ?"
+            params.extend([size, (page - 1) * size])
+            rows = conn.execute(query, params).fetchall()
 
-        total = conn.execute(query.replace("SELECT ip, os", "SELECT COUNT(*) as c"), params).fetchone()["c"]
+            assets = []
+            for r in rows:
+                port_rows = conn.execute(
+                    "SELECT port, service, product, version FROM ports WHERE ip=? AND scan_id=?",
+                    (r["ip"], r["scan_id"])  # 利用绑定该IP提取所对应的具体scan_id提取其端口快照
+                ).fetchall()
+                assets.append({
+                    "ip": r["ip"],
+                    "os": r["os"],
+                    "port_count": len(port_rows),
+                    "ports": [dict(p) for p in port_rows],
+                })
+            return {"assets": assets, "total": total, "scan_id": "aggregated", "page": page, "env": env}
+        else:
+            # 单兵历史查询模式（点击某个历史快照记录时）
+            query = "SELECT ip, os FROM assets WHERE scan_id = ?"
+            params = [scan_id]
+            if search:
+                query += " AND (ip LIKE ? OR os LIKE ?)"
+                params.extend([f"%{search}%", f"%{search}%"])
 
-        query += " ORDER BY ip LIMIT ? OFFSET ?"
-        params.extend([size, (page - 1) * size])
-        rows = conn.execute(query, params).fetchall()
+            total = conn.execute(query.replace("SELECT ip, os", "SELECT COUNT(*) as c"), params).fetchone()["c"]
 
-        # 为每个资产附加端口
-        assets = []
-        for r in rows:
-            port_rows = conn.execute(
-                "SELECT port, service, product, version FROM ports WHERE ip=? AND scan_id=?",
-                (r["ip"], scan_id)
-            ).fetchall()
-            assets.append({
-                "ip": r["ip"],
-                "os": r["os"],
-                "port_count": len(port_rows),
-                "ports": [dict(p) for p in port_rows],
-            })
+            query += " ORDER BY ip LIMIT ? OFFSET ?"
+            params.extend([size, (page - 1) * size])
+            rows = conn.execute(query, params).fetchall()
 
-        return {"assets": assets, "total": total, "scan_id": scan_id, "page": page, "env": get_current_env()}
+            assets = []
+            for r in rows:
+                port_rows = conn.execute(
+                    "SELECT port, service, product, version FROM ports WHERE ip=? AND scan_id=?",
+                    (r["ip"], scan_id)
+                ).fetchall()
+                assets.append({
+                    "ip": r["ip"],
+                    "os": r["os"],
+                    "port_count": len(port_rows),
+                    "ports": [dict(p) for p in port_rows],
+                })
+            return {"assets": assets, "total": total, "scan_id": scan_id, "page": page, "env": env}
 
 
 @app.get("/api/v1/assets/{ip}")
@@ -290,6 +474,97 @@ def get_asset_detail(ip: str):
             "scan_id": asset["scan_id"],
             "ports": [dict(p) for p in ports],
         }
+
+class CleanupRequest(BaseModel):
+    inactive_hours: int = 48
+    
+@app.post("/api/v1/assets/cleanup")
+def assets_cleanup(req: CleanupRequest):
+    """(新增) 清理战区内超过指定时间（默认 48H）未在快照中发声的静默机器"""
+    import datetime
+    env = get_current_env()
+    cutoff_time = (datetime.datetime.utcnow() - datetime.timedelta(hours=req.inactive_hours)).strftime("%Y-%m-%d %H:%M:%S")
+    
+    with get_db() as conn:
+        # 获取要删除的幽灵 IP 列表
+        ghosts = conn.execute(
+            "SELECT a.ip FROM assets a JOIN scans s ON a.scan_id = s.scan_id "
+            "WHERE s.env = ? GROUP BY a.ip HAVING MAX(s.timestamp) < ?",
+            (env, cutoff_time)
+        ).fetchall()
+        
+        ghost_ips = [r["ip"] for r in ghosts]
+        
+        if ghost_ips:
+            # 删除隶属于该战区所有扫描记录下的这些 IP 资产
+            ids_placeholder = ",".join("?" for _ in ghost_ips)
+            conn.execute(
+                f"DELETE FROM assets WHERE ip IN ({ids_placeholder}) AND scan_id IN (SELECT scan_id FROM scans WHERE env = ?)",
+                (*ghost_ips, env)
+            )
+            conn.commit()
+            
+        return {"status": "ok", "deleted_count": len(ghost_ips), "ghost_ips": ghost_ips, "cutoff_utc": cutoff_time}
+
+@app.get("/api/v1/env/network_alignment")
+def check_network_alignment():
+    """(新增) 核对本机网关与战区主频段是否偏移"""
+    import socket
+    env = get_current_env()
+    local_ips = []
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ips.append(s.getsockname()[0])
+        s.close()
+    except Exception:
+        pass
+        
+    try:
+        host_name = socket.gethostname()
+        _, _, ips = socket.gethostbyname_ex(host_name)
+        for ip in ips:
+            if not ip.startswith("127.") and ip not in local_ips:
+                local_ips.append(ip)
+    except Exception:
+        pass
+
+    import subprocess, re
+    try:
+        out = subprocess.check_output(["ifconfig"], universal_newlines=True)
+        matches = re.findall(r'inet\s+(\d+\.\d+\.\d+\.\d+)', out)
+        for m in matches:
+            if not m.startswith("127.") and not m.startswith("172.1") and m not in local_ips:
+                local_ips.append(m)
+    except Exception:
+        pass
+
+    if not local_ips:
+        local_ips = ["127.0.0.1"]
+
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT a.ip FROM assets a JOIN scans s ON a.scan_id = s.scan_id "
+            "WHERE s.env = ? GROUP BY a.ip", 
+            (env,)
+        ).fetchall()
+        
+        if not rows:
+            return {"aligned": True, "local_ips": local_ips, "theater_subnets": []}
+            
+        from collections import Counter
+        subnets = Counter([".".join(r["ip"].split(".")[:3]) for r in rows])
+        theater_subnets = [k for k, v in subnets.most_common(3)]
+            
+        local_subnets = [".".join(ip.split(".")[:3]) for ip in local_ips]
+        
+        aligned = False
+        for ts in theater_subnets:
+            if ts in local_subnets:
+                aligned = True
+                break
+                
+        return {"aligned": aligned, "local_ips": local_ips, "theater_subnets": theater_subnets}
 
 
 @app.get("/api/v1/scans")
@@ -329,34 +604,13 @@ def list_campaigns(limit: int = Query(20, ge=1, le=100)):
 
 
 # === SLIVER C2 MOCK APIs ===
-MOCK_SLIVER_SESSIONS = [
-    {"id": "c8a4b3d1", "name": "DESKTOP-9X21B", "os": "windows", "ip": "10.140.0.96", "user": "NT AUTHORITY\\SYSTEM", "last_checkin": "12s ago", "status": "active"},
-    {"id": "f5e9a2c0", "name": "UBUNTU-WEB-01", "os": "linux", "ip": "172.16.5.12", "user": "www-data", "last_checkin": "45s ago", "status": "active"},
-    {"id": "a1b2c3d4", "name": "EXCHANGE-SRV", "os": "windows", "ip": "10.140.0.101", "user": "NT AUTHORITY\\SYSTEM", "last_checkin": "10m ago", "status": "dead"}
-]
-
-@app.get("/api/v1/sliver/sessions")
-def get_sliver_sessions():
-    """获取 Sliver C2 当前上线的 Session (Mock)"""
-    return {"sessions": MOCK_SLIVER_SESSIONS}
+# [REMOVED in V9.3] Sliver C2 Mock 端点 (sliver/sessions + sliver/interact)
+# 原因：无实际 C2 数据源，纯 Mock 展示
 
 class OpsRunRequest(BaseModel):
     command: str
     theater: str = "default"
     sudo_pass: str | None = None
-
-class SliverCommand(BaseModel):
-    session_id: str
-    command: str
-
-@app.post("/api/v1/sliver/interact")
-def interact_sliver(cmd: SliverCommand):
-    """向给定的 Sliver Session 下发命令 (Mock)"""
-    return {
-        "status": "success", 
-        "session_id": cmd.session_id, 
-        "output": f"[SLIVER-RPC] Execute OK on {cmd.session_id}:\n{cmd.command}\nuid=0(root) gid=0(root)\n"
-    }
 
 
 # === STRUCTURED OUTPUT: COGNITIVE GRAPH DISTILLATION ===
@@ -436,109 +690,6 @@ class ForgeRequest(BaseModel):
     target_info: dict
     concept: str = "企业内网登录凭据截获 Portal"
 
-class ForgeResponse(BaseModel):
-    html: str
-    screenshot: str
-
-HTML_PROMPT = """你是一个顶级前端渗透逆向工程师。
-请为目标 ({target_ip}, OS: {os}, 开放端口：{ports}, 意图方案：{concept})
-编写一个【极度逼真】的、不留安全瑕疵的 HTML 页面源码。
-要求：
-1. 必须包含内联的 TailwindCSS (<script src="https://cdn.tailwindcss.com"></script>)。
-2. 背景、Logo 占位符、渐变色必须符合目标身份。
-3. 表单结构必须极为合理（如用户名、密码、MFA 输入框），必须有一个醒目的登录按钮。
-4. 页面需要有微妙的动效（如 hover 阴影）。
-5. 必须返回纯粹且完整的 HTML 代码，不包含多余的代码块标记。
-"""
-
-CORRECTION_PROMPT = """这是一个多模态自我视觉审核过程。这是你刚才生成的页面的浏览器真实截图。
-你必须以专业 UI/UX 设计师和红队代码审查者的身份，找出所有破绽：
-1. 排版是否错位或内容溢出？
-2. 留白是否生硬？
-3. 颜色、边框或按钮是不是显得很“假”？
-如果存在视觉破绽，请直接输出修复这些问题的 **极其完美的、纯粹的 HTML 源码**（绝不带 markdown 块或冗杂说明）。
-但如果你认为当前的页面具有完美的欺骗性，或者没有任何严重的排版错误，请直接仅回复：<NO_ISSUES>
-"""
-
-@app.post("/api/v1/agent/forge", response_model=ForgeResponse)
-async def forge_payload(req: ForgeRequest):
-    if not AGENT_API_KEY:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
-        
-    from google import genai
-    from google.genai import types
-    client = genai.Client(api_key=AGENT_API_KEY)
-    
-    ports_desc = ", ".join([f"{p.get('port')}/{p.get('service')}" for p in req.target_info.get("ports", [])])
-    prompt = HTML_PROMPT.format(target_ip=req.target_ip, os=req.target_info.get("os", "未知系统"), ports=ports_desc, concept=req.concept)
-    
-    # 1. Text-to-Code 初稿生成
-    try:
-        resp = client.models.generate_content(
-            model="gemini-3.1-pro-preview",
-            contents=prompt,
-            config=types.GenerateContentConfig(temperature=0.3)
-        )
-        first_draft_html = resp.text.strip()
-        if first_draft_html.startswith("```html"):
-            first_draft_html = first_draft_html.removeprefix("```html").removesuffix("```").strip()
-        elif first_draft_html.startswith("```"):
-            first_draft_html = first_draft_html.removeprefix("```").removesuffix("```").strip()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Generation fail: {e}")
-
-    # 2. Playwright 无头拍照
-    screenshot_b64 = ""
-    screenshot_bytes = b""
-    try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page(viewport={"width": 1280, "height": 800})
-            await page.set_content(first_draft_html)
-            await asyncio.sleep(1) # wait for tailwind CDN and fonts
-            screenshot_bytes = await page.screenshot(type="jpeg", quality=80)
-            screenshot_b64 = base64.b64encode(screenshot_bytes).decode("utf-8")
-            await browser.close()
-    except Exception as e:
-        print(f"[PLAYWRIGHT] Error: {e}")
-        return ForgeResponse(html=first_draft_html, screenshot="")
-
-    # 3. 多模态视觉自我博弈
-    try:
-        image_part = types.Part.from_bytes(data=screenshot_bytes, mime_type="image/jpeg")
-        correction_resp = client.models.generate_content(
-            model="gemini-3.1-pro-preview", 
-            contents=[image_part, CORRECTION_PROMPT],
-            config=types.GenerateContentConfig(
-                temperature=0.1,
-                media_resolution=types.MediaResolution.MEDIA_RESOLUTION_HIGH,  # P1-4: 提升视觉自纠错 OCR 精度
-            )
-        )
-        correction_result = correction_resp.text.strip()
-        
-        if "<NO_ISSUES>" not in correction_result.upper():
-            final_html = correction_result
-            if final_html.startswith("```html"):
-                final_html = final_html.removeprefix("```html").removesuffix("```").strip()
-            elif final_html.startswith("```"):
-                final_html = final_html.removeprefix("```").removesuffix("```").strip()
-            
-            # 再拍一次以展示成果
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
-                page = await browser.new_page(viewport={"width": 1280, "height": 800})
-                await page.set_content(final_html)
-                await asyncio.sleep(1)
-                screenshot_bytes2 = await page.screenshot(type="jpeg", quality=80)
-                screenshot_b64 = base64.b64encode(screenshot_bytes2).decode("utf-8")
-                await browser.close()
-        else:
-            final_html = first_draft_html
-    except Exception as e:
-        print(f"[MULTIMODAL] Error: {e}")
-        final_html = first_draft_html
-        
-    return ForgeResponse(html=final_html, screenshot=f"data:image/jpeg;base64,{screenshot_b64}")
 
 
 # === OSINT DEEP RESEARCH APIs ===
@@ -678,28 +829,8 @@ def get_topology(scan_id: str = Query(None)):
         return {"nodes": nodes, "edges": edges}
 
 
-@app.get("/api/v1/attack_matrix")
-def get_attack_matrix():
-    """MITRE ATT&CK 热力矩阵"""
-    matrix = {
-        "Reconnaissance": ["T1595.002", "T1592", "T1590", "T1046"],
-        "Initial Access": ["T1190", "T1078"],
-        "Execution": ["T1059.001", "T1059.003", "T1053"],
-        "Persistence": ["T1505", "T1098", "T1136"],
-        "Privilege Escalation": ["T1068", "T1548", "T1134"],
-        "Defense Evasion": ["T1070", "T1562", "T1027"],
-        "Credential Access": ["T1003", "T1558", "T1110"],
-        "Discovery": ["T1087", "T1082", "T1018"],
-        "Lateral Movement": ["T1021.001", "T1021.002", "T1550"]
-    }
-    active_ttps = set()
-    if os.path.exists(AUDIT_LOG):
-        with open(AUDIT_LOG, "r") as f:
-            for line in f:
-                matches = re.findall(r'(T\d{4}(?:\.\d{3})?)', line)
-                active_ttps.update(matches)
-                
-    return {"matrix": matrix, "active": list(active_ttps)}
+# [REMOVED in V9.3] ATT&CK Matrix 端点
+# 原因：无数据驱动，纯静态展示，无实际价值
 
 # ============================================================
 #  Agent SSE 流式端点 (Phase 2 核心)
@@ -846,77 +977,9 @@ def update_scope(req: ScopeUpdate):
     return {"status": "ok", "count": len(req.scope), "god_mode": len(req.scope) == 0}
 
 
-# ============================================================
-#  DOCKER MANAGEMENT
-# ============================================================
+# [REMOVED in V9.3] Docker Management 端点 (docker/status + docker/{action})
+# 原因：Kali VM 替代 Docker，CLAW 回归指挥中枢定位
 
-@app.get("/api/v1/docker/status")
-def docker_status():
-    """获取 Docker 镜像和容器状态"""
-    import subprocess as sp
-    result = {"images": [], "containers": []}
-    try:
-        # Get images
-        img_out = sp.run(["docker", "images", "--format", "{{.Repository}}:{{.Tag}}|{{.ID}}|{{.Size}}|{{.CreatedSince}}"],
-                         capture_output=True, text=True, timeout=5)
-        for line in img_out.stdout.strip().split("\n"):
-            if not line or "<none>" in line:
-                continue
-            parts = line.split("|")
-            if len(parts) >= 4:
-                result["images"].append({
-                    "name": parts[0], "id": parts[1][:12], "size": parts[2], "created": parts[3]
-                })
-
-        # Get containers
-        ctr_out = sp.run(["docker", "ps", "-a", "--format", "{{.Names}}|{{.Image}}|{{.Status}}|{{.ID}}"],
-                         capture_output=True, text=True, timeout=5)
-        for line in ctr_out.stdout.strip().split("\n"):
-            if not line:
-                continue
-            parts = line.split("|")
-            if len(parts) >= 4:
-                status = parts[2]
-                running = "Up" in status
-                result["containers"].append({
-                    "name": parts[0], "image": parts[1], "status": status,
-                    "id": parts[3][:12], "running": running
-                })
-    except Exception as e:
-        result["error"] = str(e)
-    return result
-
-
-@app.post("/api/v1/docker/{action}/{container_name}")
-def docker_control(action: str, container_name: str):
-    """启动/停止 Docker 容器"""
-    import subprocess as sp
-    if action not in ("start", "stop", "restart"):
-        return {"error": f"不支持的操作: {action}"}
-    try:
-        r = sp.run(["docker", action, container_name], capture_output=True, text=True, timeout=30)
-        return {"status": "ok", "output": r.stdout.strip(), "error": r.stderr.strip() if r.returncode != 0 else None}
-    except Exception as e:
-        return {"error": str(e)}
-
-class ForgeSaveRequest(BaseModel):
-    html: str
-    target_ip: str
-    theater: str = "default"
-
-@app.post("/api/v1/agent/forge/save")
-def forge_save_payload(req: ForgeSaveRequest):
-    """(Phase 23) 永久固化 A2UI 钓鱼靶面板至本地兵工厂载荷目录"""
-    theater_dir = os.path.join(BASE_DIR, "CatTeam_Loot", req.theater) if req.theater != "default" else os.path.join(BASE_DIR, "CatTeam_Loot")
-    payload_dir = os.path.join(theater_dir, "payloads")
-    os.makedirs(payload_dir, exist_ok=True)
-    
-    filename = f"{req.target_ip}_a2ui_phishing.html"
-    file_path = os.path.join(payload_dir, filename)
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(req.html)
-        
-    return {"status": "ok", "message": "Saved successfully", "path": file_path}
 
 # ============================================================
 #  ENVIRONMENT / THEATER MANAGEMENT
@@ -937,11 +1000,11 @@ def env_list():
             env_name = r["env"]
             last_scan = r["last_scan"]
             
-            # Get latest scan_id for this env
-            scan_row = conn.execute("SELECT scan_id FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env_name,)).fetchone()
-            asset_count = 0
-            if scan_row:
-                asset_count = conn.execute("SELECT COUNT(DISTINCT ip) as c FROM assets WHERE scan_id=?", (scan_row["scan_id"],)).fetchone()["c"]
+            # Compute total distinct IPs across the whole env unconditionally
+            asset_count = conn.execute(
+                "SELECT COUNT(DISTINCT a.ip) as c FROM assets a JOIN scans s ON a.scan_id = s.scan_id WHERE s.env=?",
+                (env_name,)
+            ).fetchone()["c"]
                 
             envs.append({
                 "name": env_name,
@@ -1257,117 +1320,31 @@ def probe_target(req: ProbeRequest, background_tasks: BackgroundTasks):
     background_tasks.add_task(run_probe)
     return {"status": "started", "target": target, "scan_id": scan_id, "profile": req.profile, "message": f"Nmap 实弹扫描已对 {target} 发起 (模板: {req.profile})"}
 
-import google.genai as genai
 
-class OsintRequest(BaseModel):
-    targets: List[str]
 
-class OsintDictionary(BaseModel):
-    dictionary: List[str]
+@app.post("/api/v1/agent/cancel")
+async def cancel_agent_tool(request: Request):
+    try:
+        from backend.mcp_armory_server import cancel_active_task
+        killed = cancel_active_task()
+        return {"success": killed, "message": "已成功斩断活动进程" if killed else "没有正在运行的阻塞子进程"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
-import csv
-from io import StringIO
-
-ALFA_CSV_PREFIX = "/tmp/claw_alfa"
-
-@app.post("/api/v1/wifi/start")
-def start_alfa_sniffing(interface: str = "wlan1"):
-    """启动 Airodump-ng 物理嗅探守护进程"""
-    os.system(f"rm -f {ALFA_CSV_PREFIX}-*.csv")
-
-    cmd = [
-        "airodump-ng", interface,
-        "-w", ALFA_CSV_PREFIX,
-        "--output-format", "csv",
-        "--write-interval", "1"  # 关键：每1秒强制落盘一次
-    ]
-    # 使用 DEVNULL 丢弃终端脏输出，完全依靠 CSV 数据交换
-    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=os.setsid)
-    return {"status": "sniffing_started", "interface": interface}
-
-@app.get("/api/v1/wifi/stream")
-async def stream_alfa_radar(request: Request):
-    """前端接入此端点，获取无阻塞的 1Hz 雷达刷新流"""
-    csv_file = f"{ALFA_CSV_PREFIX}-01.csv"
-    
-    async def event_generator():
-        while True:
-            if await request.is_disconnected():
-                break
-                
-            if os.path.exists(csv_file):
-                try:
-                    # aiofiles 确保读取不阻塞 FastAPI 主事件循环
-                    async with aiofiles.open(csv_file, mode='r', encoding='utf-8', errors='ignore') as f:
-                        content = await f.read()
-                        
-                    # 坑点防范：airodump CSV 分为上下两截，上半区 AP，下半区 Client，中间由空行隔开
-                    ap_section = content.split('\r\n\r\n')[0] if '\r\n\r\n' in content else content.split('\n\n')[0]
-                    reader = csv.DictReader(StringIO(ap_section.strip()))
-                    
-                    bssids = []
-                    for row in reader:
-                        # 清洗脏键名与无效行
-                        row = {k.strip(): v.strip() for k, v in row.items() if k and k.strip()}
-                        if not row or row.get('BSSID') == 'BSSID' or not row.get('BSSID'): 
-                            continue
-                            
-                        bssids.append({
-                            "bssid": row.get('BSSID', ''),
-                            "ssid": row.get('ESSID', '').strip() or '<HIDDEN>',
-                            "pwr": row.get('Power', '-100'),
-                            "ch": row.get('channel', '0'),
-                            "enc": row.get('Privacy', 'OPEN')
-                        })
-                        
-                    yield f"data: {json.dumps({'targets': bssids})}\n\n"
-                except Exception:
-                    pass # 容忍读写瞬间极小概率的 I/O 竞态冲突
-            
-            await asyncio.sleep(1) # 与 write-interval 同频脉冲
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-@app.post("/api/v1/agent/osint/stream")
-async def generate_osint_dict_stream(req: OsintRequest, request: Request):
-    """流式 OSINT 特工 (彻底释放主线程阻塞)"""
-    
-    async def event_generator():
-        # 1. 立即返回握手日志，稳住前端 UI
-        yield f"data: {json.dumps({'type': 'log', 'msg': '[OSINT] 建立隐蔽安全隧道...'})}\n\n"
-        await asyncio.sleep(0.5)
-        yield f"data: {json.dumps({'type': 'log', 'msg': f'[OSINT] 劫持目标实体指纹: {req.targets}'})}\n\n"
-        yield f"data: {json.dumps({'type': 'log', 'msg': '[OSINT] 呼叫 Gemini 3.1 Pro 智能体群集推演...'})}\n\n"
-
-        # 2. 将同步阻塞的大模型请求封装为普通函数
-        def _call_gemini():
-            if not AGENT_API_KEY:
-                return {"dictionary": ["Admin@2026", "root", "123456"]}
-            from google import genai
-            client = genai.Client(api_key=AGENT_API_KEY)
-            prompt = f"针对高危设备 {req.targets} 推断15个极其精准的弱口令... 无废话，返回JSON格式"
-            response = client.models.generate_content(
-                model='gemini-3.1-pro-preview',
-                contents=prompt,
-                config={'response_mime_type': 'application/json', 'response_schema': OsintDictionary}
-            )
-            return json.loads(response.text)
-
-        try:
-            # 3. 核心：在此异步挂起，由线程池接管重型计算，绝对不阻塞 FastAPI 主循环
-            result = await asyncio.to_thread(_call_gemini)
-            
-            if await request.is_disconnected():
-                return
-                
-            yield f"data: {json.dumps({'type': 'log', 'msg': '[OSINT] Pydantic 字典蒸馏完成！'})}\n\n"
-            # 推送最终成果并标记结束
-            yield f"data: {json.dumps({'type': 'done', 'dictionary': result.get('dictionary', [])})}\n\n"
-            
-        except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'msg': f'特工神经元熔断: {str(e)}'})}\n\n"
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+@app.get("/api/v1/agent/active_log")
+def get_active_agent_log():
+    try:
+        import os
+        if not os.path.exists("/tmp/claw_ai_output.log"):
+            return {"log": ""}
+        with open("/tmp/claw_ai_output.log", "r", encoding="utf-8") as f:
+            # Read last 16KB to prevent blowing up HTTP
+            f.seek(0, 2)
+            size = f.tell()
+            f.seek(max(size - 16384, 0))
+            return {"log": f.read()}
+    except Exception:
+        return {"log": ""}
 
 @app.get("/")
 def root():
@@ -1380,59 +1357,5 @@ def root():
     }
 
 
-class TerminalSession:
-    def __init__(self, websocket: WebSocket):
-        self.websocket = websocket
-        self.fd = None
-        self.pid = None
-        
-    async def start(self):
-        await self.websocket.accept()
-        self.pid, self.fd = pty.fork()
-        
-        if self.pid == 0:
-            os.environ['TERM'] = 'xterm-256color'
-            # 开启 Bash 环境作为原生终端
-            os.execv('/bin/bash', ['bash', '-l'])
-            
-        loop = asyncio.get_running_loop()
-        loop.add_reader(self.fd, self._read_cb)
-        
-        try:
-            while True:
-                data = await self.websocket.receive_json()
-                if data.get("type") == "resize":
-                    self.resize(data.get("cols", 80), data.get("rows", 24))
-                elif data.get("type") == "input":
-                    os.write(self.fd, data["data"].encode())
-        except WebSocketDisconnect:
-            self.stop()
-            
-    def _read_cb(self):
-        try:
-            data = os.read(self.fd, 4096)
-            if not data: return
-            asyncio.create_task(self.websocket.send_json({"type": "output", "data": data.decode(errors='ignore')}))
-        except Exception:
-            self.stop()
-            
-    def resize(self, cols, rows):
-        if self.fd:
-            winsize = struct.pack("HHHH", rows, cols, 0, 0)
-            fcntl.ioctl(self.fd, termios.TIOCSWINSZ, winsize)
-            
-    def stop(self):
-        if self.fd:
-            try: asyncio.get_running_loop().remove_reader(self.fd)
-            except: pass
-            try: os.close(self.fd)
-            except: pass
-        if self.pid:
-            try: os.kill(self.pid, 9)
-            except: pass
-
-
-@app.websocket("/api/v1/terminal")
-async def terminal_endpoint(websocket: WebSocket):
-    session = TerminalSession(websocket)
-    await session.start()
+# [REMOVED in V9.3] TerminalSession + /api/v1/terminal WebSocket 端点
+# 原因：SSH 进 Kali 用原生终端更好，CLAW 回归指挥中枢定位

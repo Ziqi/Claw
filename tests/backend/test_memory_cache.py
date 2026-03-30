@@ -7,7 +7,7 @@ import sys, os, json, time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from backend.agent_mcp import (
     _session_cache, _session_timestamps, _SESSION_MAX_AGE,
-    _load_history_from_db, _serialize_turns, _sync_persist_history
+    _load_history_from_db, _serialize_turns
 )
 
 
@@ -48,13 +48,6 @@ class TestSerializeTurns:
         assert result == []
 
 
-class TestSyncPersist:
-    """Test the synchronous SQLite persistence function."""
-    
-    def test_persist_empty_turns(self):
-        """Persisting empty turns should not raise."""
-        # Should complete without error even with empty data
-        _sync_persist_history("test_campaign_empty", [])
 
 
 class TestCacheIntegrity:

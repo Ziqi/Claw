@@ -10,6 +10,9 @@ const useStore = create((set) => ({
   assets: [],
   setAssets: (assets) => set({ assets }),
 
+  missionBriefing: "待命中... (Waiting for Commander Intent)",
+  setMissionBriefing: (briefing) => set({ missionBriefing: briefing }),
+
   selectedIp: null,
   setSelectedIp: (ip) => set({ selectedIp: ip }),
 

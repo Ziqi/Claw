@@ -2,29 +2,29 @@
 
 ```
      /\_/\  
-    ( o.o )  Project CLAW V9.2
-     > ^ <   CatTeam Lateral Arsenal Weapon V9.2
+    ( o.o )  Project CLAW V9.3
+     > ^ <   CatTeam Lateral Arsenal Weapon
     /|   |\  
-   (_|   |_) Codename: Lynx · Deep Autonomy
+   (_|   |_) Codename: Lynx · Electro-Phantom
 ```
 
-# 🐱 Project CLAW
+# Project CLAW
 
 **C**atTeam **L**ateral **A**rsenal **W**eapon
 
-AI-Native 红队全栈作战平台 · Generative Interface (HUD) · FastAPI + React · Gemini 3.1 Pro
+AI-Native C4ISR 态势感知指挥中枢 · Generative Interface (HUD) · FastAPI + React · Gemini 3.1 Pro
 
-[![Version](https://img.shields.io/badge/V9.2-blue)]()
-[![Agent](https://img.shields.io/badge/Agent-A2.2-green)]()
-[![Dashboard](https://img.shields.io/badge/Dashboard-Bloomberg-black)]()
-[![AI](https://img.shields.io/badge/AI-Gemini%203.1-orange)]()
+[![Version](https://img.shields.io/badge/V9.3-blue)]()
+[![Agent](https://img.shields.io/badge/Agent-A3.0%20MCP-green)]()
+[![Dashboard](https://img.shields.io/badge/Dashboard-Bloomberg%20HUD-black)]()
+[![AI](https://img.shields.io/badge/AI-Gemini%203.1%20Pro-orange)]()
 [![License](https://img.shields.io/badge/license-Private-red)]()
 
 </div>
 
 ---
 
-## ⚡ 快速开始
+## 快速开始
 
 ```bash
 # 克隆项目
@@ -34,142 +34,141 @@ git clone https://github.com/Ziqi/Claw.git && cd Claw
 cp config.sh.example config.sh   # 编辑填入你的 Gemini API Key
 vim scope.txt                     # 填入授权网段 (CIDR)
 
-# 启动 Web Dashboard (推荐)
+# 启动 Web Dashboard
 cd ~/CatTeam && uvicorn backend.main:app --reload --port 8000 &
 cd ~/CatTeam/frontend && npm install && npm run dev
 # 打开 http://localhost:5173
-
-# 或 CLI 模式
-make console          # TUI 控制台
-python3 claw-agent.py # AI 智能体
 ```
 
-## 🎯 系统架构
+## 系统架构
 
 ```
-```
-┌─ 侦察与捕获 ────────────────────────────────────────────────────────┐
-│  📡 00 Alfa网卡嗅探 → 01 幽灵斥候 → 02 端口扫描 → 02.5 环境沙盒入库 │
-│     Monitor Mode      被动/主动雷达   Nmap引擎      SQLite 多战区    │
-└───────────────────────────┬────────────────────────────────────────┘
-                            │ claw.db + live_assets.json
-                 ┌──────────┼──────────┐
-                 ↓          ↓          ↓
-            03 Web指纹   A2UI 欺骗   🧠 LYNX Copilot
-            语义提取     视觉自我博弈  Gemini 3.1 沙箱
-                                       OSINT 字典生成
-┌─ 算力与后渗透 ────────────────────────────────────────────────────────┐
-│  04 EAPOL/投毒陷阱 → 05 算力破解  → 06 横向移动                       │
-│  .cap 握手捕获        Hashcat GPU    Impacket SMB                     │
-│  09 后渗透战利品提取 → 10 AD域 Kerberoast / BloodHound                 │
-└──────────────────────────────────────────────────────────────────────┘
+  Kali VM (武器库)             CLAW (指挥中枢 / Mac)        Gemini CLI (前线参谋)
+  ──────────                   ──────────                    ──────────
+  aircrack-ng / hashcat        雷达大屏 (Bloomberg HUD)      终端内 AI 分析
+  nmap / nuclei / hydra        资产数据库 (SQLite)           协助人工决策
+  Wireshark / Kismet           AI 研判引擎 (Gemini 3.1)     辅助命令编写
+  claw_wifi_sensor.py          MCP 工具调用监控台
+                               战报自动生成
+                               探针健康监控
+
+  [人工执行攻击]               [自动展示态势]                [AI 辅助思考]
 ```
 
-## 🧠 LYNX Agent (V9.2 / Copilot 架构)
+### 部署拓扑 (V9.3)
 
-基于 **Gemini 3.1 Pro** 构建，并全面接入 Cloud Python Execution 与 Google Search Grounding。LYNX 目前通过 MCP 架构控制战区：
+```
+┌─────────────────────────────────┐
+│  MacBook Air (指挥台)            │
+│  ├── 浏览器 → CLAW Web UI       │
+│  │    ├── 态势感知雷达 (WiFi RF) │
+│  │    ├── 资产列表 + 全局多选    │
+│  │    ├── AI Copilot (MCP 研判)  │
+│  │    ├── MCP 工具调用监控台     │
+│  │    └── 战报导出               │
+│  ├── 后端 (uvicorn :8000)       │
+│  └── Antigravity (架构 AI)      │
+└────────────┬────────────────────┘
+             │ SSH / HTTP
+             ▼
+┌─────────────────────────────────┐
+│  Kali VM (武器库 + 探针)         │
+│  ├── ALFA 网卡 + 9dBi 天线      │
+│  ├── 人工操作 aircrack-ng 套件   │
+│  ├── Gemini CLI (AI 辅助思考)   │
+│  ├── claw_wifi_sensor.py (探针)  │
+│  │    └── POST → CLAW /ingest   │
+│  └── nmap / nuclei / hydra 原生  │
+└─────────────────────────────────┘
+```
 
-| 模式 | 工具 | 安全机制 |
+## LYNX Agent (V9.3 / A3.0 MCP 架构)
+
+基于 **Gemini 3.1 Pro** 构建的 ReAct 智能体，通过 MCP (Model Context Protocol) 控制战区。内置 Cloud Python Execution 与 Google Search Grounding。
+
+| 工具 | 能力 | 安全等级 |
 |---|---|---|
-| **A1.0 (M1)** 只读 | `claw_query_db` / `claw_read_file` / `claw_list_assets` | 自动放行 |
-| **A2.0 (M2)** 执行 | `claw_execute_shell` / `claw_run_module` | HITL 三级分权 |
+| `claw_query_db` | SQLite 资产查询 | GREEN (自动) |
+| `claw_read_file` | 文件读取 | GREEN (自动) |
+| `claw_list_assets` | 资产清单列表 | GREEN (自动) |
+| `claw_execute_shell` | Kali 远程命令执行 | YELLOW/RED (HITL) |
 
 **HITL 三级分权：**
-- 🟢 **GREEN**: `ls`, `cat`, `grep` → 自动放行
-- 🟡 **YELLOW**: `nmap`, `make fast` → 需确认 [Y/n]
-- 🔴 **RED**: `psexec`, `hashcat` → 需输入 CONFIRM
+- GREEN: `ls`, `cat`, `grep` → 自动放行
+- YELLOW: `nmap`, `nikto` → 需确认 [Y/n]
+- RED: `psexec`, `hashcat` → 需输入 CONFIRM
 
-```bash
-python3 claw-agent.py            # M2 模式 (默认)
-python3 claw-agent.py --readonly # M1 只读模式
-```
+**降级保障：** Gemini Pro 不可用时自动降级至 Flash 模型，保证 AI 链路不中断。
 
-## 🖥️ TUI 控制台
+## V9.3 核心功能
 
-通过 `make console` 进入全功能 TUI：
+### 态势感知
+- **WiFi 雷达面板**：实时 802.11 态势感知，支持 RSSI Sparkline 微折线图
+- **AP Ghosting 残影**：断联 AP 逐渐消隐，>5min 移入历史折叠区
+- **探针健康指示**：HudBar 实时显示 ALFA 探针在线/离线状态
+- **加密类型高亮**：WEP/OPEN 红色高危 / WPA2 黄色 / WPA3 绿色
 
-```
-  [侦察链]                        [攻击链]
-    1) 被动嗅探 (tcpdump)           6) 投毒陷阱 (Responder)
-    2) 主动探活 (nmap -sn)          7) 算力破解 (Hashcat)
-    3) 端口扫描                      8) 横向移动 (Impacket)
-                                     9) 后渗透提取 [!需确认]
-  [审计层]                          10) AD 域 Kerberoast
-    4) Web 指纹清扫
-    5) Nuclei 漏洞扫描             [情报层]
-                                    11) 生成战报 (Markdown)
-  [🧠 AI 智能体] Gemini 3           12) 资产变化检测
-   13) AI 战术分析
-   14) 问 Lynx (对话)             [系统]
-   15) 智能告警                     16) 切换环境  r) 上帝模式
-   20) 🧠 CLAW Agent               s) 陷阱监控  h) 帮助文档
-```
+### 指挥控制
+- **CampaignPipeline**：4 阶段战术管线（战区锚定→服务指纹→威胁研判→战报输出）
+- **Mission Briefing**：6 个预制战术意图 Chips + 全域推送 + 活跃状态指示
+- **多战区管理**：SQLite 环境隔离，一键切换战区
+- **全局多选标靶**：批量选中目标，AI 联合研判
 
-## 📋 Make 指令一览
+### AI 研判
+- **MCP 工具调用监控台**：实时展示 AI 的工具调用过程和结果
+- **AI Copilot**：Gemini 3.1 Pro + ReAct 循环 + MCP 工具链
+- **Google Grounding**：全网漏洞情报搜索
+- **Cloud Code Execution**：云端 Python 沙箱
+- **战报自动生成**：一键导出 PTES 格式 Markdown 报告
 
-| 指令 | 说明 |
-|---|---|
-| `make console` | 🏆 启动交互式 TUI 控制台 |
-| `make fast` | 一键侦察 (01→02→02.5) |
-| `make run` | 完整杀伤链 (00→01→02→02.5) |
-| `make web` | Web 指纹清扫 (纯 Python) |
-| `make nuclei` | Nuclei 漏洞扫描 |
-| `make phantom` / `phantom-stop` | 布下/回收投毒陷阱 |
-| `make crack` | Hashcat 算力破解 |
-| `make lateral` | Impacket 横向移动 |
-| `make report` | 生成 Markdown 渗透战报 |
-| `make diff` | SQL EXCEPT 资产变化检测 |
-| `make loot CONFIRM=--confirm` | 后渗透提取 (secretsdump) |
-| `make kerberoast` | AD 域 Kerberoast 攻击 |
-| `make toolbox` | 🔧 扩展工具箱 (Nikto/Hydra/Sqlmap/binwalk) |
-| `make firmware FW=x.bin` | 固件解剖刀 (纯 Python) |
-| `make status` | 战区状态报告 |
-
-## 🔐 安全特性
+## 安全特性
 
 | 特性 | 说明 |
 |---|---|
 | **ROE 白名单** | `scope.txt` + `scope_check.py` 双重校验 |
 | **HITL 分权** | Agent 执行命令受三级审批控制 |
 | **环境隔离** | SQLite `env` 字段多租户隔离 |
-| **OPSEC 脱敏** | AI 分析自动替换敏感 IP |
+| **Sudo 防注入** | 自动转义特殊字符，防止命令注入 |
 | **API Key 保护** | `config.sh` 已加入 `.gitignore` |
 | **审计日志** | Agent 操作记录到 `agent_audit.log` |
 
-## ⚙️ 环境要求
+## 环境要求
 
 | 依赖 | 用途 | 安装 |
 |---|---|---|
-| macOS | 宿主机平台 | — |
+| macOS | 宿主机平台 | -- |
 | Python 3.x | 核心脚本引擎 | 系统自带 |
-| Docker Desktop | Kali 战车容器 | [下载](https://www.docker.com/products/docker-desktop/) |
+| Kali Linux VM | 武器库 + ALFA 探针 | VMware / UTM |
 | Gemini API Key | AI 智能体 | [申请](https://aistudio.google.com/apikey) |
-| Hashcat | GPU 密码破解 | `brew install hashcat` |
+| ALFA 网卡 | 无线侦察 (可选) | RTL8812AU |
 
-## 🗺️ 版本演进
+## 版本演进
 
 ```
 V1.0 (基础链) → V2.0 (工程化) → V3.0 (攻击链) → V4.0 (合规/AD)
      → V5.0 (SQLite+AI) → V7.0 (Agentic AI) → V8.0 (Web Dashboard)
-     → V9.0 (智能大屏) → V9.1 (护城河加固) \n     → V9.2 (Deep Autonomy) ← 当前版本
+     → V9.0 (智能大屏) → V9.1 (护城河加固)
+     → V9.2 (Deep Autonomy) → V9.3 (Electro-Phantom) ← 当前版本
 ```
 
-## 📚 文档索引
+## 文档索引
 
 | 文档 | 内容 |
 |---|---|
 | [架构设计](docs/ARCHITECTURE.md) | 系统架构、数据流、模块矩阵 |
 | [作战手册](docs/OPERATIONS.md) | 实战操作场景详解 |
-| [开发路线](docs/ROADMAP.md) | V1.0 → V8.2 演进记录 |
+| [开发路线](docs/ROADMAP.md) | V1.0 → V9.3 演进记录 |
 | [技术标准](docs/CONVENTIONS.md) | 版本号 / 命名 / 编码规范 |
+| [部署指南](docs/DEPLOYMENT.md) | Mac + Kali VM 部署架构 |
+| [V9.3 路线图](docs/design/V93_ROADMAP.md) | V9.3 Sprint 计划 |
 | [更新日志](CHANGELOG.md) | 每个版本的详细变更 |
 
 ---
 
 <div align="center">
 
-**⚠️ 仅供授权安全测试使用 · 未经授权的渗透测试是违法行为**
+**仅供授权安全测试使用 -- 未经授权的渗透测试是违法行为**
 
-Made with 🐱 by CatTeam
+Made with `/\_/\` by CatTeam
 
 </div>

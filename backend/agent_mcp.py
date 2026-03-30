@@ -44,14 +44,23 @@ async def _db_writer_worker():
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        conn.execute("CREATE TABLE IF NOT EXISTS conversations (campaign_id TEXT PRIMARY KEY, title TEXT, interaction_id TEXT, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)")
+
     
     while True:
-        campaign_id, serialized_turns = await _db_write_queue.get()
+        campaign_id, title_str, serialized_turns = await _db_write_queue.get()
         try:
             with sqlite3.connect(DB_PATH, timeout=15.0) as conn:
                 conn.executemany(
                     "INSERT INTO mcp_messages (campaign_id, role, content) VALUES (?, ?, ?)",
                     [(campaign_id, role, content_json) for role, content_json in serialized_turns]
+                )
+                # 同步更新会话列表元数据，防止前端 [历史] 菜单读取不到
+                # 使用传入的 title_str 作为新的默认标题（截断防爆表）
+                safe_title = title_str[:50] + "..." if len(title_str) > 50 else title_str
+                conn.execute(
+                    "INSERT OR REPLACE INTO conversations (campaign_id, title, interaction_id, updated_at) VALUES (?, COALESCE((SELECT title FROM conversations WHERE campaign_id=?), ?), ?, CURRENT_TIMESTAMP)",
+                    (campaign_id, campaign_id, safe_title, campaign_id)
                 )
                 conn.commit()
         except Exception as e:
@@ -59,12 +68,12 @@ async def _db_writer_worker():
         finally:
             _db_write_queue.task_done()
 
-async def _async_persist_history(campaign_id: str, new_turns: list):
+async def _async_persist_history(campaign_id: str, title: str, new_turns: list):
     """Write-Behind: 无阻塞推入时序队列 (替换掉危险的 run_in_executor)"""
     try:
         serialized = _serialize_turns(new_turns)
         if serialized:
-            await _db_write_queue.put((campaign_id, serialized))
+            await _db_write_queue.put((campaign_id, title, serialized))
     except Exception as e:
         audit_log_write("DB_ASYNC_ERROR", str(e))
 
@@ -248,7 +257,10 @@ async def _call_mcp_tool(tool_name: str, args: dict) -> str:
         result = await future
         return result.content[0].text if result.content else ""
     except Exception as e:
-        return f"Tool execution failed: {str(e)}"
+        import traceback
+        err_msg = repr(e)
+        if hasattr(e, "message"): err_msg += " " + e.message
+        return f"Tool execution failed: {err_msg}"
 
 
 async def react_loop_stream(user_input: str, campaign_id: str = "default", model_key: str = "flash", theater: str = "default", agent_mode: bool = True, sudo_pass: str = None, target_ips: list = None) -> AsyncGenerator[str, None]:
@@ -267,17 +279,19 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
     # NOTE: gemini-3-pro-preview was deprecated & shut down 2026-03-09.
     #       Migrated to gemini-3.1-pro-preview per official deprecation notice.
     #
-    # 4-tier capability ladder:
-    #   Flash     = 3-flash  + low     (fast, cheap)
-    #   Think     = 3-flash  + high    (fast + deep reasoning)
-    #   Pro       = 3.1-pro  + medium  (big model, balanced)
-    #   Deep Think = 3.1-pro + high    (big model, max reasoning)
+    # 3-tier capability ladder:
+    #   Flash = gemini-3-flash + low     (fast, auto-escalates on risky prompts)
+    #   Think = gemini-3-flash + high    (deep reasoning for CVE/exploit analysis)
+    #   Pro   = gemini-3.1-pro + medium  (strongest model for complex campaigns)
     MODEL_CONFIG = {
-        "lite":  ("gemini-3.1-flash-lite-preview", "minimal"),
         "flash": ("gemini-3-flash-preview", "low"),
         "think": ("gemini-3-flash-preview", "high"),
         "pro":   ("gemini-3.1-pro-preview", "medium"),
-        "deep":  ("gemini-3.1-pro-preview", "high"),
+    }
+    # GA 稳定版降级映射：当 Preview 端点 503/429 打穿时自动切换
+    GA_FALLBACK = {
+        "gemini-3-flash-preview":      "gemini-2.5-flash",
+        "gemini-3.1-pro-preview":      "gemini-2.5-pro",
     }
     selected_model, base_thinking = MODEL_CONFIG.get(model_key, (MODEL, "low"))
 
@@ -331,8 +345,18 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             # 导致模型不再主动发起 function_call，而是输出“我无法执行”的文本教学
         )
             
-        target_context = f"\n🎯 [LOCKED TARGETS]: The Commander has authorized action EXCLUSIVELY against: {', '.join(target_ips)}. Prioritize these assets!\n" if target_ips else ""
-        dynamic_prompt = SYSTEM_PROMPT + f"\n\n[SYSTEM NOTIFICATION]\nThe Commander is currently active in Operation Theater '{theater}'... {target_context}" \
+        target_context = f"\n[LOCKED TARGETS]: The Commander has authorized action EXCLUSIVELY against: {', '.join(target_ips)}. Prioritize these assets!\n" if target_ips else ""
+
+        # V9.3: 注入指挥官战略意图（从 main.py 的内存变量读取）
+        mission_context = ""
+        try:
+            from backend.main import CURRENT_MISSION_BRIEFING
+            if CURRENT_MISSION_BRIEFING and "待命中" not in CURRENT_MISSION_BRIEFING:
+                mission_context = f"\n[COMMANDER'S INTENT]: {CURRENT_MISSION_BRIEFING}\nAlign ALL analysis and recommendations with this strategic directive.\n"
+        except Exception:
+            pass
+
+        dynamic_prompt = SYSTEM_PROMPT + f"\n\n[SYSTEM NOTIFICATION]\nThe Commander is currently active in Operation Theater '{theater}'... {target_context}{mission_context}" \
                                          f"\nAll tools that accept an 'env' parameter MUST explicitly specify '{theater}' as the environment unless instructed otherwise.\n"
 
         # Step 1.5: Memory-First History Load (D19 Ruling: 0ms for hot sessions)
@@ -425,11 +449,28 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                     
                 except Exception as api_err:
                     err_str = str(api_err)
-                    if ("503" in err_str or "Unavailable" in err_str or "429" in err_str or "exhausted" in err_str or "temporary" in err_str.lower()) and attempt < max_retries - 1:
+                    is_retryable = ("503" in err_str or "Unavailable" in err_str or "429" in err_str or "exhausted" in err_str or "temporary" in err_str.lower())
+                    if is_retryable and attempt < max_retries - 1:
                         wait_sec = (attempt + 1) * 3
                         yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"\n\n[LYNX / 通信阻塞] 谷歌原生节点队列涌塞 (API 503/429)... 正在进行第 {attempt+1}/{max_retries} 次网络退避，等待 {wait_sec} 秒后自动重试...\n\n"})
                         import asyncio
-                        await asyncio.sleep(wait_sec)
+                        # 分段 sleep：每 1 秒检查一次取消信号，确保前端 abort 能立即生效
+                        for _tick in range(wait_sec):
+                            await asyncio.sleep(1.0)
+                    elif is_retryable and selected_model in GA_FALLBACK:
+                        # Preview 端点打穿 → 自动降级到 GA 稳定版
+                        fallback_model = GA_FALLBACK[selected_model]
+                        yield sse("TEXT_MESSAGE_CONTENT", {"delta": f"\n\n[LYNX / 自动降级] Preview 端点不可用，正在切换到 GA 稳定版 `{fallback_model}`...\n\n"})
+                        selected_model = fallback_model
+                        # 用降级后的模型重建 chat 会话
+                        chat = client.aio.chats.create(
+                            model=selected_model,
+                            history=chat_history,
+                            config=types.GenerateContentConfig(**config_kwargs),
+                        )
+                        # 重置重试计数器，给 GA 模型一次完整的机会
+                        max_retries = 1
+                        continue
                     else:
                         raise api_err  # Bubble up if max retries exceeded or unknown error
             # --- End Retry Block ---
@@ -441,7 +482,12 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
             # Handle Tool Calls — only spawn MCP subprocess here
             tool_responses = []
             for fc in tool_calls_batch:
-                args_dict = type(fc).to_dict(fc).get("args", {}) if hasattr(fc, "to_dict") else fc.args
+                # 修复: 彻底将 Gemini 的 Struct/Map 转为原生 Python dict, 否则会触发 FastMCP Pydantic 效验底层报错
+                if hasattr(fc, "args") and hasattr(fc.args, "items"):
+                    args_dict = {k: v for k, v in fc.args.items()}
+                else:
+                    args_dict = type(fc).to_dict(fc).get("args", {}) if hasattr(fc, "to_dict") else getattr(fc, "args", {})
+                
                 if not isinstance(args_dict, dict):
                     args_dict = {}
                 
@@ -452,22 +498,41 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                     safe_args_for_sse["command"] = args_dict["command"]  # 原始命令（未注入密码前）安全
                 yield sse("TOOL_CALL_START", {"name": fc.name, "args": safe_args_for_sse, "risk_level": risk})
                 
-                # P0-3 修复：Sudo Pipeline Injection（使用独立副本 + 转义防注入）
+                # P0-3 修复：Sudo Pipeline Injection（使用独立副本 + 转义防注入 + 全局提权）
                 exec_args = dict(args_dict)  # 独立执行副本，不污染原始 args_dict
                 if sudo_pass and fc.name == "claw_execute_shell":
                     cmd_val = exec_args.get("command", "")
                     if "sudo " in cmd_val:
                         safe_pass = sudo_pass.replace("'", "'\\''")  # 转义单引号防 shell 注入
-                        exec_args["command"] = f"echo '{safe_pass}' | sudo -S " + cmd_val.replace("sudo ", "", 1)
+                        stripped_cmd = cmd_val.replace("sudo ", "")   # 脱去所有内部自作主张的 sudo
+                        import shlex
+                        exec_args["command"] = f"echo '{safe_pass}' | sudo -S sh -c {shlex.quote(stripped_cmd)}"
                 elif sudo_pass and fc.name == "claw_run_module":
                     cmd_val = exec_args.get("module_cmd", "")
                     if "sudo " in cmd_val:
                         safe_pass = sudo_pass.replace("'", "'\\''")
-                        exec_args["module_cmd"] = f"echo '{safe_pass}' | sudo -S " + cmd_val.replace("sudo ", "", 1)
+                        stripped_cmd = cmd_val.replace("sudo ", "")
+                        import shlex
+                        exec_args["module_cmd"] = f"echo '{safe_pass}' | sudo -S sh -c {shlex.quote(stripped_cmd)}"
 
                 # Call MCP tool — 使用 exec_args（含 sudo 注入的执行副本）
                 result_text = await _call_mcp_tool(fc.name, exec_args)
-                status = "success" if not result_text.startswith("Tool execution failed") else "failed"
+                # 智能状态判定：检查 JSON 内部字段，而非仅看前缀
+                status = "success"
+                if result_text.startswith("Tool execution failed"):
+                    status = "failed"
+                else:
+                    try:
+                        _parsed_status = json.loads(result_text)
+                        if isinstance(_parsed_status, dict):
+                            if _parsed_status.get("error"):
+                                status = "error"
+                            elif _parsed_status.get("exit_code", 0) != 0:
+                                status = "error"
+                            elif _parsed_status.get("requires_approval"):
+                                status = "blocked"
+                    except Exception:
+                        pass
                 # Formulate a human-readable preview chunk
                 preview_text = result_text[:1000]
                 if len(result_text) > 1000:
@@ -482,21 +547,21 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                         if "__a2ui_b64__" in parsed:
                             import base64
                             b64 = parsed.pop("__a2ui_b64__")
-                            preview_text = f"📸 A2UI 视觉捕捉完成 (渲染引擎: Playwright, 注入 {len(b64)} 字节多模态影像阵列)\n"
+                            preview_text = f"[A2UI] 视觉捕捉完成 (渲染引擎: Playwright, 注入 {len(b64)} 字节多模态影像阵列)\n"
                             result_text = json.dumps(parsed, ensure_ascii=False)
                             result_part = types.Part.from_function_response(name=fc.name, response={"result": result_text})
                             extra_parts.append(types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/png"))
                         elif "exit_code" in parsed:
                             c = parsed.get("exit_code")
-                            ico = "✅" if c == 0 else "❌"
+                            ico = "[+]" if c == 0 else "[x]"
                             preview_text = f"{ico} 执行完成 (Exit Code: {c})\n"
                             if parsed.get("stdout"): preview_text += f"=== 标准输出 ===\n{parsed['stdout'][:600].strip()}\n"
                             if parsed.get("stderr"): preview_text += f"=== 标准错误 ===\n{parsed['stderr'][:400].strip()}\n"
                         elif "total_assets" in parsed:
-                            preview_text = f"✅ 资产加载成功 (战区: {parsed.get('env', '未知')})\n共发现存活主机: {parsed.get('total_assets')} 台\n"
+                            preview_text = f"[+] 资产加载成功 (战区: {parsed.get('env', '未知')})\n共发现存活主机: {parsed.get('total_assets')} 台\n"
                             preview_text += f"(已将全景端口快照与指纹信息隐式投喂至 AI 记忆区，不在此处刷屏显示。)"
                         elif "result" in parsed and "total" in parsed:
-                            preview_text = f"✅ 数据库探测完成 (共命中 {parsed.get('total')} 条记录)\n"
+                            preview_text = f"[+] 数据库探测完成 (共命中 {parsed.get('total')} 条记录)\n"
                             if isinstance(parsed.get("result"), list) and len(parsed.get("result")) > 0:
                                 preview_text += f"首条样本:\n{json.dumps(parsed['result'][0], ensure_ascii=False, indent=2)[:300]}"
                 except Exception:
@@ -552,7 +617,7 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
                 _session_timestamps[campaign_id] = time.time()
                 
                 # 2. 异步旁路落盘（不阻塞当前 SSE 流）
-                asyncio.create_task(_async_persist_history(campaign_id, new_turns))
+                asyncio.create_task(_async_persist_history(campaign_id, str(user_input), new_turns))
         except Exception as e:
             audit_log_write("DB_ERROR_MCP", f"Failed to update session cache: {e}")
 

@@ -1,26 +1,21 @@
-# CatTeam 架构设计文档 V9.2 / Copilot Era
+# CatTeam 架构设计文档 V9.3 / Electro-Phantom
 
-## 1. 平台定位与行业对标
+## 1. 平台定位
 
-### 1.1 三个层次
+### 1.1 核心哲学：做减法
+
+> **CLAW = 态势感知指挥中枢（只看、只分析，不打）。**
+> **Kali = 武器库。攻击执行交给 Kali 原生工具 + 人工操作。**
 
 ```
-┌────────────────────────────────────────────────────────┐
-│  作战平台 (Platform)                                    │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  框架 (Framework)                                │  │
-│  │  ┌──────────────────────────────────────────┐    │  │
-│  │  │  工具集 (Toolkit)                        │    │  │
-│  │  │  nmap, hashcat, sqlmap, binwalk...       │    │  │
-│  │  └──────────────────────────────────────────┘    │  │
-│  │  编排 + 数据共享 + API                            │  │
-│  └──────────────────────────────────────────────────┘  │
-│  GUI + 协作 + AI + 态势感知 + 审计                       │
-└────────────────────────────────────────────────────────┘
+CLAW V7-V8: 工具集 -> 框架 -> 作战平台
+CLAW V9.2:  AI Copilot + 物理层雷达
+CLAW V9.3:  做减法 -- 回归指挥中枢定位，砍掉武器自动化
 
-CLAW V7.0: 工具集 → 框架 (已跨越: 有编排+数据层+Agent)
-CLAW V8.0: 框架 → 作战平台 (GUI + 协作 + 审计 + 态势感知)
-CLAW V9.2: G.I. 智能指挥大盘 + 视觉自我博弈 + 物理/无线隔离管线
+三角分工:
+  Kali (武器库)     = aircrack-ng, hashcat, nmap, Wireshark...
+  CLAW (指挥中枢)   = 雷达大屏 + 资产数据库 + AI 分析 + 战报
+  Gemini CLI (参谋) = Kali 终端内 AI 辅助分析
 ```
 
 ### 1.2 竞品对标
@@ -28,83 +23,50 @@ CLAW V9.2: G.I. 智能指挥大盘 + 视觉自我博弈 + 物理/无线隔离管
 | 系统 | 类型 | 界面 | 开源 | 核心能力 |
 |---|---|---|---|---|
 | **Kali Linux** | 工具集 | CLI | ✅ | 600+ 工具预装 |
-| **Metasploit** | 框架 | CLI + Armitage | ✅ | exploit 库 + payload```
+| **Metasploit** | 框架 | CLI + Armitage | ✅ | exploit 库 + payload |
+
+## 2. 核心架构拓扑图
+
+```
 ┌──────────────────────────────────────────┐
-│    🖥️ Web Dashboard (React + Vite)        │ ← V9.2 全栈大屏
-│  G.I. 交互范式 · 战区沙盒 · 多选微操火力网│
+│    Web Dashboard (React + Vite)           │ <- V9.3 态势感知大屏
+│  C4ISR HUD · 战区沙盒 · 多选标靶         │
 ├──────────────────────────────────────────┤
-│    🌐 API 层 (FastAPI)                    │ 
-│  /ops/run · /env/switch · /agent/osint   │
+│    API 层 (FastAPI)                       │ 
+│  /env/switch · /agent/chat · /sensors/*   │
 ├──────────────────────────────────────────┤
-│      🚀 ALFA 物理渗透管线 (V9.2 NEW)      │
-│  Monitor / Deauth / Aircrack-ng 截获     │
+│    ALFA 物理侦察管线 (V9.3)               │
+│  Monitor / 雷达感知 / RSSI Sparkline      │
+│  AP Ghosting / 探针健康检测               │
 ├──────────────────────────────────────────┤
-│    🗡️ MCP 层 (Model Context Protocol)    │ 
-│  mcp_armory_server.py: 工具 → MCP Tool    │
+│    MCP 层 (Model Context Protocol)       │ 
+│  mcp_armory_server.py: 工具 -> MCP Tool   │
+│  MCP 工具调用监控台 (实时透明化)           │
 ├──────────────────────────────────────────┤
-│    🧠 LYNX Copilot (Gemini 3.1 Pro)      │ ← V9.2 
-│  A2UI 视觉锻造 + CodeExecution 云端沙箱   │
-│  OSINT 语义字典提纯 + Google Search      │
+│    LYNX Copilot (Gemini 3.1 Pro)         │ <- A3.0 
+│  ReAct Loop + CodeExecution 云端沙箱     │
+│  本地 SQLite 感知 + Google Search         │
+│  Pro/Flash 自动降级保障                   │
 ├──────────────────────────────────────────┤
-│         AI 辅助层 (Gemini Flash)            │
-│  16-ai-analyze / 17-ask-lynx / 脱敏层    │
+│    合规层 (scope.txt ROE)                │
+│  白名单 CIDR 校验 + 黑名单过滤            │
 ├──────────────────────────────────────────┤
-│         合规层 (scope.txt ROE)             │
-│  白名单 CIDR 校验 + 黑名单过滤              │
-├──────────────────────────────────────────┤
-│         模块层 (00-17)                    │
-│  侦察链: 00→01(passive|active)→02→02.5   │
+│    模块层 (00-17)                        │
+│  侦察链: 00->01->02->02.5               │
 │  审计层: 03-audit / 03-web / Nuclei      │
-│  攻击链: 04→05→06                        │
+│  攻击链: 04->05->06 (Kali 人工执行)      │
 │  情报层: 07-report / 08-diff             │
-│  后渗透: 09-loot / 10-kerberoast         │
 ├──────────────────────────────────────────┤
-│         数据层 (双写架构)                  │
+│    数据层                                │
 │  SQLite: claw.db (AI Text-to-SQL)        │
+│  WiFi:   wifi_nodes + wifi_rssi_history  │
 │  JSON:   live_assets.json (jq 兼容)      │
-│  隔离:   CatTeam_Loot/{RUN_ID}/          │
 ├──────────────────────────────────────────┤
-│         基础设施层                         │
-│  Mac 宿主机 ─── Volume ──→ Docker Kali   │
-├──────────────────────────────────────────┤
-│         质量层 (make test)                 │
-│  Docker Compose 自动化靶场验证             │
+│    基础设施层                             │
+│  Mac 宿主机 <-- SSH --> Kali VM          │
+│  (Docker 已于 V9.3 正式退役)              │
 └──────────────────────────────────────────┘
-```�──────────────┤
-│    🌐 API 层 (FastAPI)                    │ ← V8.2 NEW
-│  /api/v1/ops/run · ops/log · env/switch  │
-├──────────────────────────────────────────┤
-│         控制面 (Makefile v5.0 + TUI)      │
-│   preflight → run/fast/phantom/crack/... │
-├──────────────────────────────────────────┤
-│ 🧠 Agent 智能层 (Gemini 3.1 SDK + SQLite) │ ← V9.1 NEW
-│  agent_mcp.py: Types.Content 记忆管线重塑  │
-│  原生云能力: Google Search / Code Sandbox │
-│  内部武库: execute_shell/run_module/...   │
-├──────────────────────────────────────────┤
-│         AI 辅助层 (Gemini Flash)            │
-│  16-ai-analyze / 17-ask-lynx / 脱敏层    │
-├──────────────────────────────────────────┤
-│         合规层 (scope.txt ROE)             │
-│  白名单 CIDR 校验 + 黑名单过滤              │
-├──────────────────────────────────────────┤
-│         模块层 (00-17)                    │
-│  侦察链: 00→01(passive|active)→02→02.5   │
-│  审计层: 03-audit / 03-web / Nuclei      │
-│  攻击链: 04→05→06                        │
-│  情报层: 07-report / 08-diff             │
-│  后渗透: 09-loot / 10-kerberoast         │
-├──────────────────────────────────────────┤
-│         数据层 (双写架构)                  │
-│  SQLite: claw.db (AI Text-to-SQL)        │
-│  JSON:   live_assets.json (jq 兼容)      │
-│  隔离:   CatTeam_Loot/{RUN_ID}/          │
-├──────────────────────────────────────────┤
-│         基础设施层                         │
-│  Mac 宿主机 ←── Volume ──→ Docker Kali   │
-├──────────────────────────────────────────┤
-│         质量层 (make test)                 │
-│  Docker Compose 自动化靶场验证             │
+```
 └──────────────────────────────────────────┘
 ```
 
@@ -120,6 +82,7 @@ CLAW V9.2: G.I. 智能指挥大盘 + 视觉自我博弈 + 物理/无线隔离管
 | `01-recon` | Mac (sudo) | 网络流量 | `targets.txt` | 正则提取, 黑名单过滤, trap 清理 |
 | `02-probe` | Docker | `targets.txt` | `nmap_results.*` | PROFILE 端口切换, 日志保留 |
 | `02.5-parse` | Mac (Python) | `nmap_results.xml` | `live_assets.json` + `claw.db` | 双写: SQLite + JSON |
+| `ALFA 射频探针` | Mac (Monitor) | 物理环境电磁波 | `wifi_nodes` 表 | BSSID 实时感知与脱机解爆战术池 |
 
 ### 审计层 (Audit Layer)
 
@@ -175,12 +138,10 @@ CLAW V9.2: G.I. 智能指挥大盘 + 视觉自我博弈 + 物理/无线隔离管
 |---|---|---|---|---|
 | `agent_mcp.py` | Mac (Python) | 自然语言/URL | 智能分析 + 命令执行 | Gemini 3.1, URL Context, 视觉自我博弈 |
 | `mcp_armory_server.py` | Mac (Python) | MCP stdio | 工具执行结果 | 标准 MCP Server |
-| MCP Tool: `claw_query_db` | 内嵌 | SQL | JSON | 只允许 SELECT, 自动放行 |
+| MCP Tool: `claw_query_db` | 内嵌 | SQL | JSON | 只允许 SELECT, 自动放行 (现已接入 wifi_nodes) |
 | MCP Tool: `claw_read_file` | 内嵌 | 文件路径 | 文件内容 | 路径穿越防护, 支持 Loot + 项目根目录 |
 | MCP Tool: `claw_list_assets` | 内嵌 | 环境名 | 资产清单 | 自动放行 |
-| MCP Tool: `claw_execute_shell` | 内嵌 | shell 命令 | 执行结果 | HITL 三级分权 |
-| MCP Tool: `claw_run_module` | 内嵌 | make 命令 | 执行结果 | HITL 三级分权 |
-| MCP Tool: `claw_sliver_exec` | 内嵌 | C2 指令 | 执行结果 | HITL RED 级 |
+| MCP Tool: `claw_execute_shell` | 内嵌 | shell 命令 | 执行结果 | 用于基本网络探查命令 (禁止危险命令) |
 
 ---
 
@@ -191,19 +152,23 @@ graph TD
     CFG[config.sh] -.->|source| ALL[所有模块]
 
     subgraph 侦察链
-        A[00-armory/ALFA<br/>物理嗅探] --> B[01-recon<br/>嗅探+黑名单]
+        A[00-armory/ALFA<br/>全域嗅探] --> B[01-recon<br/>嗅探+黑名单]
         B -->|targets.txt| C[02-probe<br/>Nmap扫描]
         C -->|nmap_results.xml| D[02.5-parse<br/>XML→SQLite]
     end
 
+    subgraph 物理穿透层
+        WIFI[WiFi探针<br/>Monitor Mode] -->|CSV报文| WDB[wifi_nodes表]
+        WDB -->|被选中| AI[LYNX Agent<br/>自动分配 Deauth 战术]
+    end
+
     subgraph 语义层
-        D -->|claw.db| OSINT[OSINT Agent<br/>语义字典提纯]
-        OSINT -->|Wordlist| G
+        D -->|claw.db| OSINT[数据分析层]
+        OSINT -->|分析报告| G[战报]
     end
 
     subgraph 审计层
         D -->|live_assets.json| E1[03-audit<br/>httpx]
-        D -->|live_assets.json| E2[A2UI Forge<br/>零日欺骗锻造]
     end
 
     subgraph 攻击链
@@ -222,6 +187,7 @@ graph TD
     style F fill:#b71c1c,color:#fff
     style G fill:#ff5722,color:#fff
     style H fill:#d50000,color:#fff
+    style WIFI fill:#10b981,color:#fff
 ```
 
 ### 数据文件依赖链
@@ -240,7 +206,7 @@ lateral_results.txt        →  07-report
 asset_diff.json            →  07-report (可选)
 ```
 
-> **三条链 + 一个汇聚点**：侦察链 (00→02.5) 负责发现；攻击链 (04→06) 负责突破；情报层 (07/08) 汇总所有产出生成可交付物。
+> **三条链 + 一个汇聚点**：侦察链 (00→02.5 / 物理层 ALFA) 负责发现；攻击链 (04→06) 负责突破；情报层 (07/08) 汇总所有产出生成可交付物。
 
 ---
 
@@ -295,69 +261,61 @@ CatTeam_Loot/
 | Hash 格式截断 | `sed` 全行提取，不用 awk 切割 |
 | Hashcat 找不到字典 | 自动搜索 3 个常见路径 |
 | 凭据硬编码 | 环境变量 > 05自动加载 > 交互输入 (绝不走 CLI) |
-| 密码暴露在 history | OPSEC: 禁止命令行参数传递密码 |
+|密码暴露在 history | OPSEC: 禁止命令行参数传递密码 |
 | `jq` 在 Mac 不存在 | 用 Python 替代 JSON 解析 |
 | 多次运行覆盖数据 | 时间戳目录隔离 |
 
 ---
 
-## 9. REST API 规范 (V8.0)
+## 9. REST API 规范 (V9.3)
 
 ```
 /api/v1/
-├── stats/                  # GET  — HUD 统计数据 (hosts/ports/vulns)
-├── assets/                 # GET  — 资产列表 (分页/搜索)
-├── topology/               # GET  — 网络拓扑数据 (vis.js 格式)
-├── attack_matrix/          # GET  — ATT&CK 矩阵覆盖数据
-├── scans/                  # GET  — 扫描记录
-├── sliver/sessions         # GET  — C2 会话列表
-├── armory/                 # GET  — 武器库模块列表
+├── stats/                  # GET  -- HUD 统计 (hosts/ports/vulns)
+├── assets/                 # GET  -- 资产列表
+├── topology/               # GET  -- 网络拓扑
+├── scans/                  # GET  -- 扫描记录
+├── armory/                 # GET  -- 快捷命令建议 (不执行)
 ├── env/
-│   ├── GET  /list           # 战区列表 + 当前战区
-│   ├── POST /switch         # 切换战区
-│   ├── POST /create         # 创建战区
-│   └── POST /delete         # 删除战区
-├── ops/
-│   ├── POST /run            # 启动作战流水线步骤 (subprocess.Popen)
-│   └── GET  /log/{job_id}   # SSE 流式日志追踪
-├── probe/
-│   └── POST /run            # 发起探测扫描
+│   ├── GET  /list
+│   ├── POST /switch
+│   ├── POST /create
+│   └── POST /delete
 ├── agent/
-│   ├── POST /chat           # SSE 流式对话 (MCP ReAct Loop)
-│   └── GET  /campaigns      # 会话历史列表
-├── docker/
-│   ├── GET  /status          # 容器/镜像状态
-│   └── POST /{action}/{name} # 容器控制 (start/stop/restart)
-└── ws/
-    └── WS   /terminal        # WebSocket PTY 终端
+│   ├── POST /chat           # SSE 流式对话 (MCP ReAct)
+│   ├── POST /cancel         # 斩断活动进程
+│   └── GET  /campaigns
+├── sensors/                # V9.2-V9.3 探针层
+│   ├── POST /wifi/ingest     # 探针数据接收 (Bearer Token)
+│   ├── GET  /wifi/radar      # 雷达大屏数据
+│   ├── GET  /wifi/rssi_history  # Sparkline (V9.3)
+│   └── GET  /health          # 探针状态 (V9.3)
+└── sync/                   # GET  -- 增量同步 (Hash)
 ```
+
+> **V9.3 删除**: `docker/*`, `sliver/*`, `attack_matrix/`, `ws/terminal`
 
 ---
 
 ## 10. 数据库演进路线
 
 ```
-当前 V7.0: SQLite (claw.db) — 4 张表 (scans/assets/ports/vulns)
-    ↓
-V8.0: SQLite + 扩展表
-  + conversations     (Agent 会话持久化)
-  + messages          (多轮对话记录)
-  + agent_audit       (审计日志, 替代文件)
-  + attack_paths      (攻击路径图谱)
-  + credentials       (凭据管理)
-  + pending_actions   (HITL Action Token 队列)
-    ↓
-V9.0+ (长期): PostgreSQL
-  + 并发支持 (多用户协作)
-  + 全文检索
-  + JSONB 查询
+V7.0: SQLite (claw.db) -- 4 张表 (scans/assets/ports/vulns)
+V8.0: + environments (战区隔离)
+V9.2: + mcp_messages (AI 对话持久化) + wifi_nodes (物理雷达)
+V9.3: wifi_nodes 扩展 (15 字段) + wifi_rssi_history (Sparkline)
+      Schema 统管迁入 db_engine.py + 自动迁移旧数据库
+
+当前共 8 张表:
+  scans / assets / ports / vulns / environments
+  mcp_messages / wifi_nodes / wifi_rssi_history
 ```
 
 ---
 
 ## 11. 工具集成路线
 
-### 已集成 (V1-V7)
+### 已集成 (V1-V9)
 
 | 工具 | 类型 | 集成方式 |
 |---|---|---|
@@ -368,14 +326,15 @@ V9.0+ (长期): PostgreSQL
 | Nuclei | 漏洞 | Docker + JSONL 解析 |
 | binwalk | 逆向 | Docker |
 | httpx | Web 指纹 | Docker / 纯 Python |
+| airodump-ng | 物理侦察 | ALFA 网卡纯嗅探直投 |
 
-### 待集成 (V8.0 规划, 导师已批准)
+### V9.3 集成方式变更
 
-| 工具 | 类型 | 优先级 | 集成方式 |
-|---|---|---|---|
-| **NetExec (nxc)** | AD 批量 | P0 | Docker (D9 定调, 替代 CrackMapExec) |
-| **Certipy** | AD CS 攻击 | P1 | Docker (D9 定调) |
-| **Sliver** | C2 框架 | P1 | 独立部署, gRPC API |
-| **Ligolo-ng** | 隧道穿透 | P1 | 独立部署 |
-| **BloodHound CE** | AD 图谱 | P2 | Docker + Neo4j |
-| **Chisel** | HTTP 隧道 | P2 | 二进制 |
+> V9.3 确立"做减法"原则后，新工具不再在 CLAW 中编写集成代码。
+> 所有 Kali 原生工具直接在 Kali 终端执行，结果通过探针回传。
+
+| 工具 | 使用方式 | CLAW 侧需求 |
+|---|---|---|
+| **Kismet** | Kali 终端启动 | 探针读取 kismetdb -> POST 到 CLAW |
+| **Wireshark** | Kali 或 Mac 原生 GUI | 无需集成 |
+| **Gemini CLI** | Kali 终端运行 | 复用 API Key，独立运行 |
