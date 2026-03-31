@@ -67,8 +67,6 @@ CLAW V9.3:  做减法 -- 回归指挥中枢定位，砍掉武器自动化
 │  (Docker 已于 V9.3 正式退役)              │
 └──────────────────────────────────────────┘
 ```
-└──────────────────────────────────────────┘
-```
 
 ---
 
@@ -80,15 +78,15 @@ CLAW V9.3:  做减法 -- 回归指挥中枢定位，砍掉武器自动化
 |---|---|---|---|---|
 | `00-armory` | Mac | en0 | 新 IP | DHCP 超时保护 (10s) |
 | `01-recon` | Mac (sudo) | 网络流量 | `targets.txt` | 正则提取, 黑名单过滤, trap 清理 |
-| `02-probe` | Docker | `targets.txt` | `nmap_results.*` | PROFILE 端口切换, 日志保留 |
+| `02-probe` | Kali VM | `targets.txt` | `nmap_results.*` | PROFILE 端口切换, 日志保留 |
 | `02.5-parse` | Mac (Python) | `nmap_results.xml` | `live_assets.json` + `claw.db` | 双写: SQLite + JSON |
-| `ALFA 射频探针` | Mac (Monitor) | 物理环境电磁波 | `wifi_nodes` 表 | BSSID 实时感知与脱机解爆战术池 |
+| `ALFA 射频探针` | Kali VM (Monitor) | 物理环境电磁波 | `wifi_nodes` 表 | ALFA 网卡 USB 直通至 VM，BSSID 实时感知 |
 
 ### 审计层 (Audit Layer)
 
 | 模块 | 环境 | 输入 | 输出 | 关键特性 |
 |---|---|---|---|---|
-| `03-audit` | Docker | `live_assets.json` | `httpx_results.txt` | httpx 应用层指纹 |
+| `03-audit` | Kali VM | `live_assets.json` | `httpx_results.txt` | httpx 应用层指纹 |
 | `03-audit-web` | Mac (Python) | `live_assets.json` | `web_fingerprints.txt` | 纯 Python, 10 线程并发 |
 | `03-exploit-76` | Mac (Python) | 硬编码 IP | 终端输出 | VNC Banner + SMB 匿名探测 |
 
@@ -98,7 +96,7 @@ CLAW V9.3:  做减法 -- 回归指挥中枢定位，砍掉武器自动化
 |---|---|---|---|---|
 | `04-phantom` | **Mac 原生** | en0 网卡 | `captured_hash.txt` | 原生 Responder, 实时 Hash 清洗管线 |
 | `05-cracker` | **Mac 原生** | `captured_hash.txt` | `cracked_passwords.txt` | 宿主机 Hashcat (GPU/Metal) |
-| `06-psexec` | Docker | `live_assets.json` + 凭据 | `lateral_results.txt` | Impacket smbexec, 凭据自动加载 |
+| `06-psexec` | Kali VM | `live_assets.json` + 凭据 | `lateral_results.txt` | Impacket smbexec, 凭据自动加载 |
 
 ### 情报层 (Intelligence Layer)
 
@@ -130,9 +128,9 @@ CLAW V9.3:  做减法 -- 回归指挥中枢定位，砍掉武器自动化
 |---|---|---|---|---|
 | `18-ai-bloodhound` | Mac (Python) | BloodHound JSON/ZIP | 终端输出 | Gemini 图论推理 AD 域提权路径 |
 | `23-hp-proxy-unlocker` | Mac (Python) | IP + 凭据字典 | 终端输出 | 4 阶段代理解锁: 端口→状态→爆破→隧道 |
-| `make toolbox` | Docker/Mac | 交互选择 | 各工具输出 | Nikto/Hydra/Sqlmap/binwalk/固件解剖刀 |
+| `make toolbox` | Kali VM | 交互选择 | 各工具输出 | Nikto/Hydra/Sqlmap/binwalk/固件解剖刀 |
 
-### 🧠 LYNX Copilot 智能体 (V9.2 架构)
+### 🧠 LYNX Copilot 智能体 (V9.3 架构)
 
 | 模块 | 环境 | 输入 | 输出 | 关键特性 |
 |---|---|---|---|---|
@@ -210,18 +208,21 @@ asset_diff.json            →  07-report (可选)
 
 ---
 
-## 6. 混合执行模型
+## 6. Mac + Kali VM 混合执行模型 (V9.3)
 
-### 为什么不全用 Docker？
+> Docker 已于 V9.3 正式退役，所有工具执行迁移至 Kali VM 原生环境。
 
-| 场景 | Mac 宿主机 | Docker 容器 | 原因 |
+| 场景 | Mac 宿主机 | Kali VM | 原因 |
 |---|---|---|---|
-| L2 嗅探 (tcpdump) | ✅ | ❌ | 容器听不到物理网卡广播 |
-| Responder 投毒 | ✅ | ❌ | 同上，macOS Docker `--network host` 不生效 |
-| Hashcat 破解 | ✅ | ❌ | Docker 无法穿透 Apple Silicon GPU |
-| Nmap 扫描 | ❌ | ✅ | 应用层 TCP 可穿透 NAT |
-| Impacket 横移 | ❌ | ✅ | 应用层 SMB, 且依赖隔离 |
-| 数据解析 (Python) | ✅ | ❌ | 轻量操作无需容器开销 |
+| L2 嗅探 (tcpdump) | ✅ | ✅ | Mac 听本机广播，Kali VM + ALFA 听无线 |
+| airodump-ng / aircrack | ❌ | ✅ | 需要 Monitor Mode + ALFA 网卡直通 |
+| Responder 投毒 | ❌ | ✅ | 需要原生网络栈，VM 桥接模式可工作 |
+| Hashcat 破解 | ✅ GPU | ✅ CPU | Mac 有 Apple Silicon GPU；Kali VM 可用 CPU 回退 |
+| Nmap / Nuclei | ❌ | ✅ | Kali 预装，无需额外配置 |
+| Impacket 横移 | ❌ | ✅ | Kali 预装 Impacket 套件 |
+| 数据解析 (Python) | ✅ | ❌ | 轻量操作在宿主机即可 |
+| Web Dashboard | ✅ | ❌ | 浏览器 + uvicorn + vite |
+| AI Copilot | ✅ | ❌ | Gemini API 从宿主机发起 |
 
 ---
 
@@ -256,7 +257,7 @@ CatTeam_Loot/
 |---|---|
 | DHCP 卡死 | 后台执行 + 超时强制终止 |
 | tcpdump Ctrl+C | `trap INT TERM` 清理 |
-| Docker 未启动 | Makefile `preflight` 拦截 |
+| Kali VM 未启动 | SSH 连接失败时报错提示 |
 | Responder 重复启动 | PID 检测 + 拒绝重复点火 |
 | Hash 格式截断 | `sed` 全行提取，不用 awk 切割 |
 | Hashcat 找不到字典 | 自动搜索 3 个常见路径 |
@@ -306,9 +307,9 @@ V9.2: + mcp_messages (AI 对话持久化) + wifi_nodes (物理雷达)
 V9.3: wifi_nodes 扩展 (15 字段) + wifi_rssi_history (Sparkline)
       Schema 统管迁入 db_engine.py + 自动迁移旧数据库
 
-当前共 8 张表:
+当前共 9 张表:
   scans / assets / ports / vulns / environments
-  mcp_messages / wifi_nodes / wifi_rssi_history
+  mcp_messages / conversations / wifi_nodes / wifi_rssi_history
 ```
 
 ---
@@ -319,13 +320,13 @@ V9.3: wifi_nodes 扩展 (15 字段) + wifi_rssi_history (Sparkline)
 
 | 工具 | 类型 | 集成方式 |
 |---|---|---|
-| Nmap | 侦察 | Docker + XML 解析 |
-| Responder | 投毒 | Mac 原生 |
-| Hashcat | 破解 | Mac GPU (Metal) |
-| Impacket | 横移 | Docker (psexec/secretsdump) |
-| Nuclei | 漏洞 | Docker + JSONL 解析 |
-| binwalk | 逆向 | Docker |
-| httpx | Web 指纹 | Docker / 纯 Python |
+| Nmap | 侦察 | Kali VM 原生 + XML 解析 |
+| Responder | 投毒 | Kali VM 原生 |
+| Hashcat | 破解 | Mac GPU (Metal) / Kali VM |
+| Impacket | 横移 | Kali VM 原生 (psexec/secretsdump) |
+| Nuclei | 漏洞 | Kali VM 原生 + JSONL 解析 |
+| binwalk | 逆向 | Kali VM 原生 |
+| httpx | Web 指纹 | Kali VM / 纯 Python |
 | airodump-ng | 物理侦察 | ALFA 网卡纯嗅探直投 |
 
 ### V9.3 集成方式变更

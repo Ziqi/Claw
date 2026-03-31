@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🔍 A2A Recon Sub-Agent (V8.2 Sprint 4)
+🔍 A2A Recon Sub-Agent (V9.3)
 
 Provides specialized reconnaissance capabilities, exposed via A2A Protocol.
 Listens on port 8001.

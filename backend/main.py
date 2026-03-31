@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-🐱 CLAW Backend V8.0 — FastAPI REST API
+🐱 CLAW Backend V9.3 — FastAPI REST API
 将 claw.db 数据通过 REST API 暴露给 Web Dashboard。
 """
 
 import os, sqlite3, json, re
-from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks, Request
+from fastapi import FastAPI, Query, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from contextlib import contextmanager, asynccontextmanager
 from pydantic import BaseModel
-import pty, fcntl, struct, termios, asyncio, aiofiles
+import asyncio, aiofiles
 import time
 from typing import Optional, List
 import sys
@@ -26,20 +26,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "CatTeam_Loot", "claw.db")
 AUDIT_LOG = os.path.join(BASE_DIR, "CatTeam_Loot", "agent_audit.log")
 
-ACTIVE_JOBS = {}
 import signal
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 启动前钩子
     yield
-    # 关闭时钩子（清场行动）：彻底斩首所有遗留后台任务的孤儿进程
-    for j_id, job in list(ACTIVE_JOBS.items()):
-        if job.get("proc") and job["proc"].poll() is None:
-            try:
-                os.killpg(os.getpgid(job["proc"].pid), signal.SIGTERM)
-            except Exception:
-                pass
+    # 关闭时钩子：清理 AI 智能体发起的后台进程
                 
     # 斩首 AI 智能体背着 UI 悄悄发起的长时进程 (PGID 档案)
     ai_pgids_file = "/tmp/claw_ai_pgids.txt"
@@ -59,16 +52,16 @@ async def lifespan(app: FastAPI):
             pass
 
 app = FastAPI(
-    title="CLAW API",
-    description="Project CLAW V8.2 — AI 驱动的安全验证平台",
-    version="8.2.0",
+    title="CLAW",
+    description="Project CLAW V9.3 — Electro-Phantom",
+    version="9.3.0",
     lifespan=lifespan
 )
 
-# CORS — 允许前端开发服务器
+# CORS — 允许所有内网来源（手机热点 172.20.10.x / VM 192.168.64.x / localhost）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -146,18 +139,18 @@ def get_stats():
         scan_id = latest_scan["scan_id"]
         
         hosts = conn.execute(
-            "SELECT COUNT(DISTINCT ip) as c FROM assets WHERE scan_id = ?", 
-            (scan_id,)
+            "SELECT COUNT(DISTINCT a.ip) as c FROM assets a JOIN scans s ON a.scan_id = s.scan_id WHERE s.env = ?", 
+            (env,)
         ).fetchone()["c"]
         
         ports = conn.execute(
-            "SELECT COUNT(*) as c FROM ports WHERE scan_id = ?", 
-            (scan_id,)
+            "SELECT COUNT(DISTINCT p.ip || ':' || p.port) as c FROM ports p JOIN scans s ON p.scan_id = s.scan_id WHERE s.env = ?", 
+            (env,)
         ).fetchone()["c"]
         
         vulns = conn.execute(
-            "SELECT COUNT(*) as c FROM vulns WHERE scan_id = ?", 
-            (scan_id,)
+            "SELECT COUNT(*) as c FROM vulns v JOIN scans s ON v.scan_id = s.scan_id WHERE s.env = ?", 
+            (env,)
         ).fetchone()["c"]
         
         scans = conn.execute(
@@ -188,6 +181,9 @@ SENSOR_AUTH_TOKEN = os.environ.get("CLAW_SENSOR_TOKEN", "claw-sensor-2026")
 
 # V9.3 全局指挥官意图 (联邦通信基座) — 持久化至 mission.txt
 MISSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'CatTeam_Loot', 'mission.txt')
+
+# V9.3 Sprint 2: 探针元数据缓存（内存级，重启丢失可接受）
+_PROBE_STATUS_CACHE: dict = {}
 
 def _load_mission_from_file():
     """启动时从磁盘恢复上一次的指挥意图"""
@@ -221,16 +217,49 @@ def update_mission_briefing(payload: MissionPayload):
     return {"status": "ok", "current_mission": CURRENT_MISSION_BRIEFING}
 
 @app.post("/api/v1/sensors/wifi/ingest")
-def ingest_wifi_telemetry(payload: List[WifiIngestPayload], request: Request):
-    """Edge Sensor 遥测摄入接口（将 ALFA 网卡捕获的数据流持久化）"""
+async def ingest_wifi_telemetry(request: Request):
+    """(V9.3 v2) Edge Sensor 遥测摄入接口
+    
+    兼容两种 payload 格式：
+    - v1 (旧版): List[{bssid, essid, power, channel, encryption}]
+    - v2 (新版): {"nodes": [...], "probe_status": {"uptime": int, "monitor_interface": str, "channel_locked": int|null}}
+    """
     # 认证校验：检查 Authorization 头
     auth_header = request.headers.get("Authorization", "")
     expected = f"Bearer {SENSOR_AUTH_TOKEN}"
     if auth_header != expected:
         raise HTTPException(status_code=401, detail="Unauthorized sensor. Invalid or missing token.")
     
+    # 解析 raw JSON，兼容 v1 和 v2 格式
+    raw_body = await request.json()
+    
+    if isinstance(raw_body, dict) and "nodes" in raw_body:
+        # V9.3 v2 信封格式
+        nodes_raw = raw_body.get("nodes", [])
+        probe_status = raw_body.get("probe_status", {})
+        # 更新探针元数据缓存
+        if probe_status:
+            _PROBE_STATUS_CACHE.update(probe_status)
+            _PROBE_STATUS_CACHE["last_report_time"] = datetime.now().isoformat()
+    elif isinstance(raw_body, list):
+        # v1 旧版格式：裸 AP 列表
+        nodes_raw = raw_body
+        probe_status = {}
+    else:
+        raise HTTPException(status_code=422, detail="Invalid payload format. Expected List[AP] or {nodes: [...], probe_status: {...}}")
+    
+    # 验证并写入数据库
     with get_db() as conn:
-        for ap in payload:
+        for ap_data in nodes_raw:
+            # 手动验证字段（兼容非 Pydantic 路径）
+            bssid = ap_data.get("bssid", "") if isinstance(ap_data, dict) else ""
+            if not bssid:
+                continue
+            essid = ap_data.get("essid", "")
+            power = ap_data.get("power", -100)
+            channel = ap_data.get("channel", 1)
+            encryption = ap_data.get("encryption", "OPN")
+            
             conn.execute(
                 '''INSERT INTO wifi_nodes (bssid, essid, power, channel, encryption, last_seen)
                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -240,18 +269,18 @@ def ingest_wifi_telemetry(payload: List[WifiIngestPayload], request: Request):
                      channel=excluded.channel,
                      encryption=excluded.encryption,
                      last_seen=CURRENT_TIMESTAMP''',
-                (ap.bssid, ap.essid, ap.power, ap.channel, ap.encryption)
+                (bssid, essid, power, channel, encryption)
             )
             # V9.3: 同时写入 RSSI 历史表（Sparkline 数据源）
             conn.execute(
                 '''INSERT INTO wifi_rssi_history (bssid, signal_strength)
                    VALUES (?, ?)''',
-                (ap.bssid, ap.power)
+                (bssid, power)
             )
         conn.commit()
     return {
         "status": "ok", 
-        "ingested": len(payload),
+        "ingested": len(nodes_raw),
         "top_intent": CURRENT_MISSION_BRIEFING
     }
 
@@ -284,10 +313,10 @@ def get_rssi_history(bssid: str = Query(..., description="目标 AP 的 BSSID"),
         ).fetchall()
         return {"bssid": bssid, "history": [dict(r) for r in reversed(rows)]}
 
-# V9.3: 探针健康检测（基于 wifi_nodes 最新时间推算）
+# V9.3: 探针健康检测（基于 wifi_nodes 最新时间推算 + v2 探针元数据）
 @app.get("/api/v1/sensors/health")
 def get_sensor_health():
-    """探针健康状态：基于 wifi_nodes 表最新 last_seen 时间推算"""
+    """(V9.3 v2) 探针健康状态：数据库 last_seen 推算 + 探针 probe_status 元数据"""
     with get_db() as conn:
         row = conn.execute(
             "SELECT MAX(last_seen) as latest, COUNT(*) as total FROM wifi_nodes"
@@ -312,13 +341,18 @@ def get_sensor_health():
             except Exception:
                 status = "unknown"
         
-        return {
-            "wifi_probe": {
-                "status": status,
-                "last_heartbeat": latest,
-                "nodes_count": total
-            }
+        # V9.3 Sprint 2: 合并探针 v2 元数据
+        probe_info = {
+            "status": status,
+            "last_heartbeat": latest,
+            "nodes_count": total,
+            # 以下来自探针 v2 上报的 probe_status 缓存
+            "uptime": _PROBE_STATUS_CACHE.get("uptime"),
+            "monitor_interface": _PROBE_STATUS_CACHE.get("monitor_interface"),
+            "channel_locked": _PROBE_STATUS_CACHE.get("channel_locked"),
         }
+        
+        return {"wifi_probe": probe_info}
 
 @app.get("/api/v1/sync")
 def sync_data(theater: str = Query("default", description="显式战区防串台"), client_hash: str = Query(None)):
@@ -462,7 +496,6 @@ def get_asset_detail(ip: str):
         if not asset:
             raise HTTPException(status_code=404, detail=f"资产 {ip} 在当前战区 {env} 未找到")
 
-        scan_id = asset["scan_id"]
         ports = conn.execute(
             "SELECT port, service, product, version FROM ports WHERE ip=? AND scan_id=?",
             (ip, asset["scan_id"])
@@ -607,10 +640,7 @@ def list_campaigns(limit: int = Query(20, ge=1, le=100)):
 # [REMOVED in V9.3] Sliver C2 Mock 端点 (sliver/sessions + sliver/interact)
 # 原因：无实际 C2 数据源，纯 Mock 展示
 
-class OpsRunRequest(BaseModel):
-    command: str
-    theater: str = "default"
-    sudo_pass: str | None = None
+# [REMOVED in V9.3] OpsRunRequest — ops/run 管线已在 Final Purge 中物理删除
 
 
 # === STRUCTURED OUTPUT: COGNITIVE GRAPH DISTILLATION ===
@@ -681,14 +711,7 @@ def generate_attack_graph(target_ip: str):
         return {"nodes": []}
 
 
-# === A2UI GENERATIVE PAYLOAD FORGE (Multimodal Self-Correction) ===
-import base64
-from playwright.async_api import async_playwright
-
-class ForgeRequest(BaseModel):
-    target_ip: str
-    target_info: dict
-    concept: str = "企业内网登录凭据截获 Portal"
+# [REMOVED in V9.3] A2UI Payload Forge + ForgeRequest — Final Purge 清除
 
 
 
@@ -716,7 +739,7 @@ def generate_report():
         env = get_current_env()
         row = conn.execute("SELECT scan_id, timestamp FROM scans WHERE env=? ORDER BY timestamp DESC LIMIT 1", (env,)).fetchone()
         if not row:
-            return {"report": f"# Project CLAW V8.0 ({env})\n\nNo scan data available in the current theater."}
+            return {"report": f"# Project CLAW V9.3 ({env})\n\nNo scan data available in the current theater."}
         
         scan_id = row['scan_id']
         ts = row['timestamp']
@@ -739,11 +762,11 @@ def generate_report():
             audit_lines = f.readlines()[-30:]
 
     md = []
-    md.append(f"# CLAW V8.0 - Egress Penetration Test Report")
+    md.append(f"# CLAW V9.3 - Egress Penetration Test Report")
     md.append(f"**Generated At:** {ts}  \n**Target Scope ID:** `{scan_id}`  \n**Total Assets Discovered:** {hosts_count}\n")
     
     md.append("## 1. Executive Summary")
-    md.append("CLAW V8.0 operated in Human-AI Co-Piloting mode. This report presents an automated synthesis of discovered assets, exposed services, and potential vulnerabilities across the target scope.\n")
+    md.append("CLAW V9.3 operated in Human-AI Co-Piloting mode. This report presents an automated synthesis of discovered assets, exposed services, and potential vulnerabilities across the target scope.\n")
 
     md.append("## 2. Asset & Attack Surface")
     md.append("| Target IP | OS Fingerprint | Discovered Ports & Services |")
@@ -767,10 +790,61 @@ def generate_report():
         md.append("| Target IP | Vuln ID | Severity | Description |")
         md.append("|---|---|---|---|")
         for v in vulns:
-            md.append(f"| `{v['ip']}` | {v['vulnid']} | **{v['severity'].upper()}** | {v['description']} |")
+            md.append(f"| `{v['ip']}` | {v['vulnid']} | **{(v['severity'] or 'UNKNOWN').upper()}** | {v['description'] or ''} |")
     md.append("")
 
-    md.append("## 4. Agent Operational Audit Trail")
+    # V9.3 Sprint 3: WiFi 资产章节
+    md.append("## 4. Wireless RF Asset Analysis")
+    try:
+        with get_db() as wifi_conn:
+            wifi_nodes = wifi_conn.execute(
+                "SELECT bssid, essid, channel, encryption, power, status, manufacturer FROM wifi_nodes ORDER BY power DESC"
+            ).fetchall()
+        
+        if wifi_nodes:
+            md.append(f"**Total RF Nodes Discovered:** {len(wifi_nodes)}\n")
+            
+            # 加密类型分布统计
+            enc_dist = {}
+            high_risk_aps = []
+            for n in wifi_nodes:
+                enc = n['encryption'] or 'UNKNOWN'
+                enc_dist[enc] = enc_dist.get(enc, 0) + 1
+                if enc in ('OPN', 'WEP') or 'WEP' in enc:
+                    high_risk_aps.append(n)
+            
+            md.append("**Encryption Distribution:**")
+            for enc_type, count in sorted(enc_dist.items(), key=lambda x: -x[1]):
+                pct = round(count / len(wifi_nodes) * 100, 1)
+                md.append(f"- {enc_type}: {count} ({pct}%)")
+            md.append("")
+            
+            # 高危 AP 列表
+            if high_risk_aps:
+                md.append(f"**High Risk APs (WEP/OPN): {len(high_risk_aps)}**")
+                md.append("| BSSID | SSID | Channel | Encryption | Signal (dBm) |")
+                md.append("|---|---|---|---|---|")
+                for ap in high_risk_aps:
+                    md.append(f"| `{ap['bssid']}` | {ap['essid'] or '<HIDDEN>'} | {ap['channel']} | **{ap['encryption']}** | {ap['power']} |")
+                md.append("")
+            else:
+                md.append("> *No high-risk (WEP/OPN) access points detected.*\n")
+            
+            # 全量 AP 列表
+            md.append("**Full AP Inventory:**")
+            md.append("| BSSID | SSID | CH | Encryption | Signal | Status | Manufacturer |")
+            md.append("|---|---|---|---|---|---|---|")
+            for n in wifi_nodes[:50]:  # 限制前 50 个防爆表
+                md.append(f"| `{n['bssid']}` | {n['essid'] or '<HIDDEN>'} | {n['channel']} | {n['encryption']} | {n['power']} dBm | {n['status'] or 'LIVE'} | {n['manufacturer'] or 'N/A'} |")
+            if len(wifi_nodes) > 50:
+                md.append(f"| ... | *({len(wifi_nodes) - 50} more nodes omitted)* | | | | | |")
+            md.append("")
+        else:
+            md.append("> *No wireless RF nodes have been captured by the edge probe.*\n")
+    except Exception as e:
+        md.append(f"> *WiFi asset data unavailable: {e}*\n")
+
+    md.append("## 5. Agent Operational Audit Trail")
     md.append("Trace of the LYNX Agent during the engagement:")
     md.append("```log")
     if audit_lines:
@@ -779,7 +853,7 @@ def generate_report():
         md.append("[SYS] No active agent traces found in audit.log")
     md.append("```\n")
 
-    md.append("---\n*End of Report | Auto-generated by CLAW V8.0*")
+    md.append("---\n*End of Report | Auto-generated by CLAW V9.3*")
 
     return {"report": "\n".join(md)}
 
@@ -1092,167 +1166,9 @@ def env_delete(req: EnvDeleteRequest):
     return {"status": "ok", "message": f"战区 {req.name} 已删除/清空"}
 
 
-# (ACTIVE_JOBS 和 signal 已移至顶部)
-import uuid
-import subprocess
-import os
-import asyncio
-
-async def background_waiter(job_id: str, proc: subprocess.Popen, log_fh):
-    """后台监控子进程结束，确保释放文件句柄并清理内存"""
-    try:
-        while proc.poll() is None:
-            await asyncio.sleep(1)
-    except Exception:
-        pass
-    finally:
-        try:
-            log_fh.close()
-        except Exception:
-            pass
-        if job_id in ACTIVE_JOBS:
-            del ACTIVE_JOBS[job_id]
-class OpsRunRequest(BaseModel):
-    command: str
-    theater: str = "default"
-    sudo_pass: Optional[str] = None
-    target_ips: Optional[List[str]] = []
-
-@app.post("/api/v1/ops/run")
-def ops_run(req: OpsRunRequest, background_tasks: BackgroundTasks):
-    """异步执行作战命令，返回 job_id"""
-    job_id = f"job_{uuid.uuid4().hex[:8]}"
-    
-    # Ensure theater dir exists (which should be CatTeam_Loot/theater_name, except default is CatTeam_Loot)
-    theater_dir = os.path.join(BASE_DIR, "CatTeam_Loot", req.theater) if req.theater != "default" else os.path.join(BASE_DIR, "CatTeam_Loot")
-    log_dir = os.path.join(theater_dir, "logs")
-    os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, f"{job_id}.log")
-
-    if req.target_ips and len(req.target_ips) > 0:
-        targets_file = os.path.join(theater_dir, "targets.txt")
-        with open(targets_file, "w") as f:
-            for ip in req.target_ips:
-                f.write(f"{ip}\n")
-
-    # Start process in background
-    with open(log_file, "w") as f:
-        f.write(f"--- [Project CLAW V8.2] Task Started: {req.command} ---\n")
-        if req.target_ips and len(req.target_ips) > 0:
-            f.write(f"--- [Target Scope Override] Locked on {len(req.target_ips)} critical host(s) ---\n")
-        f.write("\n")
-    
-    # Open log file for subprocess stdout — store handle so it can be closed later
-    log_fh = open(log_file, "a")
-    
-    # D7 PTY 伪装：用 script 强行剥除 isatty() 的无色彩降级，并防止管道缓存。兼容 macOS/Linux 取消 '-c'
-    # 使用 python3 原生 pty 包裹作为最高兼容性的“万能欺骗器”，强制工具开启 TTY 行缓冲并吐出 ANSI 颜色！
-    cmd_wrapper = f"""python3 -c "import pty, sys; sys.exit(pty.spawn(['bash', '-c', {repr(req.command)}]))" """
-    
-    if req.sudo_pass:
-        cmd_wrapper = f"sudo -S -p '' {cmd_wrapper}"
-        proc = subprocess.Popen(
-            cmd_wrapper,
-            shell=True,
-            cwd=BASE_DIR,
-            stdin=subprocess.PIPE,
-            stdout=log_fh,
-            stderr=subprocess.STDOUT,
-            text=True,
-            preexec_fn=os.setsid
-        )
-        proc.stdin.write(req.sudo_pass + "\n")
-        proc.stdin.flush()
-        proc.stdin.close()
-    else:
-        proc = subprocess.Popen(
-            cmd_wrapper,
-            shell=True,
-            cwd=BASE_DIR,
-            stdout=log_fh,
-            stderr=subprocess.STDOUT,
-            text=True,
-            preexec_fn=os.setsid
-        )
-
-    ACTIVE_JOBS[job_id] = {"proc": proc, "log_fh": log_fh}
-    
-    # 安全的后台清理任务
-    background_tasks.add_task(background_waiter, job_id, proc, log_fh)
-    
-    return {"status": "ok", "job_id": job_id, "command": req.command, "log_file": log_file}
-
-@app.post("/api/v1/ops/stop/{job_id}")
-def ops_stop(job_id: str):
-    job = ACTIVE_JOBS.get(job_id)
-    if not job:
-        return {"error": "Job not found or already completed"}
-    try:
-        # Kill the entire process group, not just the shell (prevents nmap/nuclei orphans)
-        os.killpg(os.getpgid(job["proc"].pid), signal.SIGTERM)
-        # file close and memory cleanup is now handled safely by background_waiter!
-        return {"status": "ok", "message": f"Job {job_id} terminated."}
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/api/v1/ops/jobs/active")
-def ops_active_jobs():
-    """抛出当前失联阵地里的挂起任务，供终端断线重连（D7）"""
-    jobs = []
-    for jid, job in ACTIVE_JOBS.items():
-        if job.get("proc") and job["proc"].poll() is None:
-            jobs.append({"job_id": jid, "pid": job["proc"].pid})
-    return {"status": "ok", "active_jobs": jobs}
-
-@app.get("/api/v1/ops/log/{job_id}")
-async def ops_log(job_id: str, theater: str = "default", request: Request = None):
-    """SSE 流式返回该 job 的日志输出（D7 Chunk 块重构版）"""
-    log_file = os.path.join(BASE_DIR, "CatTeam_Loot", theater, "logs", f"{job_id}.log")
-    
-    async def log_generator():
-        if not os.path.exists(log_file):
-            yield f"data: {json.dumps({'text': '[Sys] Log file not found'})}\n\n"
-            return
-            
-        async with aiofiles.open(log_file, "rb") as f:
-            job = ACTIVE_JOBS.get(job_id)
-            proc = job["proc"] if job else None
-            
-            while True:
-                if request and await request.is_disconnected():
-                    break # 侦测断开，及时止损后端 I/O
-
-                # 采用 4KB Chunk 块读取，彻底解决 OOM 和 \r 进度条阻塞死锁
-                chunk = await f.read(4096)
-                if chunk:
-                    # 宽容解码，直接投喂原生块给 xterm.js
-                    text = chunk.decode("utf-8", errors="replace")
-                    yield f"data: {json.dumps({'text': text}, ensure_ascii=False)}\n\n"
-                    
-                    # 🚀 极其关键：强制让出事件循环控制权，拯救 FastAPI 高并发！
-                    await asyncio.sleep(0.01)
-                else:
-                    if proc and proc.poll() is not None:
-                        # Process finished and no more lines — close file handle
-                        if job and job.get("log_fh"):
-                            try: job["log_fh"].close()
-                            except: pass
-                        finished_msg = f"\n--- [Task Finished with code {proc.returncode}] ---\n"
-                        yield f"data: {json.dumps({'text': finished_msg, 'done': True})}\n\n"
-                        break
-                    # 进程还在跑，暂无新输出，挂起等待
-                    await asyncio.sleep(0.2)
-
-    return StreamingResponse(
-        log_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-    )
-
+# [REMOVED in V9.3] ops/run + ops/stop + ops/jobs/active + ops/log 管线
+# 原因：CLAW 回归指挥中枢定位，命令执行通过 MCP claw_execute_shell 工具完成
+# 前端已无任何调用入口，MCP 工具链不依赖此 REST 端点
 
 
 class ProbeRequest(BaseModel):
@@ -1350,7 +1266,7 @@ def get_active_agent_log():
 def root():
     return {
         "name": "CLAW API",
-        "version": "8.2.0",
+        "version": "9.3.0",
         "docs": "/docs",
         "status": "operational",
         "agent": "ready" if AGENT_API_KEY else "no_api_key",

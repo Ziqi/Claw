@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Project CLAW — SQLite 数据引擎 (v5.0)
-四张表: scans / assets / ports / vulns
+Project CLAW — SQLite 数据引擎 (V9.3)
+核心表: scans / assets / ports / vulns / wifi_nodes / wifi_rssi_history / mcp_messages
 数据库文件: CatTeam_Loot/claw.db (全局唯一, 跨任务共享)
 环境隔离: claw_env.txt 记录当前环境, diff 只在同环境内比较
 """

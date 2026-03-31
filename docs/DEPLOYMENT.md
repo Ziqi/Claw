@@ -1,25 +1,25 @@
 # CLAW 部署架构迁移指南
 
-**版本**：V9.3 规划
-**最后更新**：2026-03-29
-**目的**：记录三种部署方案的详细步骤，指导将 CLAW 从 MacBook Air + Docker 架构迁移至 Kali 原生环境。
+**版本**：V9.3 Electro-Phantom
+**最后更新**：2026-03-31
+**目的**：记录三种部署方案的详细步骤。CLAW 已从 MacBook Air + Docker 架构完成迁移至 Mac + Kali VM 原生架构。
 
 ---
 
 ## 1. 部署架构演进路线
 
 ```
-V5-V8 (历史)        V9.2 (当前)          V9.3 (近期目标)      终极形态
+V5-V8 (历史)        V9.2 (历史)           V9.3 (✅ 当前)          终极形态
 ┌──────────┐       ┌──────────────┐      ┌──────────────┐     ┌──────────────┐
-│ Mac 本地  │       │ Mac 宿主机    │      │ Mac (仅浏览器) │     │ Kali 物理机   │
+│ Mac 本地  │       │ Mac 宿主机    │      │ Mac (指挥台)   │     │ Kali 物理机   │
 │ + Docker  │  ──→  │ + Kali VM    │ ──→  │ + Kali VM    │ ──→ │ (一体化全栈) │
-│ 容器      │       │ + Docker(闲) │      │ (前后端全入VM) │     │ 无虚拟机开销 │
+│ 容器      │       │ (Docker已删) │      │ (前后端在Mac) │     │ 无虚拟机开销 │
 └──────────┘       └──────────────┘      └──────────────┘     └──────────────┘
 ```
 
 ---
 
-## 2. 方案 A：短期优化（当前 Mac + Kali VM 架构改良）
+## 2. 方案 A：✅ 当前架构（Mac 指挥台 + Kali VM 武器库）
 
 ### 2.1 核心改动：将前后端都搬入 Kali VM
 
@@ -147,7 +147,7 @@ python3 CatTeam_Loot/claw_wifi_sensor.py \
 
 ### 2.4 方案 A 的 MCP 工具适配
 
-将 `claw_execute_shell` 从 Docker 调用改为本地调用：
+MCP 工具 `claw_execute_shell` 已在 Kali VM 本地直接执行：
 
 ```python
 # mcp_armory_server.py — 修改前

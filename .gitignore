@@ -26,3 +26,4 @@ docs/advisor/
 
 # 第三方 API 文档参考 (体积大, 不推 GitHub)
 docs/Gemini3/
+nmap_*.xml

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CLAW Agent MCP V9.2 — A3.0 Complete Edition.
+CLAW Agent MCP V9.3 — A3.0 Complete Edition.
 
 D19 Ruling Implementation:
   - In-Memory Session Cache + Write-Behind SQLite audit trail
@@ -402,7 +402,7 @@ async def react_loop_stream(user_input: str, campaign_id: str = "default", model
         cache_label = f"内存缓存 ({len(chat_history)} 轮)" if campaign_id in _session_cache and chat_history else "冷启动恢复"
         yield sse("RUN_STARTED", {"status": f"Lynx 正在分析您的请求... (模型: {selected_model}, 推理: {thinking_level}, 模式: {mode_label}, 上下文: {cache_label})"})
         
-        # Step 3: Multi-turn execution loop (max 15 steps safety limit)
+        # Step 3: Multi-turn execution loop (max 30 steps safety limit)
         max_steps = 30
         current_input = user_input
         for step in range(max_steps):

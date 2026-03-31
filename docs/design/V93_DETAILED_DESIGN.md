@@ -169,11 +169,11 @@ POST /api/v1/sensors/wifi/ingest  (现有，扩展)
 Step 1: 后端 — 删除废弃端点 (docker/sliver/attack_matrix/ws)  ✅ 已完成
 Step 2: 后端 — 新增 rssi_history + health 端点              ✅ 已完成
 Step 3: 后端 — 扩展 ingest 写入 rssi_history                 ✅ 已完成
-Step 4: 后端 — agent.py System Prompt 更新                  部分完成
+Step 4: 后端 — agent.py System Prompt 更新                  ✅ 已完成
 Step 5: 前端 — 删除 4 个废弃组件                            ✅ 已完成
 Step 6: 前端 — RadioRadarPanel 增强 (Sparkline + Ghosting) ✅ 已完成
 Step 7: 前端 — 探针状态灯 + 历史折叠                       ✅ 已完成
 Step 8: 前端 — TacticalArmoryModal 改造                     ✅ 已完成
-Step 9: 测试 — 回归验证                                   待执行
+Step 9: 测试 — 回归验证                                   ✅ 已完成
 Step 10: 文档 — ARCHITECTURE.md 更新                       ✅ 已完成
 ```

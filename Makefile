@@ -16,7 +16,22 @@ export PROFILE
 export RECON_MODE
 export ACTIVE_CIDR
 
-.PHONY: run fast clean audit parse recon probe armory help preflight status web phantom crack lateral report diff test nuclei loot kerberoast console
+.PHONY: run fast clean audit parse recon probe armory help preflight status web phantom crack lateral report diff test nuclei loot kerberoast console launch stop field
+
+# -------- 一键部署（V9.3 实战快捷指令）--------
+launch:
+	@bash ./claw-launch.sh
+
+stop:
+	@bash ./claw-stop.sh
+
+field:
+	@echo ""; \
+	echo "  \033[1;36m将 claw-field.sh 传入 Kali 并执行:\033[0m"; \
+	echo ""; \
+	echo "  scp claw-field.sh CatTeam_Loot/claw_wifi_sensor.py kali@<KALI_IP>:~/"; \
+	echo "  ssh kali@<KALI_IP> 'sudo ./claw-field.sh <MAC_IP>'"; \
+	echo ""
 
 # -------- 默认目标：显示战术面板 --------
 help:

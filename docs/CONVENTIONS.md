@@ -1,7 +1,7 @@
 # 🐱 CatTeam/CLAW 技术标准文档 (Conventions & Standards)
 
-**版本：** 2.4  
-**最后更新：** 2026-03-29
+**版本：** 2.5  
+**最后更新：** 2026-03-31
 
 ---
 
@@ -9,7 +9,7 @@
 
 ### 1.1 CLAW 平台版本 (V 前缀)
 
-**当前版本：V9.2 / A2.2**
+**当前版本：V9.3 / A3.0**
 
 ```
 格式: V{X}.{Y}.{Z}
@@ -37,6 +37,7 @@
 | **V9.0** | **The Commander's HUD + OSINT 语义特工 + TUI 武库融合**|
 | **V9.1** | **A2UI 落地 + 代码沙箱 + Google Search，护城河加固**|
 | **V9.2** | **Deep Autonomy：ALFA 无线管线 + 全局多选准星**|
+| **V9.3** | **Electro-Phantom：态势感知增强 + Docker 退役 + Final Purge**|
 
 ### 1.2 Agent 版本 (A 前缀)
 
@@ -53,13 +54,13 @@ Agent 智能体**独立于**平台版本，因为 Agent 演进频率更高。
 |---|---|---|
 | A1.0 (M1) | 只读: 查库/读文件/列资产 | ✅ |
 | A2.0 (M2) | 带锁执行: shell + HITL 三级分权 | ✅ |
-| **A2.2 (M2+)** | **MCP Schema V3 + URL Context + 跨战役持久化** | **✅** |
-| A3.0 (M3) *(计划)* | 自主任务链 + LLM Routing | – |
+| A2.2 (M2+) | MCP Schema V3 + URL Context + 跨战役持久化 | ✅ |
+| **A3.0 (M3)** | **ReAct 自主任务链 + MCP 持久连接池 + Preview/GA 自动降级** | **✅** |
 | A4.0 (M4) *(远期)* | 多 Agent 协作 + 知识图谱 | – |
 
-### 1.3 Dockerfile 版本
+### 1.3 Dockerfile 版本 (已于 V9.3 退役)
 
-Docker 镜像版本**独立于** CLAW 平台版本，因为镜像构建由用户手动触发。
+> ⚠️ Docker 已于 2026-03-31 正式退役，Kali VM 替代 Docker 容器。以下仅为历史记录。
 
 ```
 格式: my-kali-arsenal:vN  (N 为递增整数)
@@ -69,8 +70,8 @@ Docker 镜像版本**独立于** CLAW 平台版本，因为镜像构建由用户
 |---|---|
 | v1 | Kali 基础工具 (nmap, curl, netcat) |
 | v2 | + Impacket (smbexec, secretsdump) |
-| v3 *(Dockerfile 定义)* | + Nuclei |
-| v4 *(Dockerfile 定义)* | + binwalk |
+| v3 *(已退役)* | + Nuclei |
+| v4 *(已退役)* | + binwalk |
 
 ### 1.4 Advisor 文档编号 (D 前缀)
 
@@ -140,7 +141,6 @@ CatTeam/
 ├── config.sh              # 统一配置 (唯一配置源)
 ├── config.sh.example      # 脱敏模板
 ├── Makefile               # 编排引擎
-├── Dockerfile             # Docker 战车底盘
 ├── scripts/               # 工具脚本 & 辅助函数
 │   ├── examples/          # 实战参考 PoC
 │   └── *.py               # 核心工具
@@ -237,7 +237,6 @@ emoji:
 | `docs/advisor/D{N}_*.md` | 导师交流后 |
 | `config.sh.example` | 新增配置项时 |
 | `Makefile` | 新增 make 指令时 |
-| `Dockerfile` | 新增工具依赖时 |
 
 ### 5.3 文档同步 Git 提交规范
 
@@ -260,4 +259,4 @@ emoji:
 
 ---
 
-*本文档是 Project CLAW 的工程治理基线。CONVENTIONS.md 2026-03-29*
+*本文档是 Project CLAW 的工程治理基线。CONVENTIONS.md 2026-03-31*

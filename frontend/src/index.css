@@ -578,3 +578,286 @@ body {
 
 /* OP Sidebar helper rows — unified in .m-row above */
 .c-gold { color: #FF9900; }
+
+/* =========================================
+   MOBILE COMPANION MODE (< 768px)
+   手机伴侣版 — 底部 Tab 切换单面板全屏视图
+   桌面端完全不受影响
+   ========================================= */
+
+/* ===== 底部导航栏（仅移动端可见）===== */
+.mobile-nav {
+  display: none; /* 桌面端隐藏 */
+}
+
+@media (max-width: 768px) {
+
+  /* --- 全局重置 --- */
+  body {
+    overflow: auto;
+    font-size: 14px;
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* --- 隐藏桌面专属组件 --- */
+  .activity-bar,
+  .resizer {
+    display: none !important;
+  }
+
+  /* --- HUD Bar 移动端简化 --- */
+  .hud-bar {
+    height: 44px;
+    padding: 0 12px;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .hud-brand {
+    font-size: 13px;
+    padding-right: 8px;
+    flex-shrink: 0;
+  }
+
+  .stat-item {
+    padding-right: 8px;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .stat-label {
+    font-size: 9px;
+  }
+
+  .stat-value {
+    font-size: 12px;
+  }
+
+  /* 隐藏次要状态项，保留前 3 个 */
+  .stat-item:nth-child(n+5) {
+    display: none;
+  }
+
+  /* --- Main Shell 垂直堆叠 --- */
+  .main-shell {
+    flex-direction: column !important;
+    overflow: auto !important;
+  }
+
+  .app-container {
+    height: 100vh;
+    height: 100dvh; /* iOS Safari 动态视口 */
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* --- Sidebar 移动端 --- */
+  .sidebar-panel {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color);
+    max-height: none;
+  }
+
+  /* --- 中间主体全宽 --- */
+  .activity-main {
+    width: 100% !important;
+    min-height: 0;
+  }
+
+  .tab-content-area {
+    padding: 10px;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* --- AI Panel 移动端全宽 --- */
+  .col-right {
+    width: 100% !important;
+    border-left: none !important;
+    border-top: 1px solid var(--border-color);
+    min-height: 0;
+  }
+
+  /* --- 移动端面板显隐控制 --- */
+  .mobile-hidden {
+    display: none !important;
+  }
+
+  /* --- Tab Bar 移动端 --- */
+  .terminal-tab-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .terminal-tab {
+    padding: 0 12px;
+    font-size: 12px;
+    min-height: 40px;
+    flex-shrink: 0;
+  }
+
+  /* --- 触摸优化 --- */
+  .asset-row {
+    padding: 12px 8px;
+    font-size: 14px;
+  }
+
+  .agent-chip {
+    padding: 10px 14px;
+    font-size: 13px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .ai-input {
+    font-size: 16px !important; /* 防止 iOS 自动缩放 */
+    padding: 12px 14px !important;
+  }
+
+  .send-btn {
+    padding: 10px !important;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .send-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* --- 数据表格移动端 --- */
+  .data-table th,
+  .data-table td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+
+  /* --- 指标卡片单列 --- */
+  .indicator-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* --- 底部导航栏 --- */
+  .mobile-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: #0A0A0A;
+    border-top: 1px solid var(--term-cyan);
+    z-index: 9999;
+    justify-content: space-around;
+    align-items: center;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--term-muted);
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 6px 12px;
+    min-width: 60px;
+    transition: color 0.15s;
+    font-family: 'Consolas', monospace;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--term-cyan);
+  }
+
+  .mobile-nav-item svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 1.8;
+  }
+
+  /* 为底部导航留出空间 */
+  .app-container {
+    padding-bottom: 56px;
+  }
+
+  /* --- AI 对话气泡移动端 --- */
+  .msg-user {
+    max-width: 92%;
+    font-size: 14px;
+  }
+
+  .msg-ai {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  /* --- Floating Console 移动端全屏 --- */
+  .mobile-nav ~ div [style*="position: fixed"] {
+    width: 100vw !important;
+    height: 60vh !important;
+    bottom: 56px !important;
+    right: 0 !important;
+    left: 0 !important;
+  }
+
+  /* --- Mission Input 移动端 --- */
+  .input-wrapper,
+  .ai-input-float {
+    padding: 8px;
+  }
+
+  /* --- Spotlight 移动端 --- */
+  .mobile-nav ~ div [style*="width: 500px"] {
+    width: 92vw !important;
+  }
+
+  /* --- 模型选择器 --- */
+  .model-dropdown {
+    width: 200px;
+    bottom: 40px;
+  }
+
+  .dd-item {
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  /* --- Threat Grid 移动端 --- */
+  .threat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .threat-cell .tc-value {
+    font-size: 20px;
+  }
+
+  /* --- 思考/流式指示器 --- */
+  .thinking-indicator {
+    font-size: 14px;
+  }
+
+  /* --- Quick Chips 换行 --- */
+  .chips-wrap {
+    gap: 8px;
+  }
+
+  .chip-group-title {
+    font-size: 11px;
+    margin: 16px 0 10px;
+  }
+}

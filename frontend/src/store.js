@@ -34,7 +34,7 @@ const useStore = create((set) => ({
   })),
   clearRfTargets: () => set({ rfTargets: [] }),
 
-  // View preferencesd Post), DP (Depot), VS (Visual Theater)
+  // View navigation: HQ (侦察), RC (Recon), AT (Asset), OP (Operations), RF (Radio), DP (Depot)
   setView: (view) => set({ view }),
 
   aiWidth: 380,

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { Network } from 'vis-network'
 // [REMOVED in V9.3] Terminal/xterm imports removed - SSH into Kali for terminal
-import { Radar, AlertTriangle, Crown, Signal, Search, ClipboardList, Swords, BarChart, Settings, RefreshCw, Globe, Crosshair, Loader2, Rocket, Zap, Building, Flame, FlaskConical, Skull, KeyRound, Monitor, ShieldAlert, Copy, X, Info, Bug, Lock, Target, Radio, FileText, Wrench, Maximize2, Minimize2, Square, PanelBottom, ArrowUpRight, Terminal as TerminalIcon, Archive, Bot, MessageSquare, Trash2, Activity, Wifi } from 'lucide-react'
+import { Radar, AlertTriangle, Crown, Signal, Search, ClipboardList, Swords, BarChart, Settings, RefreshCw, Globe, Crosshair, Loader2, Rocket, Zap, Building, Flame, FlaskConical, Skull, KeyRound, Monitor, ShieldAlert, Copy, X, Info, Bug, Lock, Target, Radio, FileText, Wrench, Maximize2, Minimize2, Square, PanelBottom, ArrowUpRight, Terminal as TerminalIcon, Archive, Bot, MessageSquare, Trash2, Activity, Wifi, Send, Menu } from 'lucide-react'
 import useStore from './store'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -145,7 +145,7 @@ function HudBar({ onRefreshAssets }) {
 
         <div className="cat-tip" style={{ display: 'none', position: 'absolute', top: '100%', left: 0, marginTop: '8px', background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '16px 20px', zIndex: 9999, whiteSpace: 'pre', fontFamily: 'Consolas, monospace', fontSize: '13px', lineHeight: '1.4', boxShadow: '0 8px 24px rgba(0,0,0,0.8)', minWidth: '340px' }}>
           <span style={{ color: '#00FFFF' }}>{"         /\\_/\\\n"}</span>
-          <span style={{ color: '#00FFFF' }}>{"        ( o.o ) "}</span><span style={{ color: '#FFF', fontWeight: 'bold' }}>Project CLAW</span> <span style={{ color: '#30D158' }}>V8.2</span>{"\n"}
+          <span style={{ color: '#00FFFF' }}>{"        ( o.o ) "}</span><span style={{ color: '#FFF', fontWeight: 'bold' }}>Project CLAW</span> <span style={{ color: '#30D158' }}>V9.3</span>{"\n"}
           <span style={{ color: '#00FFFF' }}>{"         > ^ <  "}</span><span style={{ color: '#666' }}>CatTeam Lateral Arsenal Weapon</span>{"\n"}
           <span style={{ color: '#00FFFF' }}>{"        /|   |\\\n"}</span>
           <span style={{ color: '#00FFFF' }}>{"       (_|   |_) "}</span><span style={{ color: '#999' }}>Codename: Lynx</span>
@@ -742,7 +742,7 @@ function WorkArea() {
 
   const submitMission = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/v1/mission', {
+      const res = await fetch(`http://${window.location.hostname}:8000/api/v1/mission`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ briefing: missionInput || "待命中... (Waiting for Commander Intent)" })
@@ -929,7 +929,9 @@ function RadioRadarPanel({ onExecCommand }) {
             // V9.3 Ghosting: calculate staleness from last_seen
             let stale = 'live'
             if (node.last_seen) {
-              const diff = (Date.now() - new Date(node.last_seen).getTime()) / 1000
+              // SQLite CURRENT_TIMESTAMP 返回 UTC，追加 'Z' 确保 JS 按 UTC 解析
+              const lastSeenUtc = node.last_seen.endsWith('Z') ? node.last_seen : node.last_seen + 'Z'
+              const diff = (Date.now() - new Date(lastSeenUtc).getTime()) / 1000
               if (diff > 300) stale = 'ghost'
               else if (diff > 60) stale = 'fading'
               else if (diff > 10) stale = 'mild'
@@ -938,12 +940,15 @@ function RadioRadarPanel({ onExecCommand }) {
           })
           setNodes(enriched)
           setLastUpdate(new Date().toLocaleTimeString())
-          // V9.3: Auto-fetch RSSI for top 10 visible nodes
+          // V9.3: Auto-fetch RSSI for top 10 visible nodes (with 15s TTL cache)
+          const now = Date.now()
           enriched.slice(0, 10).forEach(n => {
-            if (!rssiCache[n.bssid]) {
+            const cached = rssiCache[n.bssid]
+            const lastFetch = cached?._ts || 0
+            if (!cached || (now - lastFetch > 15000)) {
               fetch(`${API}/sensors/wifi/rssi_history?bssid=${encodeURIComponent(n.bssid)}&limit=20`)
                 .then(r => r.json())
-                .then(d => setRssiCache(prev => ({ ...prev, [n.bssid]: d.history || [] })))
+                .then(d => setRssiCache(prev => ({ ...prev, [n.bssid]: { data: d.history || [], _ts: Date.now() } })))
                 .catch(() => {})
             }
           })
@@ -962,10 +967,10 @@ function RadioRadarPanel({ onExecCommand }) {
 
   // V9.3: Fetch RSSI history for sparkline when a row is expanded
   useEffect(() => {
-    if (expandedBssid && !rssiCache[expandedBssid]) {
+    if (expandedBssid && !rssiCache[expandedBssid]?.data) {
       fetch(`${API}/sensors/wifi/rssi_history?bssid=${encodeURIComponent(expandedBssid)}&limit=20`)
         .then(r => r.json())
-        .then(d => setRssiCache(prev => ({ ...prev, [expandedBssid]: d.history || [] })))
+        .then(d => setRssiCache(prev => ({ ...prev, [expandedBssid]: { data: d.history || [], _ts: Date.now() } })))
         .catch(() => {})
     }
   }, [expandedBssid])
@@ -981,7 +986,7 @@ function RadioRadarPanel({ onExecCommand }) {
     return (
       <svg width={w} height={h} style={{ verticalAlign: 'middle' }}>
         <polyline points={points} fill="none" stroke="#00FFFF" strokeWidth="1.5" opacity="0.8" />
-        <circle cx={(values.length - 1) / (values.length - 1) * w} cy={h - ((values[values.length - 1] - min) / range) * h} r="2.5" fill="#00FFFF" />
+        <circle cx={w} cy={h - ((values[values.length - 1] - min) / range) * h} r="2.5" fill="#00FFFF" />
       </svg>
     )
   }
@@ -1065,11 +1070,11 @@ function RadioRadarPanel({ onExecCommand }) {
                 
                 return (
                   <React.Fragment key={node.bssid}>
-                    <tr style={{ background: isSelected ? 'rgba(0, 255, 255, 0.1)' : 'transparent', cursor: 'pointer', transition: 'all 0.4s', opacity: staleOpacity, borderBottom: staleBorder }} onClick={() => { toggleGlobalTarget(node.bssid); setExpandedBssid(isExpanded ? null : node.bssid) }}>
+                    <tr style={{ background: isSelected ? 'rgba(0, 255, 255, 0.1)' : 'transparent', cursor: 'pointer', transition: 'all 0.4s', opacity: staleOpacity, borderBottom: staleBorder }} onClick={() => setExpandedBssid(isExpanded ? null : node.bssid)}>
                       <td style={{ color: color, fontWeight: 'bold' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>{isSelected ? '✓' : ''} {pwr}</span>
-                          <Sparkline data={rssiCache[node.bssid]} />
+                          <Sparkline data={rssiCache[node.bssid]?.data} />
                         </div>
                       </td>
                       <td style={{ color: '#00FFFF', fontFamily: 'monospace', fontSize: '11px' }}>{node.bssid}</td>
@@ -1152,7 +1157,7 @@ function ReconOverview({ stats, assets, asset, onExecCommand }) {
                     if(d.status === 'ok') { 
                       alert(`清理成功！共分离 ${d.deleted_count} 台物理离线/幽灵节点.`); 
                       // Trigger data flush
-                      refreshAssets()
+                      window.__claw_refresh_assets?.()
                     }
                 }).catch(console.error);
             }
@@ -3076,6 +3081,16 @@ function App() {
 
   const [isDocked, setIsDocked] = useState(true)
 
+  // V9.3: 移动端伴侣模式
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768)
+  const [mobileView, setMobileView] = useState('RF') // 'RF' | 'AI' | 'MISSION' | 'STATUS'
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768)
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -3164,13 +3179,26 @@ function App() {
     return () => window.removeEventListener('CLAW_SWITCH_CONSOLE_TAB', handleSwitchConsole)
   }, [])
 
+  // 移动端面板可见性判断
+  const showWorkArea = !isMobile || mobileView === 'RF' || mobileView === 'STATUS'
+  const showAiPanel = !isMobile || mobileView === 'AI' || mobileView === 'MISSION'
+  const showSidebar = !isMobile // 移动端不显示侧边栏
+
+  // 移动端自动切换视图
+  useEffect(() => {
+    if (isMobile) {
+      if (mobileView === 'RF') setView('RF')
+      else if (mobileView === 'STATUS') setView('HQ')
+    }
+  }, [mobileView, isMobile])
+
   return (
     <div className="app-container">
       <HudBar onRefreshAssets={refreshAssets} />
       <div className="main-shell" style={{ display: 'flex', flexDirection: 'row', flex: 1, overflow: 'hidden' }}>
 
         {/* Left pane: Activities, Sidebar, Center WorkArea OVER Terminal */}
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }} className={showWorkArea ? '' : 'mobile-hidden'}>
           
           <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
             <div className="activity-bar">
@@ -3183,23 +3211,44 @@ function App() {
             </div>
 
             {/* Sidebar conditionally renders based on view mappings; for RF, it renders null to maximize radar width */}
-            <Sidebar onRefreshAssets={refreshAssets} />
+            {showSidebar && <Sidebar onRefreshAssets={refreshAssets} />}
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, borderRight: '1px solid #333' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, borderRight: isMobile ? 'none' : '1px solid #333' }}>
               <WorkArea />
               
               {/* Terminal renders natively inside flex column when Docked, keeping scroll bars constrained */}
-              {isDocked && <FloatingConsole isDocked={isDocked} setIsDocked={setIsDocked} />}
+              {isDocked && !isMobile && <FloatingConsole isDocked={isDocked} setIsDocked={setIsDocked} />}
             </div>
           </div>
         </div>
 
         {/* Right pane: AI Panel - Reverted to native outer block so it spans full height */}
-        <AiPanel isHqMode={false} />
+        <div className={showAiPanel ? '' : 'mobile-hidden'} style={{ display: 'flex', flexDirection: 'column', flex: isMobile ? 1 : undefined, minHeight: 0 }}>
+          <AiPanel isHqMode={isMobile} />
+        </div>
 
       </div>
       <Spotlight />
-      {!isDocked && <FloatingConsole isDocked={isDocked} setIsDocked={setIsDocked} />}
+      {!isDocked && !isMobile && <FloatingConsole isDocked={isDocked} setIsDocked={setIsDocked} />}
+
+      {/* V9.3: 移动端底部导航栏 */}
+      <div className="mobile-nav">
+        {[
+          { key: 'RF', icon: Radio, label: '雷达' },
+          { key: 'AI', icon: Bot, label: 'AI' },
+          { key: 'MISSION', icon: Target, label: '任务' },
+          { key: 'STATUS', icon: Activity, label: '状态' },
+        ].map(tab => (
+          <div
+            key={tab.key}
+            className={`mobile-nav-item ${mobileView === tab.key ? 'active' : ''}`}
+            onClick={() => setMobileView(tab.key)}
+          >
+            <tab.icon size={22} />
+            <span>{tab.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

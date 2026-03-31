@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-🧠 CLAW Armory MCP Server (V8.2 Sprint 4)
+🧠 CLAW Armory MCP Server (V9.3 Electro-Phantom)
 
 Provides the Tactical Armory tools via Model Context Protocol (MCP) using FastMCP.
 This decouples the tools from the LLM execution logic, allowing any agent
 to dynamically discover and use them.
 """
 
-import os, json, sqlite3, glob, subprocess, threading
+import os, json, sys, sqlite3, glob, subprocess, threading
 from datetime import datetime
 from mcp.server.fastmcp import FastMCP
 
@@ -332,8 +332,8 @@ def claw_execute_shell(command: str, thought: str, justification: str, reason: s
         
         # 每次执行先清空并打上标记
         with open("/tmp/claw_ai_output.log", "w", encoding="utf-8") as f:
-            f.write(f"\\033[1;36m=== [LYNX AI] 独立后台进程挂载 ===\\033[0m\\n")
-            f.write(f"\\033[90m$ {safe_log_cmd}\\033[0m\\n\\n")
+            f.write(f"\033[1;36m=== [LYNX AI] 独立后台进程挂载 ===\033[0m\n")
+            f.write(f"\033[90m$ {safe_log_cmd}\033[0m\n\n")
 
         def tail_stream(stream, is_stderr=False):
             for line in iter(stream.readline, ""):
@@ -366,7 +366,7 @@ def claw_execute_shell(command: str, thought: str, justification: str, reason: s
             t_err.join(timeout=1.0)
             
             with open("/tmp/claw_ai_output.log", "a", encoding="utf-8") as f:
-                f.write(f"\\n\\033[1;31m[!] 进程执行超时被强制斩断 ({TIMEOUT_TOTAL}s)\\033[0m\\n")
+                f.write(f"\n\033[1;31m[!] 进程执行超时被强制斩断 ({TIMEOUT_TOTAL}s)\033[0m\n")
 
             stdout = "".join(stdout_parts)
             stderr = "".join(stderr_parts)
@@ -383,9 +383,9 @@ def claw_execute_shell(command: str, thought: str, justification: str, reason: s
         
         with open("/tmp/claw_ai_output.log", "a", encoding="utf-8") as f:
             if proc.returncode == -9:
-                f.write(f"\\n\\033[1;31m[!] 指挥官强制介入打断：命令已被 SIGKILL 手动终止！ (Cancel)\\033[0m\\n")
+                f.write(f"\n\033[1;31m[!] 指挥官强制介入打断：命令已被 SIGKILL 手动终止！ (Cancel)\033[0m\n")
             else:
-                f.write(f"\\n\\033[1;36m=== [LYNX AI] 进程释放 (Exit Code: {proc.returncode}) ===\\033[0m\\n")
+                f.write(f"\n\033[1;36m=== [LYNX AI] 进程释放 (Exit Code: {proc.returncode}) ===\033[0m\n")
 
         stdout = "".join(stdout_parts)
         stderr = "".join(stderr_parts)
@@ -393,7 +393,7 @@ def claw_execute_shell(command: str, thought: str, justification: str, reason: s
         # 将被杀死的进程特殊标记，引导 AI 优雅恢复
         if proc.returncode == -9:
             return json.dumps({
-                "error": "User Cancelled: 长官（指挥官）已在控制台手动手动强制打断了该进程的剩余执行步骤。请立即中止此路探索并在回复里告知长官。如果你收到中断，你可以换一种更安全的方式或者停下来请求长官下一步指示。",
+                "error": "User Cancelled: 长官（指挥官）已在控制台手动强制打断了该进程的剩余执行步骤。请立即中止此路探索并在回复里告知长官。如果你收到中断，你可以换一种更安全的方式或者停下来请求长官下一步指示。",
                 "stdout_before_cancel": stdout, "stderr_before_cancel": stderr
             }, ensure_ascii=False)
         

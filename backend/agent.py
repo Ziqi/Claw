@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🧠 CLAW Agent Service V8.0 — Backend Agent Module
+🧠 CLAW Agent Service V9.3 — Backend Agent Module (Legacy)
 
 从 claw-agent.py (TUI) 提取的核心 Agent 逻辑,
 适配为 FastAPI 后端服务, 通过 SSE 流式推送到前端。
@@ -537,7 +537,7 @@ def api_call(payload: dict) -> dict:
 
 def react_loop_stream(user_input: str, campaign_id: str = "default"):
     """
-    ⚠️ DEPRECATED — V8.0 遗留同步推理引擎（Interactions API）。
+    ⚠️ DEPRECATED — V9.2 前遗留同步推理引擎（Interactions API）。
     当前系统使用 agent_mcp.py 中的异步 MCP 版本。
     此函数的 SSE 事件名（delta/done/thinking）与当前前端不兼容。
     保留仅供参考，不应被任何新代码导入。

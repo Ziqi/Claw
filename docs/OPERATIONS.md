@@ -1,12 +1,12 @@
-# 🐱 CatTeam 作战手册 (V9.2 Deep Autonomy)
+# 🐱 CatTeam 作战手册 (V9.3 Electro-Phantom)
 
 本手册按**实战场景**组织，重点介绍 **G.I. 智能大屏** 的核心管线。
 
-> **V9.2 深度自动化声明**: 本文档已经过 V9.1 原生代码基准线的清洗。TUI 终端降级为次要的回退手段。
+> **V9.3 声明**: CLAW 已回归态势感知指挥中枢定位。武器自动化已在 The Final Purge 中彻底移除，攻击执行交给 Kali 原生工具 + 人工操作。TUI 终端降级为次要的回退手段。
 
 ---
 
-## 🖥️ G.I. 智能大屏操作术 (V9.2 Commander's HUD)
+## 🖥️ G.I. 智能大屏操作术 (V9.3 Commander's HUD)
 
 ### 启动服务
 
@@ -20,17 +20,18 @@ cd ~/CatTeam/frontend && npx vite --port 5173
 
 浏览器打开 `http://localhost:5173` 即可进入单兵全维度指挥大屏。
 
-### V9.2 界面布局与管线节点 (The "HUD" Layout)
+### V9.3 界面布局与管线节点 (The "HUD" Layout)
 
 左侧的 `Activity Bar` 导航条**并未被删除，而是被深度重构为 V9 核心中枢**。当前系统完全服从上、中、右的三段军事化布局：
 
 | 区域 | 真实模块 | 说明 |
 |---|---|---|
-| **领航域 (Top Header)** | 全局战役管线 (CampaignPipeline) 进度发光条 | 当前战区的射频、态势、报告进度指示器。 |
+| **领航域 (Top Header)** | 全局战役管线 (CampaignPipeline) 4 阶段发光条 | 战区锚定 → 服务指纹 → 威胁研判 → 战报输出。 |
 | **情境沙盒 (Center Pane)**| 【资产大表 AssetTable】与【战役看板 TheaterKanban】 | ALFA 与 NMAP 双重雷达探明的资产。 |
-| **全局锁定网 (Center Top)** | ✅ **已完成：** 全局多选准星 (Global Multi-Select Reticle) | 跨 IP/BSSID 多维阵列框选靶标并持续追踪。 |
-| **C2 远控桥 (Left Tab)**  | Sliver GRPC / Web 控制台 (SliverViewTab) | 后渗透 C2 端点控制。 |
-| **副官参谋 (Right Pane)** | 原生闪电大模型终端支持 (Interactions State Machine) | 提供基于雷达图景的战术分析指导。 |
+| **全局锁定网 (Center Top)** | 全局多选准星 (Global Multi-Select Reticle) | 跨 IP/BSSID 多维阵列框选靶标并持续追踪。 |
+| **RF 射频雷达 (Left Tab)** | RadioRadarPanel (Sparkline + Ghosting + 探针状态灯) | WiFi AP 实时态势 + RSSI 折线 + 残影动画。 |
+| **MCP 监控台 (Left Tab)** | OUTPUT LOGS — MCP 工具调用监控 | AI Copilot 的 TOOL_CALL_START/RESULT 实时透明化。 |
+| **副官参谋 (Right Pane)** | LYNX Copilot (Gemini 3.1 Pro/Flash + 自动降级) | 基于雷达图景的战术分析指导 + Mission Briefing。 |
 
 ### [➕超纲新增] V9.0 环境壁垒 (Theater Manager)
 在启动 Web 面板后，**强烈建议第一步在顶部 Header 选择/新建 `战区 (Theater)`**。
@@ -103,7 +104,7 @@ cd ~/CatTeam
 nano config.sh          # 改网卡/超时/端口
 nano blacklist.txt      # 添加禁飞区 IP
 
-# 2. 一键跑通（自动预检 Docker/镜像/权限）
+# 2. 一键跑通（自动预检权限/工具/网络）
 make run
 ```
 
@@ -135,7 +136,7 @@ make fast RECON_MODE=active ACTIVE_CIDR=10.140.0.0/24
 # 纯 Python 版 (推荐，无额外依赖)
 make web
 
-# 或 Docker 内 httpx
+# 或 Kali VM 内 httpx
 make audit
 ```
 
@@ -279,7 +280,8 @@ make fast      # 重新开始
 make status                                    # 战区总览
 cat CatTeam_Loot/latest/catteam.log           # 统一日志
 cat CatTeam_Loot/latest/nmap_run.log          # Nmap 日志
-docker exec -it kali_arsenal /bin/bash         # 进入战车
+ssh kali@<KALI_VM_IP>                          # SSH 进入 Kali VM
+cat backend.log                                # 后端运行日志
 ```
 
 ---
@@ -290,17 +292,17 @@ docker exec -it kali_arsenal /bin/bash         # 进入战车
 |---|---|---|
 | `00-armory` | 无 | sudo |
 | `01-recon` | 无 | sudo, tcpdump |
-| `02-probe` | 01 的 targets.txt | Docker + Kali 镜像 |
+| `02-probe` | 01 的 targets.txt | Kali VM + Nmap |
 | `02.5-parse` | 02 的 nmap_results.xml | Python3 |
-| `03-audit` | 02.5 的 live_assets.json | Docker + httpx |
+| `03-audit` | 02.5 的 live_assets.json | Kali VM + httpx |
 | `03-audit-web` | 02.5 的 live_assets.json | Python3 |
 | `04-phantom` | 无 (独立运行) | Responder + scapy |
 | `05-cracker` | 04 的 captured_hash.txt | Hashcat + rockyou.txt |
-| `06-psexec` | 02.5 的 live_assets.json + 凭据 | Docker + Impacket |
+| `06-psexec` | 02.5 的 live_assets.json + 凭据 | Kali VM + Impacket |
 | `07-report` | 任意 Loot 数据 | Python3 |
 | `08-diff` | 至少两次扫描记录 | Python3, claw.db (优先) |
-| `09-loot` | 06 的 lateral_results.txt + 凭据 | Docker + Impacket + `--confirm` |
-| `10-kerberoast` | 域用户凭据 + 域控 IP | Docker + Impacket + BloodHound |
+| `09-loot` | 06 的 lateral_results.txt + 凭据 | Kali VM + Impacket + `--confirm` |
+| `10-kerberoast` | 域用户凭据 + 域控 IP | Kali VM + Impacket + BloodHound |
 | `16-ai-analyze` | claw.db (02.5 生成) | Python3, curl, Gemini API Key |
 | `17-ask-lynx` | 无 (可选 claw.db) | Python3, curl, Gemini API Key |
 | `18-ai-bloodhound` | BloodHound JSON/ZIP (`10-kerberoast` 生成) | Python3, Gemini API Key |
@@ -309,7 +311,7 @@ docker exec -it kali_arsenal /bin/bash         # 进入战车
 | **Web Dashboard (前端)** | 后端运行中 | Node.js, npm |
 | `agent_mcp.py` | claw.db + Gemini API Key | Python3, MCP Server |
 | `mcp_armory_server.py` | claw.db | Python3 |
-| `make toolbox` | Docker 容器运行中 | Docker + Kali 镜像 V4 |
+| `make toolbox` | Kali VM 运行中 | Kali VM 原生工具 |
 | `make firmware` | 固件 .bin 文件 | Python3 |
 
 ---
@@ -319,7 +321,7 @@ docker exec -it kali_arsenal /bin/bash         # 进入战车
 | 问题 | 解决 |
 |---|---|
 | `make run` 卡在换脸 | `make fast` 跳过 |
-| 飞行前预检失败 | 启动 Docker / 构建镜像 |
+| 飞行前预检失败 | 确认 Kali VM 已启动且 SSH 可达 |
 | "弹药库为空" | 延长 `RECON_TIME` 或确保网络有广播 |
 | 扫的端口太少 | `PROFILE=full` |
 | 误扫了不该扫的 | 编辑 `blacklist.txt` |
@@ -362,14 +364,16 @@ docker exec -it kali_arsenal /bin/bash         # 进入战车
 | ALFA 网卡 | 已通过 USB 直通 (USB Passthrough) 挂载到 Kali 虚拟机 |
 | Mac 后端服务 | `uvicorn backend.main:app --port 8000` 已在宿主机运行 |
 | Mac 前端服务 | `npx vite --port 5173` 已在宿主机运行 |
-| 探针脚本 | `claw_wifi_sensor.py` 已部署到 Kali 虚拟机 (见下方) |
+| 探针脚本 | ✅ `claw_wifi_sensor.py` 已部署到 Kali 虚拟机 |
+| ALFA 网卡 | ✅ RTL8812AU USB 网卡已购入，直通至 Kali VM |
+| Kali 武器库 | ✅ aircrack-ng / nmap / nuclei / Impacket 等已预装 |
 
-### 准备工作：部署探针脚本到 Kali 虚拟机
+### 准备工作：更新探针脚本 (仅版本更新时需要)
 
-`claw_wifi_sensor.py` 位于宿主机的 `~/CatTeam/CatTeam_Loot/claw_wifi_sensor.py`。首次使用前，需要将它传入 Kali 虚拟机：
+`claw_wifi_sensor.py` 位于宿主机的 `~/CatTeam/CatTeam_Loot/claw_wifi_sensor.py`。探针已部署就绪，仅在脚本更新时需要重新传入：
 
 ```bash
-# 在 Mac 宿主机上执行，将探针脚本传入 Kali
+# 在 Mac 宿主机上执行，将更新后的探针脚本传入 Kali
 scp ~/CatTeam/CatTeam_Loot/claw_wifi_sensor.py kali@<KALI_VM_IP>:~/claw_wifi_sensor.py
 ```
 
@@ -434,9 +438,9 @@ python3 ~/claw_wifi_sensor.py \
 
 1. 打开浏览器访问 `http://localhost:5173`
 2. 点击左侧 Activity Bar 的 **RF** (射频频段) 标签
-3. `RadioRadarPanel` 面板应开始每 3 秒刷新真实 AP 信号
+3. `RadioRadarPanel` 面板应开始每 3 秒刷新真实 AP 信号，含 RSSI Sparkline 折线图
 4. 点击任意 AP 行的复选框可将 BSSID 加入全局靶标池
-5. 点击 `[锁频截获]` 或 `[DEAUTH]` 按钮可命令 AI 副官对目标发起定向攻击
+5. 信号消失 >10s 的 AP 将显示半透明残影 (Ghosting)，>5min 移入底部历史折叠区
 
 ### Step 5: 使用 Wireshark 深度分析 (可选)
 
@@ -468,5 +472,21 @@ sudo airmon-ng stop wlan0mon
 sudo systemctl start NetworkManager
 ```
 
-> ⚠️ **重要**：探针停止后，大屏 RF 面板的数据将在 5 分钟内因过期而清空。数据仍保留在 SQLite `wifi_nodes` 表中，但当前前端不展示历史数据（V9.3 将解决此问题）。
+> ⚠️ **重要**：探针停止后，大屏 RF 面板的活跃 AP 将在 5 分钟内逐渐转入「历史残影」折叠区 (AP Ghosting)。所有数据永久保留在 SQLite `wifi_nodes` 表中，可随时通过 AI 查询历史。
+
+---
+
+## 场景十三：Mission Briefing 战术意图下发 (V9.3 新增)
+
+在 AI Copilot 面板顶部，可以看到 **MISSION BRIEFING** 区域：
+
+1. **点击预制标签 (Chips)**：6 个一键意图标签（如「全域 WiFi 态势评估」「弱加密 AP 识别」等），点击即填充到输入框
+2. **自定义指令**：在输入框编写任意战术意图，点击「全域推送」
+3. **推送反馈**：按钮变绿显示「已下发」，2 秒后恢复
+4. **活跃指示**：下发成功后标题变为 `ACTIVE BRIEFING` + 绿色脉冲呼吸灯
+
+推送的战略意图会被注入到 LYNX AI 的 System Prompt 中，所有后续分析和建议都将自动与该意图对齐。
+同时，Kali 探针每次上报数据时也会收到最新的指挥官意图回执。
+
+> 💡 **移动端**：手机浏览器访问 `http://<宿主机IP>:5173`，底部导航栏切换 RF 雷达 / AI 对话 / 任务意图 / 系统状态四个视图，支持 5G 热点外勤作业。
 
