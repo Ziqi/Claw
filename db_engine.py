@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Project CLAW — SQLite 数据引擎 (V9.3)
-核心表: scans / assets / ports / vulns / wifi_nodes / wifi_rssi_history / mcp_messages
+Project CLAW — SQLite 数据引擎 (V10.0 Protocol Anatomy)
+核心表: scans / assets / ports / vulns / wifi_nodes / wifi_rssi_history / mcp_messages / protocol_alerts
 数据库文件: CatTeam_Loot/claw.db (全局唯一, 跨任务共享)
 环境隔离: claw_env.txt 记录当前环境, diff 只在同环境内比较
 """
@@ -85,6 +85,23 @@ CREATE TABLE IF NOT EXISTS wifi_rssi_history (
     signal_strength INTEGER,
     recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (bssid) REFERENCES wifi_nodes(bssid)
+);
+
+CREATE TABLE IF NOT EXISTS protocol_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_type TEXT NOT NULL,
+    severity TEXT DEFAULT 'HIGH',
+    source_ip TEXT,
+    source_mac TEXT,
+    target_ip TEXT,
+    protocol TEXT,
+    details TEXT DEFAULT '{}',
+    raw_evidence TEXT DEFAULT '',
+    mitre_ttp TEXT DEFAULT 'N/A',
+    remediation TEXT DEFAULT '',
+    probe_id TEXT DEFAULT 'unknown',
+    detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    acknowledged BOOLEAN DEFAULT 0
 );
 """
 

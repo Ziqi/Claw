@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-🐱 CLAW Backend V9.3 — FastAPI REST API
+🐱 CLAW Backend V10.0 — FastAPI REST API (Protocol Anatomy)
 将 claw.db 数据通过 REST API 暴露给 Web Dashboard。
+V10.0: 新增协议级告警引擎 (protocol_alerts)。
 """
 
 import os, sqlite3, json, re
@@ -53,8 +54,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CLAW",
-    description="Project CLAW V9.3 — Electro-Phantom",
-    version="9.3.0",
+    description="Project CLAW V10.0 — Protocol Anatomy Engine",
+    version="10.0.0",
     lifespan=lifespan
 )
 
@@ -158,11 +159,21 @@ def get_stats():
             (env,)
         ).fetchone()["c"]
 
+        # V10.0: 协议告警统计
+        try:
+            alerts_total = conn.execute("SELECT COUNT(*) as c FROM protocol_alerts").fetchone()["c"]
+            alerts_unacked = conn.execute("SELECT COUNT(*) as c FROM protocol_alerts WHERE acknowledged = 0").fetchone()["c"]
+        except Exception:
+            alerts_total = 0
+            alerts_unacked = 0
+
         return {
             "hosts": hosts,
             "ports": ports,
             "vulns": vulns,
             "scans": scans,
+            "alerts": alerts_total,
+            "alerts_unacked": alerts_unacked,
             "latest_scan": {"timestamp": latest_scan["timestamp"], "env": latest_scan["env"]},
         }
 
@@ -353,6 +364,152 @@ def get_sensor_health():
         }
         
         return {"wifi_probe": probe_info}
+
+# ============================================================
+#  V10.0 Protocol Anatomy — 协议级告警引擎
+# ============================================================
+
+class AlertIngestItem(BaseModel):
+    alert_type: str          # 'LLMNR_POISON', 'ARP_SPOOF', 'BRUTE_FORCE', 'DTP_ATTACK'
+    severity: str = "HIGH"   # 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'
+    source_ip: str = ""
+    source_mac: str = ""
+    target_ip: str = ""
+    protocol: str = ""        # 'LLMNR', 'NBT-NS', 'ARP', 'DTP', 'SSH', 'HTTP'
+    details: str = "{}"       # JSON 格式详细信息
+    raw_evidence: str = ""    # 原始数据包摘要
+    mitre_ttp: str = "N/A"
+    remediation: str = ""
+
+class AlertIngestPayload(BaseModel):
+    probe_id: str = "unknown"
+    alerts: List[AlertIngestItem]
+
+@app.post("/api/v1/alerts/ingest")
+async def ingest_protocol_alerts(request: Request):
+    """(V10.0) 协议探针告警摄入端点 — 接收 LLMNR/ARP/暴力破解等协议级异常"""
+    # Bearer Token 鉴权（与 WiFi 探针共享 Token）
+    auth_header = request.headers.get("Authorization", "")
+    expected = f"Bearer {SENSOR_AUTH_TOKEN}"
+    if auth_header != expected:
+        raise HTTPException(status_code=401, detail="探针认证失败")
+    
+    body = await request.json()
+    probe_id = body.get("probe_id", "unknown")
+    alerts = body.get("alerts", [])
+    
+    if not alerts:
+        return {"status": "ok", "inserted": 0}
+    
+    inserted = 0
+    with get_db() as conn:
+        for a in alerts:
+            conn.execute("""
+                INSERT INTO protocol_alerts 
+                (alert_type, severity, source_ip, source_mac, target_ip, protocol,
+                 details, raw_evidence, mitre_ttp, remediation, probe_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                a.get("alert_type", "UNKNOWN"),
+                a.get("severity", "HIGH"),
+                a.get("source_ip", ""),
+                a.get("source_mac", ""),
+                a.get("target_ip", ""),
+                a.get("protocol", ""),
+                json.dumps(a.get("details", {}), ensure_ascii=False) if isinstance(a.get("details"), dict) else str(a.get("details", "{}")),
+                a.get("raw_evidence", ""),
+                a.get("mitre_ttp", "N/A"),
+                a.get("remediation", ""),
+                probe_id,
+            ))
+            inserted += 1
+        conn.commit()
+    
+    return {"status": "ok", "inserted": inserted, "probe_id": probe_id}
+
+
+@app.get("/api/v1/alerts/list")
+def list_protocol_alerts(
+    severity: str = Query(None, description="按严重度筛选: CRITICAL/HIGH/MEDIUM/LOW"),
+    alert_type: str = Query(None, description="按类型筛选: LLMNR_POISON/ARP_SPOOF/BRUTE_FORCE"),
+    acknowledged: bool = Query(None, description="是否已确认"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """(V10.0) 获取协议告警列表（分页+筛选）"""
+    with get_db() as conn:
+        query = "SELECT * FROM protocol_alerts WHERE 1=1"
+        params = []
+        
+        if severity:
+            query += " AND severity = ?"
+            params.append(severity.upper())
+        if alert_type:
+            query += " AND alert_type = ?"
+            params.append(alert_type.upper())
+        if acknowledged is not None:
+            query += " AND acknowledged = ?"
+            params.append(1 if acknowledged else 0)
+        
+        # 总数
+        count_q = query.replace("SELECT *", "SELECT COUNT(*) as c", 1)
+        total = conn.execute(count_q, params).fetchone()["c"]
+        
+        query += " ORDER BY detected_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        rows = conn.execute(query, params).fetchall()
+        alerts = []
+        for r in rows:
+            alert = dict(r)
+            # 尝试解析 details JSON
+            try:
+                alert["details"] = json.loads(alert.get("details", "{}"))
+            except (json.JSONDecodeError, TypeError):
+                pass
+            alerts.append(alert)
+        
+        return {"total": total, "alerts": alerts}
+
+
+@app.get("/api/v1/alerts/stats")
+def get_alert_stats():
+    """(V10.0) 告警统计概览 — 按类型和严重度分组"""
+    with get_db() as conn:
+        total = conn.execute("SELECT COUNT(*) as c FROM protocol_alerts").fetchone()["c"]
+        unacked = conn.execute("SELECT COUNT(*) as c FROM protocol_alerts WHERE acknowledged = 0").fetchone()["c"]
+        
+        by_severity = {}
+        for row in conn.execute("SELECT severity, COUNT(*) as c FROM protocol_alerts GROUP BY severity"):
+            by_severity[row["severity"]] = row["c"]
+        
+        by_type = {}
+        for row in conn.execute("SELECT alert_type, COUNT(*) as c FROM protocol_alerts GROUP BY alert_type"):
+            by_type[row["alert_type"]] = row["c"]
+        
+        # 最近 24h 趋势
+        recent = conn.execute(
+            "SELECT COUNT(*) as c FROM protocol_alerts WHERE detected_at >= datetime('now', '-24 hours')"
+        ).fetchone()["c"]
+        
+        return {
+            "total": total,
+            "unacknowledged": unacked,
+            "last_24h": recent,
+            "by_severity": by_severity,
+            "by_type": by_type,
+        }
+
+
+@app.post("/api/v1/alerts/{alert_id}/acknowledge")
+def acknowledge_alert(alert_id: int):
+    """(V10.0) 指挥官确认告警"""
+    with get_db() as conn:
+        result = conn.execute("UPDATE protocol_alerts SET acknowledged = 1 WHERE id = ?", (alert_id,))
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail=f"告警 ID {alert_id} 不存在")
+        conn.commit()
+        return {"status": "acknowledged", "alert_id": alert_id}
 
 @app.get("/api/v1/sync")
 def sync_data(theater: str = Query("default", description="显式战区防串台"), client_hash: str = Query(None)):

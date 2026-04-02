@@ -1,21 +1,53 @@
 # 🐱 CatTeam 开发路线图 (Roadmap)
 
-**最后更新：** 2026-03-29 V9.2 / A2.2  
+**最后更新：** 2026-04-02 V10.0 / A3.0  
 
 ---
 
 ## 版本演进全景
 
 ```
-V5.0 (03-25)  ━━  V8.0-α (03-26)  ━━  V8.2 (03-27)  ━━  V9.0 (03-27)  ━━  V9.1 (03-28)  ━━  V9.2 (03-29)  ━━  V9.3 (Current)
-SQLite+AI       Web Dashboard     流式工作台        智能大屏       护城河加固        Deep Autonomy   Electro-Phantom
+V5.0 (03-25)  ━━  V8.0-α (03-26)  ━━  V8.2 (03-27)  ━━  V9.0 (03-27)  ━━  V9.1 (03-28)  ━━  V9.2 (03-29)  ━━  V9.3 (03-31)  ━━  V10.0 (Current)
+SQLite+AI       Web Dashboard     流式工作台        智能大屏       护城河加固        Deep Autonomy   Electro-Phantom   Protocol Anatomy
 ```
+
+---
+
+## 🚧 当前版本
+
+### ⭐ V10.0 — 协议解剖引擎 (Protocol Anatomy) (04-02) ← 当前开发中
+> **在 V9.3 态势感知指挥中枢基础上，深入协议底层：看得懂协议异常，输出防御方案。**
+> **核心理念：未知攻，焉知防。—— 赵教授**
+
+**【🔴 P0 协议告警基座 (已完成) 】**
+- [x] `db_engine.py`: 新增 `protocol_alerts` 表 Schema (14 字段)
+- [x] `main.py`: 告警摄入 API `/alerts/ingest` (Bearer Token 鉴权)
+- [x] `main.py`: 告警查询 `/alerts/list` + `/alerts/stats` + `/{id}/acknowledge`
+- [x] `main.py`: HUD `/stats` 增加 `alerts` + `alerts_unacked` 计数
+
+**【🔴 P0 探针 + 前端 + AI (进行中) 】**
+- [x] `probes/claw_llmnr_probe.py`: LLMNR/NBT-NS 毒化检测探针 (Scapy)
+- [ ] 前端: 协议告警面板 (Protocol Alert Panel)
+- [ ] AI: SYSTEM_PROMPT 扩展协议分析能力
+- [ ] AI: IDS 规则生成能力 (Suricata 格式)
+
+**【🟡 P1 扩展探针 】**
+- [ ] `probes/claw_arp_probe.py`: ARP 欺骗检测 (MAC 漂移)
+- [ ] `probes/claw_bruteforce_probe.py`: 暴力破解行为分析
+- [ ] 战报: 协议异常分析章节
+
+**【🟢 P2 基础设施 】**
+- [ ] Kali VM 静态 IP 配置 (192.168.64.10)
+- [ ] Tailscale 组网 (Mac + Kali + 手机)
+- [ ] 探针一键部署脚本
+
+**设计文档**：[V10_DESIGN.md](design/V10_DESIGN.md)
 
 ---
 
 ## ✅ 已完成版本
 
-### ⭐ V9.3 — 电磁幽灵 (The Final Purge) (03-30) ← 最近发版
+### ⭐ V9.3 — 电磁幽灵 (The Final Purge) (03-31)
 > **架构哲学：CLAW = 态势感知指挥中枢（只看、只分析，不打）。攻击执行交给 Kali + 人工操作。**
 
 **【🔴 最终清场行动 (The Final Purge) 】**

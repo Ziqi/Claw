@@ -1,6 +1,6 @@
 # CatTeam / Project CLAW .gitignore
 
-# 战区数据 (扫描结果)
+# 战区数据 (扫描结果 + 数据库)
 CatTeam_Loot/
 
 # 配置文件 (含 API Key, 不可泄露)
@@ -12,6 +12,9 @@ Responder/
 # Python
 __pycache__/
 *.pyc
+.coverage
+.pytest_cache/
+.venv/
 
 # macOS
 .DS_Store
@@ -24,6 +27,22 @@ __pycache__/
 # 导师交流材料 (含讨论敏感内容, 不推 GitHub)
 docs/advisor/
 
-# 第三方 API 文档参考 (体积大, 不推 GitHub)
-docs/Gemini3/
+# 第三方 API 文档参考 (体积大, 已归档)
+docs/archive/Gemini3/
+
+# Nmap/扫描输出 (敏感数据)
 nmap_*.xml
+scan_*.xml
+*_scan.txt
+*_smb.txt
+full_subnet_scan.txt
+other_assets_scan.txt
+
+# 运行时数据和日志
+backend.log
+*.log
+
+# 敏感数据文件
+mini_pass.txt
+blacklist.txt
+targets*.txt

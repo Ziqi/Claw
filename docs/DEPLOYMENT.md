@@ -1,8 +1,8 @@
 # CLAW 部署架构迁移指南
 
-**版本**：V9.3 Electro-Phantom
-**最后更新**：2026-03-31
-**目的**：记录三种部署方案的详细步骤。CLAW 已从 MacBook Air + Docker 架构完成迁移至 Mac + Kali VM 原生架构。
+**版本**：V10.0 Protocol Anatomy
+**最后更新**：2026-04-02
+**目的**：记录部署方案的详细步骤。CLAW 已从 Mac + Docker 架构迁移至 Mac + Kali VM 原生架构。V10.0 新增协议探针集群部署指南。
 
 ---
 
@@ -323,4 +323,86 @@ sudo ufw enable
 sudo ufw allow from 192.168.0.0/16 to any port 8000
 sudo ufw allow from 192.168.0.0/16 to any port 5173
 sudo ufw allow ssh
+```
+
+---
+
+## 8. Kali VM 网络固化 (V10.0 新增)
+
+### 8.1 问题：VM IP 每次启动都变
+
+UTM/VMware 的 DHCP 每次重启 VM 可能分配不同 IP，导致：
+- SSH 连接断开
+- 探针无法回传数据到 CLAW
+- 开发调试时需要反复查 IP
+
+### 8.2 方案 A：Kali VM 配置静态 IP（推荐）
+
+```bash
+# Kali VM 内执行
+sudo tee /etc/network/interfaces.d/eth0-static << 'EOF'
+auto eth0
+iface eth0 inet static
+    address 192.168.64.10
+    netmask 255.255.255.0
+    gateway 192.168.64.1
+    dns-nameservers 8.8.8.8
+EOF
+
+sudo systemctl restart networking
+```
+
+Mac 端 SSH 配置：
+```bash
+# ~/.ssh/config
+Host kali
+    HostName 192.168.64.10
+    User root
+    StrictHostKeyChecking no
+```
+
+### 8.3 方案 B：Tailscale 组网（同时解决手机远程访问）
+
+Tailscale 是基于 WireGuard 的零配置 VPN，每个设备获得固定的 100.x.x.x IP：
+
+```bash
+# Mac 上安装
+brew install tailscale
+tailscale up
+
+# Kali VM 里安装
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+
+# 手机 App Store 下载 Tailscale
+# → 手机浏览器访问 http://100.x.x.x:8000 即可看 CLAW 大屏
+```
+
+拓扑示意：
+```
+📱 手机 (Tailscale) ──┐
+                       ├── Tailscale VPN ──→ Mac (CLAW :8000)
+💻 iPad (Tailscale) ──┘                       │
+                                              └─→ Kali VM
+```
+
+### 8.4 探针回传配置
+
+所有 Kali 端探针统一使用以下环境变量：
+
+```bash
+# Kali ~/.bashrc 中添加
+export CLAW_URL="http://192.168.64.1:8000"      # 静态 IP 方案
+# 或
+export CLAW_URL="http://100.64.0.1:8000"        # Tailscale 方案
+export CLAW_SENSOR_TOKEN="claw-sensor-2026"     # 探针鉴权 Token
+```
+
+探针启动：
+```bash
+# WiFi 探针
+sudo python3 claw_wifi_sensor.py --claw-url $CLAW_URL
+
+# LLMNR 毒化检测探针 (V10.0)
+sudo python3 claw_llmnr_probe.py -i eth0 --claw-url $CLAW_URL
 ```

@@ -7,6 +7,7 @@ import useStore from './store'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import './index.css'
+import ProtocolAlertPanel from './components/ProtocolAlertPanel'
 
 const API = `http://${window.location.hostname}:8000/api/v1`
 
@@ -124,7 +125,7 @@ function HudBar({ onRefreshAssets }) {
       <div className="hud-brand" style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
         <span style={{ fontFamily: 'Consolas, monospace', color: '#FF9900', marginRight: '6px', fontSize: '13px' }} onMouseOver={e => { const tip = e.currentTarget.parentElement.querySelector('.cat-tip'); if (tip) tip.style.display = 'block' }} onMouseOut={e => { const tip = e.currentTarget.parentElement.querySelector('.cat-tip'); if (tip) tip.style.display = 'none' }}>{'/\\_/\\'}</span>
         <span style={{ fontFamily: 'Consolas, monospace', color: '#00FFFF', marginRight: '6px', fontSize: '13px' }}>{'( o.o )'}</span>
-        CLAW V9.3
+        CLAW V10.0
         
         <div style={{ marginLeft: '12px', padding: '2px 6px', background: sudoPassword ? 'rgba(48,209,88,0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${sudoPassword ? '#30D158' : '#444'}`, borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
              onClick={() => {
@@ -145,7 +146,7 @@ function HudBar({ onRefreshAssets }) {
 
         <div className="cat-tip" style={{ display: 'none', position: 'absolute', top: '100%', left: 0, marginTop: '8px', background: '#111', border: '1px solid #333', borderRadius: '8px', padding: '16px 20px', zIndex: 9999, whiteSpace: 'pre', fontFamily: 'Consolas, monospace', fontSize: '13px', lineHeight: '1.4', boxShadow: '0 8px 24px rgba(0,0,0,0.8)', minWidth: '340px' }}>
           <span style={{ color: '#00FFFF' }}>{"         /\\_/\\\n"}</span>
-          <span style={{ color: '#00FFFF' }}>{"        ( o.o ) "}</span><span style={{ color: '#FFF', fontWeight: 'bold' }}>Project CLAW</span> <span style={{ color: '#30D158' }}>V9.3</span>{"\n"}
+          <span style={{ color: '#00FFFF' }}>{"        ( o.o ) "}</span><span style={{ color: '#FFF', fontWeight: 'bold' }}>Project CLAW</span> <span style={{ color: '#30D158' }}>V10.0</span>{"\n"}
           <span style={{ color: '#00FFFF' }}>{"         > ^ <  "}</span><span style={{ color: '#666' }}>CatTeam Lateral Arsenal Weapon</span>{"\n"}
           <span style={{ color: '#00FFFF' }}>{"        /|   |\\\n"}</span>
           <span style={{ color: '#00FFFF' }}>{"       (_|   |_) "}</span><span style={{ color: '#999' }}>Codename: Lynx</span>
@@ -196,6 +197,13 @@ function HudBar({ onRefreshAssets }) {
       <div className="stat-item">
         <span className="stat-label">漏洞告警</span>
         <span className="stat-value" style={{ color: (stats?.vulns || 0) > 0 ? '#FF3B30' : '#666' }}>{stats?.vulns ?? '0'}</span>
+      </div>
+      <div className="stat-item" style={{ cursor: 'pointer' }} onClick={() => useStore.getState().setView('PA')}>
+        <span className="stat-label">协议告警</span>
+        <span className="stat-value" style={{ color: (stats?.alerts_unacked || 0) > 0 ? '#FF3B30' : '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {stats?.alerts ?? '0'}
+          {(stats?.alerts_unacked || 0) > 0 && <span style={{ fontSize: '9px', background: '#FF3B30', color: '#fff', padding: '1px 5px', borderRadius: '8px', fontWeight: 'bold' }}>{stats.alerts_unacked} new</span>}
+        </span>
       </div>
       <div className="stat-item">
         <span className="stat-label">扫描任务</span>
@@ -876,6 +884,7 @@ function WorkArea() {
       <div className="tab-content-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
         {view === 'HQ' && <ReconOverview stats={stats} assets={assets} asset={asset} onExecCommand={onExecCommand} />}
         {view === 'RF' && <RadioRadarPanel onExecCommand={onExecCommand} />}
+        {view === 'PA' && <ProtocolAlertPanel />}
 
         {view === 'DP' && tab === 0 && <AssetTable assets={assets} onExecCommand={onExecCommand} selectedIp={selectedIp} />}
         {view === 'DP' && tab === 1 && <ArmoryViewTab assets={assets} selectedIp={selectedIp} onExecCommand={onExecCommand} />}
@@ -1136,6 +1145,8 @@ function RadioRadarPanel({ onExecCommand }) {
     </div>
   )
 }
+
+// [V10.0] ProtocolAlertPanel moved to components/ProtocolAlertPanel.jsx
 
 function ReconOverview({ stats, assets, asset, onExecCommand }) {
   return (
@@ -1765,281 +1776,9 @@ function ArmoryViewTab({ assets, selectedIp, onExecCommand }) {
 
 
 // ========== VISUALIZATION PANELS ==========
-function A2UIForgeModal({ isOpen, onClose, targetIp, targetOs, targetPorts }) {
-  const [status, setStatus] = useState("idle");
-  const [result, setResult] = useState(null);
+// [V10.0 CLEANUP] A2UIForgeModal, CognitiveGraphRenderer, TheaterKanban 已删除
 
-  useEffect(() => {
-    if (isOpen && status === "idle") {
-      setStatus("generating");
-      fetch(`http://${window.location.hostname}:8000/api/v1/agent/forge`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          target_ip: targetIp,
-          target_info: { os: targetOs, ports: targetPorts },
-          concept: "企业内部员工身份验证门户"
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
-        setResult(data);
-        setStatus("done");
-      })
-      .catch(err => {
-        setResult(err.message);
-        setStatus("error");
-      });
-    }
-  }, [isOpen]);
 
-  useEffect(() => {
-    if (status === "generating") {
-      const t1 = setTimeout(() => setStatus("screenshotting"), 5000);
-      const t2 = setTimeout(() => setStatus("reflecting"), 12000);
-      return () => { clearTimeout(t1); clearTimeout(t2); };
-    }
-  }, [status]);
-
-  if (!isOpen) return null;
-
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#0a0a0a', border: '1px solid #333', width: '90%', maxWidth: '1000px', height: '80vh', display: 'flex', flexDirection: 'column', borderRadius: 0 }}>
-        <div style={{ padding: '12px 16px', background: '#111', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ color: '#00FFFF', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Monitor size={16} /> A2UI 视觉自我博弈伪造引擎 (Generative Payload Forge)
-          </div>
-          <button onClick={onClose} style={{ background: 'transparent', color: '#666', border: 'none', cursor: 'pointer', borderRadius: 0 }}><X size={16}/></button>
-        </div>
-        <div style={{ flex: 1, padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #222', paddingBottom: '20px' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ color: '#999', fontSize: '11px', marginBottom: '8px' }}>[ 当前行动步骤 ]</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ color: status !== "idle" ? '#00FFFF' : '#444', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                   {status === "generating" ? <Loader2 size={12} className="spin" /> : <span>[✓]</span>} 1. Text-to-Code 大模型零日源码撰写
-                </div>
-                <div style={{ color: ["screenshotting", "reflecting", "done"].includes(status) ? '#30D158' : '#444', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                   {status === "screenshotting" ? <Monitor size={12} className="spin" /> : (["reflecting", "done"].includes(status) ? <span>[✓]</span> : <span>[WAIT]</span>)} 2. Playwright 无缝无头截图挂载
-                </div>
-                <div style={{ color: ["reflecting", "done"].includes(status) ? '#FF9900' : '#444', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                   {status === "reflecting" ? <RefreshCw size={12} className="spin" /> : (status === "done" ? <span>[✓]</span> : <span>[WAIT]</span>)} 3. Gemini Multimodal 多模态视觉自纠错
-                </div>
-              </div>
-            </div>
-            <div style={{ flex: 1, borderLeft: '1px solid #222', paddingLeft: '16px' }}>
-              <div style={{ color: '#999', fontSize: '11px', marginBottom: '8px' }}>[ 针对目标属性 ]</div>
-              <div style={{ color: '#ccc', fontSize: '12px' }}>IP: <span style={{ color: '#00FFFF' }}>{targetIp}</span></div>
-              <div style={{ color: '#ccc', fontSize: '12px' }}>OS: {targetOs}</div>
-              <div style={{ color: '#ccc', fontSize: '12px' }}>暴露端口数: {targetPorts?.length || 0}</div>
-            </div>
-          </div>
-
-          {status === "done" && result && result.screenshot && (
-             <div style={{ display: 'flex', gap: '20px', flex: 1, minHeight: '400px' }}>
-               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                 <div style={{ color: '#FF9900', fontSize: '11px', marginBottom: '8px' }}>[ 视觉自纠错快照 (Playwright Vision) ]</div>
-                 <img src={result.screenshot} style={{ width: '100%', objectFit: 'contain', border: '1px solid #333', background: '#000' }} alt="Preview" />
-               </div>
-               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                 <div style={{ color: '#30D158', fontSize: '11px', marginBottom: '8px' }}>[ A2UI 渲染验收靶面 (Interactive HTML) ]</div>
-                 <iframe srcDoc={result.html} style={{ width: '100%', border: '1px solid #333', background: '#fff', minHeight: '400px' }} title="Live Render" sandbox="allow-scripts"/>
-               </div>
-             </div>
-          )}
-          {status === "error" && (
-             <div style={{ color: '#FF3B30', padding: '20px', border: '1px dashed #FF3B30', background: 'rgba(255,59,48,0.1)' }}>
-               Forge Failed: {result}
-             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function CognitiveGraphRenderer({ targetIp }) {
-  const [nodes, setNodes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    fetch(`http://localhost:5000/api/v1/agent/graph?target_ip=${targetIp}`)
-      .then(r => r.json())
-      .then(d => {
-        if (!active) return;
-        setNodes(d.nodes || []);
-        setLoading(false);
-      })
-      .catch(e => {
-        if (!active) return;
-        setError(e.message);
-        setLoading(false);
-      });
-    return () => { active = false; };
-  }, [targetIp]);
-
-  if (loading) return <div style={{ color: '#00FFFF', fontSize: '10px' }}>Lynx 正在利用 Pydantic 蒸馏杀伤链图谱... ⚡</div>;
-  if (error) return <div style={{ color: '#FF3B30', fontSize: '10px' }}>图谱蒸馏失败: {error}</div>;
-  if (!nodes || nodes.length === 0) return <div style={{ color: '#666', fontSize: '10px' }}>未能推演出有效的杀伤链路径。</div>;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      {nodes.map((n, i) => (
-        <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ color: i === 0 ? '#00FFFF' : (i === nodes.length - 1 ? '#FF3B30' : '#FF9900') }}>
-            [{i === 0 ? '起源' : (i === nodes.length - 1 ? '靶标' : '路由')}] {i === 0 ? n.source_ip : n.target_ip}
-          </div>
-          {i < nodes.length && (
-            <div style={{ paddingLeft: '8px', borderLeft: '1px dashed #555', margin: '4px 0', color: '#999', fontSize: '9px' }}>
-              ↓ {n.technique} ({n.severity})<br/>
-              <span style={{ color: '#555' }}>{n.description}</span>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function TheaterKanban({ assets, theater }) {
-  const [selectedAsset, setSelectedAsset] = useState(null)
-  // Global Multi-Select Hub
-  const globalTargets = useStore(s => s.globalTargets)
-  const toggleGlobalTarget = useStore(s => s.toggleGlobalTarget)
-  const clearGlobalTargets = useStore(s => s.clearGlobalTargets)
-
-  // Kanban Classification Logic
-  // Column 1: Recon (Just IP, no extreme vulns or valuable ports)
-  // Column 2: Exposed (Has 445, 3389, FTP, proxy etc.)
-  // Column 3: Exploited (Has vulns mapping to high severity or specific flags)
-  // Column 4: High Value (Domain Controllers, Gateways)
-  
-  const cols = [[], [], [], []]
-  
-  const getProximity = (ip) => {
-    // Deterministic mock RF proximity based on last digit of IP
-    const last = parseInt((ip || '').split('.').pop() || '0', 10)
-    if (last % 3 === 0) return { val: '极近 (极强)', color: '#FF3B30' }
-    if (last % 3 === 1) return { val: '正常 (中等)', color: '#FF9900' }
-    return { val: '远程 (微弱)', color: '#30D158' }
-  }
-
-  (assets || []).forEach(a => {
-    let hasVuln = a.vulns && a.vulns.length > 0;
-    let isExposed = (a.ports || []).some(p => [445, 3389, 21, 23, 1433, 3306].includes(p?.port));
-    let isHighValue = (a.os || '').toLowerCase().includes('server') || (a.ports || []).some(p => p?.port === 88 || p?.port === 389); // Kerberos/LDAP
-    
-    // We arbitrarily place them for demonstration of the kill chain
-    if (isHighValue) cols[3].push(a)
-    else if (hasVuln) cols[2].push(a)
-    else if (isExposed) cols[1].push(a)
-    else cols[0].push(a)
-  })
-
-  const renderCard = (a) => {
-    const prox = getProximity(a.ip)
-    const isSelected = selectedAsset?.ip === a.ip
-    const isMultiSelected = globalTargets.includes(a.ip)
-    return (
-      <div key={a.ip || Math.random()} style={{ background: '#050505', border: `1px solid ${isSelected ? '#00FFFF' : (isMultiSelected ? '#FF9900' : '#222')}`, borderRadius: 0, padding: '12px', paddingLeft: '32px', marginBottom: '8px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }} onClick={() => setSelectedAsset(isSelected ? null : a)}>
-        <div style={{ position: 'absolute', top: '12px', left: '10px' }}>
-           <input type="checkbox" checked={isMultiSelected} onChange={(e) => { e.stopPropagation(); toggleGlobalTarget(a.ip); }} onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', accentColor: '#FF9900' }} title="框选资产" />
-        </div>
-        <div style={{ position: 'absolute', top: '8px', right: '8px', color: prox.color, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px' }} title={`模拟 RF 信号: ${prox.val}`}>
-          <Signal size={12} />
-        </div>
-        <div style={{ color: isSelected ? '#00FFFF' : '#ccc', fontWeight: 'bold', fontSize: '13px', marginBottom: '4px' }}>{a.ip || 'Unknown IP'}</div>
-        <div style={{ color: '#666', fontSize: '11px' }}>{a.os || 'Unknown OS'}</div>
-        <div style={{ color: '#00FFFF', fontSize: '10px', marginTop: '6px' }}>{(a.ports || []).length} 个端口点亮</div>
-        
-        {isSelected && (
-          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #333' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-               <div style={{ color: '#FF9900', fontSize: '11px' }}>[ 攻击路径推演 ]</div>
-               <button 
-                 onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`nmap -sV -sC -O ${a.ip}`); const b = e.currentTarget; b.textContent = '✓ Nmap 命令已复制'; setTimeout(() => b.textContent = '▸ 复制 Nmap 深扫命令', 1200) }}
-                 style={{ background: '#222', color: '#00FFFF', border: '1px solid #333', padding: '3px 8px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: 0 }}>
-                 ▸ 复制 Nmap 深扫命令
-               </button>
-            </div>
-            <div style={{ background: '#111', padding: '12px', color: '#666', fontSize: '10px', border: '1px solid #222', borderRadius: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <CognitiveGraphRenderer targetIp={a.ip} />
-            </div>
-            <div style={{ marginTop: '8px', color: '#444', fontSize: '9px', textAlign: 'right' }}>Powered by Gemini 3.1 Pro // Structured Output</div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <>
-      <div style={{ flex: 1, width: '100%', display: 'flex', flexDirection: 'column', background: '#050505', borderRadius: 0, position: 'relative', minHeight: 0 }}>
-      
-      {globalTargets.length > 0 && (
-        <div style={{ position: 'absolute', top: '16px', right: '16px', background: '#111', border: '1px solid #FF9900', boxShadow: '0 4px 20px rgba(0,0,0,0.8)', padding: '12px 24px', zIndex: 100, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <span style={{ color: '#FF9900', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Crosshair size={14} /> 战役火控授权 ({globalTargets.length} 节点就绪)
-            <X size={14} color="#666" style={{ cursor: 'pointer', marginLeft: 'auto' }} onClick={clearGlobalTargets} />
-          </span>
-        </div>
-      )}
-
-      <div style={{ padding: '16px', borderBottom: '1px solid #222', color: '#00FFFF', fontSize: '14px', fontWeight: 'bold', flexShrink: 0 }}>
-        全域杀伤链看板 (Cyber Kill Chain Kanban) —— 战区: {theater}
-      </div>
-      <div style={{ flex: 1, display: 'flex', gap: '0', overflowX: 'auto', minHeight: 0 }}>
-        
-        {/* Col 1 */}
-        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#999', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
-            <Radar size={14} /> 刚嗅探到 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[0].length}</span>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a', minHeight: 0 }}>
-            {cols[0].map(renderCard)}
-          </div>
-        </div>
-
-        {/* Col 2 */}
-        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#FF9900', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
-            <AlertTriangle size={14} /> 高危暴露面 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[1].length}</span>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a', minHeight: 0 }}>
-            {cols[1].map(renderCard)}
-          </div>
-        </div>
-
-        {/* Col 3 */}
-        <div style={{ flex: '1 1 250px', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#FF3B30', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
-            <Skull size={14} /> 已拿下据点 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[2].length}</span>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a', minHeight: 0 }}>
-            {cols[2].map(renderCard)}
-          </div>
-        </div>
-
-        {/* Col 4 */}
-        <div style={{ flex: '1 1 250px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ padding: '12px', borderBottom: '1px solid #222', display: 'flex', alignItems: 'center', gap: '6px', color: '#9D00FF', fontSize: '12px', fontWeight: 'bold', flexShrink: 0 }}>
-            <Crown size={14} /> 核心高价值 <span style={{ background: '#222', padding: '2px 6px', fontSize: '10px', color: '#00FFFF', borderRadius: 0 }}>{cols[3].length}</span>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', background: '#0a0a0a', minHeight: 0 }}>
-            {cols[3].map(renderCard)}
-          </div>
-        </div>
-
-        </div>
-      </div>
-      {/* [REMOVED in V9.3] A2UIForgeModal - /agent/forge 端点已删除 */}
-    </>
-  )
-}
 
 
 
@@ -3180,7 +2919,7 @@ function App() {
   }, [])
 
   // 移动端面板可见性判断
-  const showWorkArea = !isMobile || mobileView === 'RF' || mobileView === 'STATUS'
+  const showWorkArea = !isMobile || mobileView === 'RF' || mobileView === 'STATUS' || mobileView === 'ALERTS'
   const showAiPanel = !isMobile || mobileView === 'AI' || mobileView === 'MISSION'
   const showSidebar = !isMobile // 移动端不显示侧边栏
 
@@ -3189,6 +2928,7 @@ function App() {
     if (isMobile) {
       if (mobileView === 'RF') setView('RF')
       else if (mobileView === 'STATUS') setView('HQ')
+      else if (mobileView === 'ALERTS') setView('PA')
     }
   }, [mobileView, isMobile])
 
@@ -3202,7 +2942,7 @@ function App() {
           
           <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
             <div className="activity-bar">
-              {[['HQ', TerminalIcon, '指挥座舱'], ['RF', Radio, '无线电场'], ['DP', Archive, '数字兵站']].map(([k, Icon, label]) => (
+              {[['HQ', TerminalIcon, '指挥座舱'], ['RF', Radio, '无线电场'], ['PA', ShieldAlert, '协议告警'], ['DP', Archive, '数字兵站']].map(([k, Icon, label]) => (
                 <div key={k} className={`activity-icon ${view === k ? 'active' : ''}`} onClick={() => setView(k)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                   <Icon size={20} strokeWidth={1.5} />
                   <div style={{ fontSize: '10px' }}>{label}</div>
@@ -3235,6 +2975,7 @@ function App() {
       <div className="mobile-nav">
         {[
           { key: 'RF', icon: Radio, label: '雷达' },
+          { key: 'ALERTS', icon: ShieldAlert, label: '告警' },
           { key: 'AI', icon: Bot, label: 'AI' },
           { key: 'MISSION', icon: Target, label: '任务' },
           { key: 'STATUS', icon: Activity, label: '状态' },
